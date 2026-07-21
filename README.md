@@ -77,6 +77,20 @@ tests/test_ollama_provider.py::test_call_model_wraps_errors_as_provider_call_err
 ================= 15 passed (14 offline + 1 network-dependent) =================
 ```
 
+**Phase 2 (Neo4j knowledge graph, design done, build not started):**
+- `backend/app/graph/SCHEMA.md` -- maps every `ParsedRepository` field (`parser_schema.py`)
+  to a Neo4j node label or relationship type, keyed on `(repo_name, id)` rather than
+  bare `id` so multiple repos can share one Neo4j instance without collision (the
+  parser generates ids like `mod_0` fresh per parse, so bare ids collide across repos).
+  Documents 4 real gaps found during this design pass, e.g. `ApiEndpoint` has no
+  `module_id` field yet.
+- `backend/app/graph/schema.cypher` -- the constraints and ingestion/representation
+  queries this document above, validated end-to-end against a live Neo4j 5.26
+  Community Edition container (constraints applied cleanly, cross-repo isolation
+  confirmed with two colliding-id fake repos, and a corrected sanity-check query that
+  provably catches cross-repo edge bugs).
+- No Python builder module yet -- that's Week 2's Phase 2 build task.
+
 **Phase 8 (dashboard shell, started):**
 - `frontend/` -- Vite + React 19 + TypeScript + Tailwind CSS v4, routed with
   `react-router-dom`. Four pages: Analyze (URL input), Summary, Diagram, Comparison --
@@ -110,7 +124,7 @@ tests/test_ollama_provider.py::test_call_model_wraps_errors_as_provider_call_err
 
 - [x] **Phase 0** -- Contracts (parser schema, LLM result schema) + skeleton
 - [x] **Phase 1** -- Repository Acquisition + Express.js parser (tested, working)
-- [ ] **Phase 2** -- Knowledge Graph Builder (Neo4j)
+- [~] **Phase 2** -- Knowledge Graph Builder (Neo4j). Schema designed and validated against a live Neo4j instance (see `backend/app/graph/SCHEMA.md`); Python builder module not yet written.
 - [ ] **Phase 3** -- Structured Context Builder (3-way ablation: raw / dependency graph / full Neo4j context)
 - [~] **Phase 4** -- Ollama orchestration layer (3 local models: Qwen2.5-Coder 7B, Llama 3.1 8B, gpt-oss:20b/Mistral 7B -- no paid APIs). `OllamaProvider` built + unit-tested; not yet run against a real Ollama daemon.
 - [ ] **Phase 5** -- Summary + architecture diagram generation
