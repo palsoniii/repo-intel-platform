@@ -40,12 +40,42 @@ console errors.
   to module ids, resolves named route handlers to function ids, and reads
   `package.json` for external dependencies.
 - `backend/app/parsers/registry.py` -- dispatches to the right parser via `detect()`.
+  NestJS is checked *before* Express: a NestJS repo often lists `express` directly
+  too (it's NestJS's default HTTP adapter via `@nestjs/platform-express`), so
+  `ExpressParser.detect()` can also return `True` for a NestJS repo -- NestJS's
+  `@nestjs/core`/`@nestjs/common` signal is more specific.
 - `backend/app/pipeline.py` -- `analyze_repository(url)`: the single entrypoint tying
   acquisition + detection + parsing together.
 - `backend/app/main.py` -- `POST /analyze` endpoint wired to the pipeline, with clean
   400 errors on bad input.
 - `backend/tests/` -- 9 fixture-based unit tests (fast, no network) + 1 real-network
   integration test. All 10 passing.
+
+**Phase 6 (NestJS parser, built):**
+- `backend/app/parsers/nestjs_parser.py` -- full NestJS parser using
+  `tree-sitter-typescript`: extracts classes (controllers/services/modules) with
+  their methods correctly owned via `class_id` (unlike Express, NestJS is genuinely
+  class-based, so `HAS_METHOD`/`IMPLEMENTS` graph edges get exercised by real parser
+  output for the first time, not just the hand-built test fixture in
+  `test_graph_builder.py`), decorator-based routes (`@Get`/`@Post`/etc. combined
+  with the controller's `@Controller('prefix')`), ES `import` resolution, and
+  `package.json` dependencies.
+- Unlike Express, NestJS route handlers are always named class methods -- there's
+  no inline-handler-with-no-function-id case here.
+- Grammar facts (field names, sibling structure) were verified empirically against
+  real tree-sitter-typescript output before writing extraction code, not guessed --
+  this caught a real gotcha: a class's decorators are NOT its immediate preceding
+  sibling when `export`/`export default` sit in between (`export class Foo` parses
+  as siblings `[decorator*, export, class_declaration]`), so naively checking only
+  the immediate previous sibling would silently miss `@Controller`.
+- Validated against the real `nestjs/typescript-starter` repo, which surfaced a
+  real bug: `Path.suffix` only ever returns `.ts` (never `.spec.ts`), and the repo's
+  own scaffolded `test/app.e2e-spec.ts` used a naming convention
+  (`.e2e-spec.ts`) the filter didn't cover -- fixed to catch both `*.spec.ts` and
+  `*.e2e-spec.ts`.
+- `backend/tests/test_nestjs_parser.py` -- 12 fixture-based unit tests. Plus a new
+  real-network integration test in `test_pipeline_integration.py` against
+  `nestjs/typescript-starter` itself.
 
 **Phase 4 (Ollama orchestration layer, validated live):**
 - `backend/app/providers/ollama_provider.py` -- `OllamaProvider(BaseLLMProvider)`: the
@@ -94,6 +124,12 @@ console errors.
      regression-tested in `tests/test_main.py` (which deliberately disables
      `TestClient`'s `raise_server_exceptions` to inspect the response instead of
      having pytest re-raise it).
+  3. `.env` has been documented and depended on (`NEO4J_PASSWORD`, `OLLAMA_HOST`,
+     ...) since Phase 0, but nothing ever actually called `load_dotenv()` --
+     `python-dotenv` was a dependency, never used. Only surfaced after restarting
+     the server without inline env vars and getting a Neo4j auth error that made no
+     sense until this was noticed. Fixed with one `load_dotenv()` call in
+     `main.py`.
 
 ### Verified test results (this session)
 
@@ -108,6 +144,8 @@ tests/test_express_parser.py::test_inline_handler_has_no_function_id PASSED
 tests/test_express_parser.py::test_external_dependencies_from_package_json PASSED
 tests/test_express_parser.py::test_config_files_detected PASSED
 tests/test_pipeline_integration.py::test_analyze_real_express_repo PASSED
+tests/test_pipeline_integration.py::test_analyze_real_nestjs_repo PASSED
+tests/test_nestjs_parser.py:: (12 tests, fixture-based) PASSED
 tests/test_ollama_provider.py::test_provider_name_is_ollama PASSED
 tests/test_ollama_provider.py::test_generate_summary_success PASSED
 tests/test_ollama_provider.py::test_identical_call_shape_across_models PASSED
@@ -117,11 +155,15 @@ tests/test_pipeline_summary.py:: (7 tests, mocked Neo4j + LLM provider) PASSED
 tests/test_graph_builder.py:: (9 tests, real Neo4j -- @pytest.mark.neo4j) PASSED
 tests/test_context_builder.py:: (4 tests, real Neo4j -- @pytest.mark.neo4j) PASSED
 tests/test_main.py:: (3 tests, CORS-header-on-error regression) PASSED
-======= 38 passed total (23 always-offline + 1 network + 13 neo4j-gated) =======
+======= 51 passed total (35 always-offline + 2 network + 13 neo4j-gated) =======
 
-# plus one real, manual, no-mocks run of the whole pipeline:
+# plus two real, manual, no-mocks runs of the whole pipeline:
 POST /summarize {"url": "https://github.com/heroku/node-js-getting-started"}
 -> 200 OK in ~15s, correct JSON summary, $0 cost (see Status at the top of this file)
+POST /summarize {"url": "https://github.com/nestjs/typescript-starter"}
+-> 200 OK in ~23s, correct JSON summary, $0 cost -- first real NestJS repo through
+   the full pipeline (parser -> Neo4j -> context -> Ollama), confirming Phase 6
+   works end-to-end, not just in isolation
 ```
 
 The 13 `neo4j`-marked tests SKIP (not fail) when no Neo4j is reachable -- see Setup
@@ -194,13 +236,30 @@ below for how to run them for real.
 - Inline/anonymous route handlers (`app.get('/x', (req, res) => {...})`) are detected
   as endpoints but have no resolvable `handler_function_id`, since there's no stable
   name to link to. This is expected behavior, not a bug -- flagged explicitly in code.
-- `.ts`/`.tsx` files are currently skipped (logged to `files_skipped`), reserved for
-  the NestJS parser in Phase 6 which will use `tree-sitter-typescript`.
+- `.ts` files are now handled by the NestJS parser (Phase 6, below); `.tsx` is still
+  skipped everywhere (logged to `files_skipped`) -- NestJS backends don't use JSX,
+  so there was never a reason to add it.
 - Import resolution only handles relative `require()` paths, not ES module `import`
   syntax or path aliases (e.g. webpack/tsconfig `paths`).
 - No handling yet for Express apps split across many nested routers
   (`router.use('/sub', subRouter)`) -- route ownership across mounted sub-routers
   isn't traced yet.
+
+### Known gaps in the Phase 6 NestJS parser (same spirit as Phase 1's, above)
+
+- `@Module()` metadata (`controllers`/`providers`/`imports` arrays) isn't parsed --
+  module-to-controller/service wiring isn't in the graph, only the plain `IMPORTS`
+  edges from each file's own `import` statements.
+- Decorator arguments beyond a single string literal aren't resolved -- `@Controller({
+  path: 'users', version: '1' })` or `@Controller(['v1/users', 'v2/users'])`
+  resolve to an empty-string prefix rather than being parsed further.
+- No ORM entity extraction (e.g. TypeORM `@Entity()` classes) -- `database_entities`
+  is always empty for NestJS repos, same as Express.
+- Barrel-file re-exports (`export { X } from './y'`, `export * from './y'`) aren't
+  resolved as import edges -- only `import ... from` statements are.
+- Dependency injection isn't modeled -- constructor parameter types (e.g. `private
+  readonly usersService: UsersService`) aren't turned into graph edges, even though
+  they're the actual wiring NestJS uses at runtime.
 
 ### Build order (matches the original spec, section 6)
 
@@ -210,7 +269,7 @@ below for how to run them for real.
 - [~] **Phase 3** -- Structured Context Builder. `dependency_graph` and `knowledge_graph` built and tested live; `raw` deferred to Week 3 (needs raw-source retention, an open design question).
 - [x] **Phase 4** -- Ollama orchestration layer (3 local models: Qwen2.5-Coder 7B, Llama 3.1 8B, Mistral 7B substituted for gpt-oss:20b on this dev machine's 16GB RAM -- no paid APIs). Built, unit-tested, and validated against a real running Ollama daemon with all 3 models pulled.
 - [ ] **Phase 5** -- Architecture diagram generation (summary generation is done, folded into Phase 4's pipeline)
-- [ ] **Phase 6** -- NestJS parser
+- [x] **Phase 6** -- NestJS parser. Built and validated against a real repo (`nestjs/typescript-starter`).
 - [ ] **Phase 7** -- Evaluation harness (LLM-as-judge hallucination metric, diagram graph-diff scorer, CSV export)
 - [x] **Phase 8** -- React dashboard. Shell + routing built; Analyze/Summary pages wired to the real `POST /summarize` backend, verified end-to-end in-browser. Diagram/Comparison still on mock data (nothing real for them to show until Phase 5/Week 3 exist).
 

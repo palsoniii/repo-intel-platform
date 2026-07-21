@@ -10,12 +10,16 @@ from pathlib import Path
 
 from app.parsers.base import BaseParser, UnsupportedFrameworkError
 from app.parsers.express_parser import ExpressParser
+from app.parsers.nestjs_parser import NestJSParser
 from app.schemas.parser_schema import ParsedRepository
 
-# Order matters only in the rare case multiple detect() calls could both return True.
+# Order matters: a NestJS repo often lists "express" directly too (it's NestJS's
+# default HTTP adapter, via @nestjs/platform-express), so ExpressParser.detect()
+# can also return True for a NestJS repo. NestJSParser's signal (@nestjs/core or
+# @nestjs/common) is more specific, so it's checked first.
 PARSERS: list[BaseParser] = [
+    NestJSParser(),
     ExpressParser(),
-    # NestJSParser(),      # added in Phase 6
 ]
 
 

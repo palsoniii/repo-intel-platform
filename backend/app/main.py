@@ -7,6 +7,7 @@ GitHub URL -> parser -> Neo4j -> context -> Ollama -> summary pipeline, no mocks
 import logging
 import re
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -20,6 +21,14 @@ from app.pipeline import (
 )
 from app.schemas.llm_result import LLMMetrics, RunStatus
 from app.schemas.parser_schema import ParsedRepository
+
+# .env has been documented and depended on since Phase 0 (NEO4J_PASSWORD,
+# OLLAMA_HOST, ...) but nothing actually loaded it -- neo4j_client.get_driver() and
+# OllamaProvider.__init__ both read os.environ lazily at call time, not at import
+# time, so this just needs to run before the first request, not before the imports
+# above. Found by restarting the server without inline env vars and getting a Neo4j
+# auth error that only made sense once this gap was noticed.
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
