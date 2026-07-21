@@ -77,6 +77,22 @@ tests/test_ollama_provider.py::test_call_model_wraps_errors_as_provider_call_err
 ================= 15 passed (14 offline + 1 network-dependent) =================
 ```
 
+**Phase 8 (dashboard shell, started):**
+- `frontend/` -- Vite + React 19 + TypeScript + Tailwind CSS v4, routed with
+  `react-router-dom`. Four pages: Analyze (URL input), Summary, Diagram, Comparison --
+  all built against `frontend/src/lib/mockData.ts`, not a real backend yet.
+- `frontend/src/lib/types.ts` mirrors the backend's `ContextVariant` (3-way) and the 3
+  Ollama models, so swapping in real `/analyze` responses later doesn't require
+  reshaping the page components.
+- Diagram page shows raw Mermaid source in a `<pre>` block, not yet rendered --
+  real Mermaid rendering is Week 3 (diagram generation branches off the Neo4j graph
+  directly, not the LLM).
+- Comparison page is a table of all 3 models x 3 representations (latency, tokens,
+  a placeholder hallucination score, $0 cost) -- the ablation the research question
+  is about, though the numbers themselves are fake until Week 4's evaluation battery.
+- Verified manually in-browser: all 4 routes render, form navigation and direct-URL
+  SPA routing both work, no console errors.
+
 ### Known gaps in the Phase 1 parser (real, not hypothetical -- worth noting in your paper)
 
 - Inline/anonymous route handlers (`app.get('/x', (req, res) => {...})`) are detected
@@ -100,7 +116,7 @@ tests/test_ollama_provider.py::test_call_model_wraps_errors_as_provider_call_err
 - [ ] **Phase 5** -- Summary + architecture diagram generation
 - [ ] **Phase 6** -- NestJS parser
 - [ ] **Phase 7** -- Evaluation harness (LLM-as-judge hallucination metric, diagram graph-diff scorer, CSV export)
-- [ ] **Phase 8** -- React dashboard
+- [~] **Phase 8** -- React dashboard. Shell + routing + fake-data pages built; not yet wired to the real backend.
 
 This build order reflects the negotiated scope in `Capstone_Roadmap.docx` (Neo4j, Express+NestJS only,
 3 free local Ollama models, 3-way ablation, no commercial LLM APIs, no conference paper) -- not the
@@ -122,6 +138,12 @@ pytest tests/ -v -m "not integration"   # fast, offline-only
 uvicorn app.main:app --reload
 # then: curl -X POST localhost:8000/analyze -H "Content-Type: application/json" \
 #         -d '{"url": "https://github.com/heroku/node-js-getting-started"}'
+```
+
+```bash
+cd frontend
+npm install
+npm run dev   # http://localhost:5173 -- fake-data dashboard, no backend needed yet
 ```
 
 ### How to add a new framework parser (once the pattern is established in Phase 1)
