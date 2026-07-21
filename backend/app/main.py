@@ -17,9 +17,11 @@ from app.pipeline import (
     AnalysisError,
     PipelineInfrastructureError,
     analyze_repository,
+    generate_repository_diagram,
     generate_repository_summary,
+    run_representation_ablation,
 )
-from app.schemas.llm_result import LLMMetrics, RunStatus
+from app.schemas.llm_result import ContextVariant, LLMMetrics, RunStatus
 from app.schemas.parser_schema import ParsedRepository
 
 # .env has been documented and depended on since Phase 0 (NEO4J_PASSWORD,
@@ -99,6 +101,42 @@ class SummarizeResponse(BaseModel):
     error: str | None = None
 
 
+class DiagramRequest(BaseModel):
+    url: str
+    max_size_mb: int = 200
+
+
+class DiagramResponse(BaseModel):
+    repo_name: str
+    source_url: str
+    framework: str | None
+    diagram_mermaid: str
+
+
+class CompareRequest(BaseModel):
+    url: str
+    models: list[str] | None = None  # defaults to the 3 comparison models (.env)
+    max_size_mb: int = 200
+
+
+class ComparisonRun(BaseModel):
+    model: str
+    context_variant: ContextVariant
+    latency_ms: int
+    input_tokens: int
+    output_tokens: int
+    estimated_cost_usd: float
+    status: RunStatus
+    error: str | None = None
+
+
+class CompareResponse(BaseModel):
+    repo_name: str
+    source_url: str
+    framework: str | None
+    runs: list[ComparisonRun]
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "phase": "4 - Ollama layer + Neo4j graph + context builder"}
@@ -118,9 +156,8 @@ def analyze(req: AnalyzeRequest) -> ParsedRepository:
 def summarize(req: SummarizeRequest) -> SummarizeResponse:
     """Runs the full pipeline: parse -> write to Neo4j -> build knowledge_graph
     context -> ask the local Ollama model for a summary. Requires a reachable Neo4j
-    and Ollama daemon (see backend/.env.example); the 3-way representation ablation
-    and multi-model comparison are Week 3 work -- this always uses the
-    knowledge_graph representation and provider.default_model unless overridden."""
+    and Ollama daemon (see backend/.env.example). Single model, single
+    (knowledge_graph) representation -- see /compare for the full 3x3 ablation."""
     try:
         parsed, result = generate_repository_summary(
             req.url, model=req.model, max_size_mb=req.max_size_mb
@@ -139,6 +176,60 @@ def summarize(req: SummarizeRequest) -> SummarizeResponse:
         metrics=result.metrics,
         status=result.status,
         error=result.error,
+    )
+
+
+@app.post("/diagram", response_model=DiagramResponse)
+def diagram(req: DiagramRequest) -> DiagramResponse:
+    """Parse -> write to Neo4j -> generate a Mermaid architecture diagram directly
+    from the graph. No LLM call -- deterministic and free, unlike /summarize."""
+    try:
+        parsed, diagram_mermaid = generate_repository_diagram(req.url, max_size_mb=req.max_size_mb)
+    except AnalysisError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except PipelineInfrastructureError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+    return DiagramResponse(
+        repo_name=parsed.metadata.name,
+        source_url=parsed.metadata.source_url,
+        framework=parsed.metadata.detected_framework,
+        diagram_mermaid=diagram_mermaid,
+    )
+
+
+@app.post("/compare", response_model=CompareResponse)
+def compare(req: CompareRequest) -> CompareResponse:
+    """Runs the full 3-way representation ablation (raw / dependency_graph /
+    knowledge_graph) across all requested models (default: the 3 comparison models
+    configured in .env). This is len(models) * 3 sequential Ollama calls -- expect
+    this to take minutes, not seconds, especially with the default 3 models."""
+    try:
+        parsed, results = run_representation_ablation(
+            req.url, models=req.models, max_size_mb=req.max_size_mb
+        )
+    except AnalysisError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except PipelineInfrastructureError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+    return CompareResponse(
+        repo_name=parsed.metadata.name,
+        source_url=parsed.metadata.source_url,
+        framework=parsed.metadata.detected_framework,
+        runs=[
+            ComparisonRun(
+                model=r.model,
+                context_variant=r.context_variant,
+                latency_ms=r.metrics.latency_ms,
+                input_tokens=r.metrics.input_tokens,
+                output_tokens=r.metrics.output_tokens,
+                estimated_cost_usd=r.metrics.estimated_cost_usd,
+                status=r.status,
+                error=r.error,
+            )
+            for r in results
+        ],
     )
 
 

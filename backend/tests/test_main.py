@@ -14,6 +14,16 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.pipeline import AnalysisError, PipelineInfrastructureError
+from app.schemas.llm_result import (
+    ContextVariant,
+    LLMMetrics,
+    LLMOutput,
+    LLMResult,
+    LLMTask,
+    ProviderName,
+    RunStatus,
+)
+from app.schemas.parser_schema import ParsedRepository, RepoMetadata
 
 # raise_server_exceptions=False: these tests specifically inspect error responses
 # (status/body/headers), including the catch-all handler's -- the default True
@@ -64,3 +74,52 @@ def test_unexpected_exception_still_gets_cors_headers():
     assert response.status_code == 500
     assert "totally unexpected" in response.json()["detail"]
     assert response.headers["access-control-allow-origin"] == ORIGIN
+
+
+def _fake_parsed_repository() -> ParsedRepository:
+    return ParsedRepository(
+        metadata=RepoMetadata(
+            name="fake-repo",
+            source_url="https://github.com/test/fake-repo",
+            detected_language="javascript",
+            detected_framework="express",
+        )
+    )
+
+
+def test_diagram_endpoint_returns_mermaid():
+    with patch(
+        "app.main.generate_repository_diagram",
+        return_value=(_fake_parsed_repository(), "graph TD\n  mod_0[\"app.js\"]"),
+    ):
+        response = client.post("/diagram", json={"url": "https://github.com/test/fake-repo"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["repo_name"] == "fake-repo"
+    assert "graph TD" in body["diagram_mermaid"]
+
+
+def test_compare_endpoint_maps_results_to_comparison_runs():
+    fake_result = LLMResult(
+        provider=ProviderName.OLLAMA,
+        model="qwen2.5-coder:7b",
+        task=LLMTask.SUMMARY,
+        context_variant=ContextVariant.RAW,
+        repo_name="fake-repo",
+        output=LLMOutput(raw_text="{}"),
+        metrics=LLMMetrics(
+            latency_ms=1234, input_tokens=10, output_tokens=5, estimated_cost_usd=0.0
+        ),
+        status=RunStatus.SUCCESS,
+    )
+    with patch(
+        "app.main.run_representation_ablation",
+        return_value=(_fake_parsed_repository(), [fake_result]),
+    ):
+        response = client.post("/compare", json={"url": "https://github.com/test/fake-repo"})
+    assert response.status_code == 200
+    runs = response.json()["runs"]
+    assert len(runs) == 1
+    assert runs[0]["model"] == "qwen2.5-coder:7b"
+    assert runs[0]["context_variant"] == "raw"
+    assert runs[0]["latency_ms"] == 1234

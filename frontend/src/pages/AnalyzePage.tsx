@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { summarizeRepository, SummarizeError } from "../lib/api";
+import { summarizeRepository, ApiError } from "../lib/api";
 
 export default function AnalyzePage() {
   const [url, setUrl] = useState("");
@@ -18,7 +18,7 @@ export default function AnalyzePage() {
         state: { real: result },
       });
     } catch (err) {
-      setError(err instanceof SummarizeError ? err.message : "Something went wrong.");
+      setError(err instanceof ApiError ? err.message : "Something went wrong.");
     } finally {
       setIsSubmitting(false);
     }

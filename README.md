@@ -1,6 +1,6 @@
 # AI-Powered Repository Intelligence Platform
 
-## Status: Full pipeline works end-to-end -- GitHub URL to real summary in the dashboard
+## Status: Full pipeline + 3-way ablation + diagrams, all working end-to-end
 
 This project is being built incrementally, module by module, per the build order below.
 Phase 1 is a real, working, tested slice: give it a GitHub URL for an Express.js repo
@@ -8,15 +8,25 @@ and it clones it, detects the framework, and statically extracts modules, functi
 routes, dependencies, and config files -- verified against both a hand-built fixture
 and a live public repo (`heroku/node-js-getting-started`).
 
-Phases 2 (Neo4j graph builder), 3 (context builder), 4 (Ollama layer), and the
-dashboard wiring now form one real, no-mocks pipeline: paste a GitHub URL into the
-dashboard's Analyze page, it calls `POST /summarize`, which runs parser -> Neo4j ->
-knowledge_graph context -> Ollama (Qwen2.5-Coder by default) -> parsed JSON summary,
-rendered on the Summary page. Verified for real: a local Ollama install (3 models
-pulled -- Qwen2.5-Coder, Llama 3.1, Mistral 7B in place of gpt-oss:20b, see Known
-limitations for why) and a live Neo4j produced a correct summary for
-`heroku/node-js-getting-started` in ~15s, visible in the actual browser UI with zero
-console errors.
+Phases 2 (Neo4j graph builder), 3 (context builder), 4 (Ollama layer), 5 (Mermaid
+diagrams), 6 (NestJS parser), and the dashboard wiring now form one real, no-mocks
+pipeline. Three dashboard pages call three real endpoints:
+- **Analyze/Summary** -> `POST /summarize`: parser -> Neo4j -> knowledge_graph
+  context -> Ollama -> parsed JSON summary. ~15-25s.
+- **Diagram** -> `POST /diagram`: parser -> Neo4j -> Mermaid flowchart, deterministic,
+  no LLM call, effectively instant.
+- **Comparison** -> `POST /compare`: Week 3's 3-way representation ablation (raw /
+  dependency_graph / knowledge_graph) across all 3 comparison models -- 9 sequential
+  Ollama calls, 1-5 minutes.
+
+All three verified for real in-browser (not just via curl): a local Ollama install
+(3 models pulled -- Qwen2.5-Coder, Llama 3.1, Mistral 7B in place of gpt-oss:20b, see
+Known limitations for why) and a live Neo4j produced correct results for both
+`heroku/node-js-getting-started` (Express) and `nestjs/typescript-starter` (NestJS),
+zero console errors. A real 2-model x 3-representation comparison run surfaced a
+genuine research-relevant signal on its very first live run: raw-code context took
+~4x longer than the structured representations (more, noisier tokens) -- exactly the
+kind of trend the research question is about.
 
 ### What exists right now
 
@@ -131,6 +141,28 @@ console errors.
      sense until this was noticed. Fixed with one `load_dotenv()` call in
      `main.py`.
 
+**Week 3 addition -- 3-way representation ablation:**
+- `pipeline.run_representation_ablation()`: the same repo, same models, three
+  representations (raw/dependency_graph/knowledge_graph) -- `len(models) * 3`
+  `LLMResult`s. Clones and parses once (not via `analyze_repository()`, which
+  cleans up before returning -- raw source has to be read first, see
+  `_read_raw_source()`), writes to the graph once, builds each Neo4j-backed
+  context once, then reuses all of that across every model.
+- Model list defaults to `.env`'s `OLLAMA_MODEL_PRIMARY`/`FALLBACK`/`DIVERSITY`,
+  read lazily (not a module-level constant) to avoid an import-order dependency on
+  `load_dotenv()`.
+- Raw-source context is capped at 8000 characters by default -- these 7-8B models
+  commonly default to a 2-4K token context window (`num_ctx` isn't configured
+  anywhere in this pipeline yet, a known follow-up), so this is deliberately
+  conservative rather than assuming a larger window.
+- Exposed as `POST /compare`. **Validated live**: a real 2-model x 3-representation
+  run (6 calls) completed in 54s, all successful, and the numbers themselves were
+  interesting on the first try -- raw-code context took ~4x longer than the
+  structured representations (967-1204 input tokens vs. 261-354), which is exactly
+  the "more structure -> different behavior" trend the research question asks about.
+- `backend/tests/test_run_representation_ablation.py` -- 4 offline unit tests
+  (mocked clone/Neo4j/provider).
+
 ### Verified test results (this session)
 
 ```
@@ -154,19 +186,27 @@ tests/test_ollama_provider.py::test_call_model_wraps_errors_as_provider_call_err
 tests/test_pipeline_summary.py:: (7 tests, mocked Neo4j + LLM provider) PASSED
 tests/test_graph_builder.py:: (9 tests, real Neo4j -- @pytest.mark.neo4j) PASSED
 tests/test_context_builder.py:: (4 tests, real Neo4j -- @pytest.mark.neo4j) PASSED
-tests/test_main.py:: (3 tests, CORS-header-on-error regression) PASSED
-======= 51 passed total (35 always-offline + 2 network + 13 neo4j-gated) =======
+tests/test_diagram.py:: (3 tests, real Neo4j -- @pytest.mark.neo4j) PASSED
+tests/test_run_representation_ablation.py:: (4 tests, mocked clone/Neo4j/provider) PASSED
+tests/test_main.py:: (5 tests, CORS-header-on-error + diagram/compare mapping) PASSED
+======= 60 passed total (42 always-offline + 2 network + 16 neo4j-gated) =======
 
-# plus two real, manual, no-mocks runs of the whole pipeline:
+# plus real, manual, no-mocks runs against the running backend + browser:
 POST /summarize {"url": "https://github.com/heroku/node-js-getting-started"}
 -> 200 OK in ~15s, correct JSON summary, $0 cost (see Status at the top of this file)
 POST /summarize {"url": "https://github.com/nestjs/typescript-starter"}
 -> 200 OK in ~23s, correct JSON summary, $0 cost -- first real NestJS repo through
    the full pipeline (parser -> Neo4j -> context -> Ollama), confirming Phase 6
    works end-to-end, not just in isolation
+POST /diagram {"url": "https://github.com/heroku/node-js-getting-started"}
+-> 200 OK, correct Mermaid text, submitted through the Diagram page's own form
+   in-browser (not just curl)
+POST /compare {"url": "...", "models": ["qwen2.5-coder:7b", "mistral:7b"]}
+-> 200 OK in 54s (6 calls), all successful -- raw context ~4x slower than the
+   structured representations, a real signal on the very first live run
 ```
 
-The 13 `neo4j`-marked tests SKIP (not fail) when no Neo4j is reachable -- see Setup
+The 16 `neo4j`-marked tests SKIP (not fail) when no Neo4j is reachable -- see Setup
 below for how to run them for real.
 
 **Phase 2 (Neo4j knowledge graph, built):**
@@ -191,13 +231,15 @@ below for how to run them for real.
   Confirmed idempotency and that two repos with intentionally colliding parser ids
   stay isolated.
 
-**Phase 3 (structured context builder, 2 of 3 representations built):**
+**Phase 3 (structured context builder, all 3 representations built):**
 - `backend/app/context/builder.py` -- `build_context()` for `dependency_graph` and
   `knowledge_graph` (queries Neo4j and formats results into the text blob handed to
-  the LLM). `raw` deliberately raises `ContextBuilderError` -- it needs the repo's
-  raw source text, which isn't retained past `analyze_repository()`'s cleanup step;
-  that's Week 3 ablation work with an open design question about where raw source
-  gets cached.
+  the LLM). `raw` still deliberately raises `ContextBuilderError` here -- it needs
+  the repo's raw source text, which `analyze_repository()` doesn't retain past its
+  cleanup step. That's resolved for the ablation specifically by
+  `pipeline._read_raw_source()` (Week 3, see Phase 4 below), which reads raw source
+  during a dedicated clone in `run_representation_ablation()` before cleanup --
+  `build_context()`'s own signature (Neo4j-only) still can't produce it.
 - Found and fixed a real Cypher bug while testing against a live Neo4j: chaining
   `OPTIONAL MATCH (r)-[:HAS_ENDPOINT]->(e:Endpoint)-[:HANDLED_BY]->(handler:Function)`
   as one pattern drops the endpoint entirely (not just the handler) when there's no
@@ -209,27 +251,47 @@ below for how to run them for real.
   `frontend/src/lib/types.ts`'s `RepoSummary` shape.
 - `backend/tests/test_context_builder.py` -- 4 tests against a real Neo4j instance.
 
-**Phase 8 (dashboard shell + real wiring):**
+**Phase 5 (Mermaid diagram generation, built):**
+- `backend/app/graph/diagram.py` -- `generate_architecture_diagram()`: Neo4j graph
+  -> Mermaid flowchart, entirely deterministic Cypher + string formatting, no LLM
+  call at all, per the roadmap's framing ("branches off the graph directly").
+  Modules become nodes (labeled by path), `IMPORTS` becomes `-->` edges, endpoints
+  become hexagon nodes linked to their owning module with a dotted edge (or
+  standalone, for inline handlers with no resolvable module).
+- Uses the graph's own stable ids (`mod_0`, `mod_1_ep_0`, ...) as Mermaid node ids
+  directly, rather than sanitizing file paths -- those ids are already
+  alphanumeric-plus-underscore, so there's no escaping problem to solve.
+- Exposed as `POST /diagram`: parse -> write to Neo4j -> generate diagram. No LLM,
+  so this is effectively instant compared to `/summarize`.
+- `backend/tests/test_diagram.py` -- 3 tests against a real Neo4j instance.
+- Rendering the Mermaid text visually (not just showing the raw source) is still open.
+
+**Phase 8 (dashboard shell + real wiring, all 4 pages):**
 - `frontend/` -- Vite + React 19 + TypeScript + Tailwind CSS v4, routed with
-  `react-router-dom`. Four pages: Analyze, Summary, Diagram, Comparison.
-- `frontend/src/lib/types.ts` mirrors the backend's `ContextVariant` (3-way) and the 3
-  Ollama models. Diagram and Comparison pages still use `mockData.ts` -- there's no
-  backend yet for diagram generation (Phase 5) or multi-model/multi-representation
-  comparison (Week 3), so there's nothing real for them to show.
-- `frontend/src/lib/api.ts` -- `summarizeRepository()`: calls the real `POST
-  /summarize`, with a snake_case -> camelCase mapping at the boundary (the model's
-  own JSON output stays snake_case, matching the prompt). The Analyze page now
-  actually submits to this instead of only navigating to mock data, with loading
-  and error states; the Summary page renders the real result when it has one
-  (via router state), falling back to `mockData.ts` when visited directly (e.g. from
-  the nav bar) so the shell is still browsable without a live backend.
+  `react-router-dom`. Four pages: Analyze, Summary, Diagram, Comparison -- all four
+  now call real backend endpoints, each with its own URL-input form (Diagram and
+  Comparison didn't have one before; adding one to each meant a user doesn't have
+  to go through Analyze first just to see a diagram or run a comparison).
+- `frontend/src/lib/types.ts` mirrors the backend's `ContextVariant` (3-way) and the
+  3 Ollama models.
+- `frontend/src/lib/api.ts` -- `summarizeRepository()`, `getArchitectureDiagram()`,
+  `compareModels()`: a shared `postJson()` helper with one error class (`ApiError`,
+  renamed from `SummarizeError` now that it's used by three functions), each doing
+  its own snake_case -> camelCase mapping at the boundary (the model's own JSON
+  summary output stays snake_case, matching the prompt -- only the envelope around
+  it is mapped). Every page renders the real result when it has one (via router
+  state), falling back to `mockData.ts` when visited directly (e.g. from the nav
+  bar) so the shell is still browsable without a live backend.
 - Backend: added `CORSMiddleware` (regex-matched to any `localhost`/`127.0.0.1`
   port, since Vite's default 5173 is often taken by other local projects) and a
   global exception handler -- see the CORS bug under Phase 4 above, which this
   wiring work is what actually surfaced it.
-- Verified for real in-browser: submitted a live GitHub URL through the Analyze
-  page, watched it hit the real backend, and got a correct rendered summary on the
-  Summary page with zero console errors (see Status above).
+- Comparison page explicitly warns the 9-call ablation takes 1-5 minutes and shows
+  a `status` column instead of the mock data's hallucination-score column for real
+  runs (that scoring is Week 4 work, not built yet).
+- Verified for real in-browser, not just via curl: submitted live GitHub URLs
+  through the Analyze and Diagram pages' forms, watched both hit the real backend,
+  and got correctly rendered results with zero console errors.
 
 ### Known gaps in the Phase 1 parser (real, not hypothetical -- worth noting in your paper)
 
@@ -266,12 +328,12 @@ below for how to run them for real.
 - [x] **Phase 0** -- Contracts (parser schema, LLM result schema) + skeleton
 - [x] **Phase 1** -- Repository Acquisition + Express.js parser (tested, working)
 - [x] **Phase 2** -- Knowledge Graph Builder (Neo4j). `write_parsed_repository()` built and tested against a live Neo4j instance.
-- [~] **Phase 3** -- Structured Context Builder. `dependency_graph` and `knowledge_graph` built and tested live; `raw` deferred to Week 3 (needs raw-source retention, an open design question).
-- [x] **Phase 4** -- Ollama orchestration layer (3 local models: Qwen2.5-Coder 7B, Llama 3.1 8B, Mistral 7B substituted for gpt-oss:20b on this dev machine's 16GB RAM -- no paid APIs). Built, unit-tested, and validated against a real running Ollama daemon with all 3 models pulled.
-- [ ] **Phase 5** -- Architecture diagram generation (summary generation is done, folded into Phase 4's pipeline)
+- [x] **Phase 3** -- Structured Context Builder. All 3 representations available: `dependency_graph`/`knowledge_graph` via `build_context()`, `raw` via the ablation's dedicated `_read_raw_source()` path.
+- [x] **Phase 4** -- Ollama orchestration layer (3 local models: Qwen2.5-Coder 7B, Llama 3.1 8B, Mistral 7B substituted for gpt-oss:20b on this dev machine's 16GB RAM -- no paid APIs). Built, unit-tested, and validated against a real running Ollama daemon with all 3 models pulled -- including the full 3-way ablation across 2 models live.
+- [x] **Phase 5** -- Architecture diagram generation. Deterministic Neo4j -> Mermaid, no LLM, validated live against real repos.
 - [x] **Phase 6** -- NestJS parser. Built and validated against a real repo (`nestjs/typescript-starter`).
 - [ ] **Phase 7** -- Evaluation harness (LLM-as-judge hallucination metric, diagram graph-diff scorer, CSV export)
-- [x] **Phase 8** -- React dashboard. Shell + routing built; Analyze/Summary pages wired to the real `POST /summarize` backend, verified end-to-end in-browser. Diagram/Comparison still on mock data (nothing real for them to show until Phase 5/Week 3 exist).
+- [x] **Phase 8** -- React dashboard. All 4 pages (Analyze, Summary, Diagram, Comparison) wired to real backend endpoints, each independently, verified end-to-end in-browser.
 
 This build order reflects the negotiated scope in `Capstone_Roadmap.docx` (Neo4j, Express+NestJS only,
 3 free local Ollama models, 3-way ablation, no commercial LLM APIs, no conference paper) -- not the
@@ -316,15 +378,24 @@ curl -X POST localhost:8000/summarize -H "Content-Type: application/json" \
         -d '{"url": "https://github.com/heroku/node-js-getting-started"}'
 # ~15s, real cloned repo, real Neo4j graph, real model inference -- this exact
 # command produced a correct summary in the session that built this pipeline.
+
+curl -X POST localhost:8000/diagram -H "Content-Type: application/json" \
+        -d '{"url": "https://github.com/heroku/node-js-getting-started"}'
+# effectively instant -- no LLM call, just Neo4j -> Mermaid text
+
+curl -X POST localhost:8000/compare -H "Content-Type: application/json" \
+        -d '{"url": "https://github.com/heroku/node-js-getting-started", "models": ["qwen2.5-coder:7b", "mistral:7b"]}'
+# 1-5 minutes depending on model count -- omit "models" to run all 3 from .env
 ```
 
 ```bash
 cd frontend
 npm install
 npm run dev   # http://localhost:5180 (Vite config pins this -- 5173 is often taken
-              # by other local projects). Analyze/Summary pages need the backend
-              # running (above) to show real data; Diagram/Comparison still work
-              # off mock data with no backend at all.
+              # by other local projects). All 4 pages have their own URL-input form
+              # and need the backend running (above) for real data; visiting a page
+              # directly (e.g. from the nav bar) without submitting shows mock data
+              # instead, so the shell is still browsable with no backend at all.
 ```
 
 The backend's CORS is regex-matched to any `localhost`/`127.0.0.1` port, so it
