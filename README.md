@@ -435,7 +435,9 @@ doesn't matter which port Vite actually lands on if 5180 is also taken.
   projects (`civicpulse`, `qann-dashboard`) before the model pulls fit -- worth a
   `docker image prune -a` / `docker builder prune -a` check on a fresh machine that's
   been used for other Docker projects before assuming there's room for the models.
-- The `raw` `ContextVariant` isn't implemented (`ContextBuilderError` if requested) --
-  it needs the repo's raw source text, which isn't retained past
-  `analyze_repository()`'s cleanup step. Needs a design decision in Week 3: cache raw
-  source somewhere during acquisition, or re-clone for the raw arm of the ablation.
+- `context.builder.build_context()` still can't produce the `raw` `ContextVariant`
+  (`ContextBuilderError` if requested directly) -- its signature is Neo4j-only.
+  RAW is only available via `pipeline.run_representation_ablation()`, which reads
+  source during its own dedicated clone (`_read_raw_source()`) before cleanup.
+- `num_ctx` (Ollama's context window) isn't configured anywhere -- `DEFAULT_MAX_RAW_CHARS`
+  (8000 chars) in `pipeline.py` is a conservative guess, not a measured value.
