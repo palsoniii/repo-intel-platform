@@ -1,6 +1,6 @@
 # AI-Powered Repository Intelligence Platform
 
-## Status: Phase 1 done, Phase 4 (Ollama layer) started
+## Status: Phase 1 done; Phases 2/3/4/8 have a first real build each
 
 This project is being built incrementally, module by module, per the build order below.
 Phase 1 is a real, working, tested slice: give it a GitHub URL for an Express.js repo
@@ -8,10 +8,12 @@ and it clones it, detects the framework, and statically extracts modules, functi
 routes, dependencies, and config files -- verified against both a hand-built fixture
 and a live public repo (`heroku/node-js-getting-started`).
 
-Phase 4's `OllamaProvider` is built and unit-tested against a mocked Ollama client
-(no local Ollama daemon required to run the test suite). It has not yet been
-exercised against a real running Ollama instance with the 3 pulled models --
-that's still the Day-0 hardware-check step from the roadmap.
+Phases 2 (Neo4j graph builder), 3 (context builder), and 4 (Ollama layer) now form a
+real, wired pipeline (`pipeline.generate_repository_summary`, exposed as `POST
+/summarize`): parser output -> Neo4j -> knowledge_graph context -> Ollama -> parsed
+JSON summary. Verified against a live Neo4j instance and with the Ollama call mocked
+(no local Ollama daemon was available in this environment -- see Known limitations).
+Wiring the dashboard to this real endpoint (rather than mock data) is still open.
 
 ### What exists right now
 
@@ -55,6 +57,17 @@ that's still the Day-0 hardware-check step from the roadmap.
   and `.generate_architecture_diagram()` accepted a `model` argument but never passed
   it to `_run()`, so model selection silently no-op'd and every call used
   `default_model` regardless of what was requested.
+- `backend/app/pipeline.py` -- `generate_repository_summary()`: the real, no-mocks
+  Week 2 pipeline (parse -> Neo4j -> knowledge_graph context -> Ollama -> JSON
+  summary), exposed as `POST /summarize` in `main.py`. `driver`/`provider` are
+  injectable so tests don't need live infra; JSON parsing of the model's raw output
+  happens here (downstream of the provider, per `providers/base.py`'s design), and
+  malformed/off-schema output is marked invalid rather than raised, since that's a
+  real possibility with local models, not just a hypothetical.
+- `backend/tests/test_pipeline_summary.py` -- 6 offline unit tests (mocked Neo4j
+  driver + LLM provider) covering orchestration order, driver-ownership/cleanup, and
+  malformed-JSON handling. Real Ollama behavior isn't exercised anywhere yet -- no
+  Ollama daemon was available in this environment.
 
 ### Verified test results (this session)
 
@@ -74,22 +87,54 @@ tests/test_ollama_provider.py::test_generate_summary_success PASSED
 tests/test_ollama_provider.py::test_identical_call_shape_across_models PASSED
 tests/test_ollama_provider.py::test_connection_failure_raises_provider_call_error_and_records_failed_status PASSED
 tests/test_ollama_provider.py::test_call_model_wraps_errors_as_provider_call_error PASSED
-================= 15 passed (14 offline + 1 network-dependent) =================
+tests/test_pipeline_summary.py:: (6 tests, mocked Neo4j + LLM provider) PASSED
+tests/test_graph_builder.py:: (9 tests, real Neo4j -- @pytest.mark.neo4j) PASSED
+tests/test_context_builder.py:: (4 tests, real Neo4j -- @pytest.mark.neo4j) PASSED
+======= 34 passed total (20 always-offline + 1 network + 13 neo4j-gated) =======
 ```
 
-**Phase 2 (Neo4j knowledge graph, design done, build not started):**
+The 13 `neo4j`-marked tests SKIP (not fail) when no Neo4j is reachable -- see Setup
+below for how to run them for real.
+
+**Phase 2 (Neo4j knowledge graph, built):**
 - `backend/app/graph/SCHEMA.md` -- maps every `ParsedRepository` field (`parser_schema.py`)
   to a Neo4j node label or relationship type, keyed on `(repo_name, id)` rather than
   bare `id` so multiple repos can share one Neo4j instance without collision (the
   parser generates ids like `mod_0` fresh per parse, so bare ids collide across repos).
-  Documents 4 real gaps found during this design pass, e.g. `ApiEndpoint` has no
-  `module_id` field yet.
-- `backend/app/graph/schema.cypher` -- the constraints and ingestion/representation
-  queries this document above, validated end-to-end against a live Neo4j 5.26
-  Community Edition container (constraints applied cleanly, cross-repo isolation
-  confirmed with two colliding-id fake repos, and a corrected sanity-check query that
-  provably catches cross-repo edge bugs).
-- No Python builder module yet -- that's Week 2's Phase 2 build task.
+  Documents 7 real gaps/bugs found across the design and build passes.
+- `backend/app/graph/schema.cypher` -- constraints + reference queries, validated
+  against a live Neo4j 5.26 Community Edition container.
+- `backend/app/graph/builder.py` -- `write_parsed_repository()`: the real
+  `ParsedRepository` -> Neo4j builder. One atomic transaction per repo (a partial
+  parse never leaves a half-written graph), MERGE-based (idempotent -- re-running
+  is safe), covers every node/edge type including `HAS_METHOD`/`IMPLEMENTS`/`CALLS`/
+  `RELATES_TO`, which the current Express parser never actually populates (no
+  classes in idiomatic Express apps) -- those code paths are only exercised by
+  `tests/test_graph_builder.py`'s hand-built fixture.
+- `backend/app/db/neo4j_client.py` -- thin driver factory reading `NEO4J_URI`/
+  `NEO4J_USER`/`NEO4J_PASSWORD` from the environment.
+- `backend/tests/test_graph_builder.py` -- 9 tests against a real Neo4j instance
+  (marked `@pytest.mark.neo4j`, skip gracefully if none is reachable -- see Setup).
+  Confirmed idempotency and that two repos with intentionally colliding parser ids
+  stay isolated.
+
+**Phase 3 (structured context builder, 2 of 3 representations built):**
+- `backend/app/context/builder.py` -- `build_context()` for `dependency_graph` and
+  `knowledge_graph` (queries Neo4j and formats results into the text blob handed to
+  the LLM). `raw` deliberately raises `ContextBuilderError` -- it needs the repo's
+  raw source text, which isn't retained past `analyze_repository()`'s cleanup step;
+  that's Week 3 ablation work with an open design question about where raw source
+  gets cached.
+- Found and fixed a real Cypher bug while testing against a live Neo4j: chaining
+  `OPTIONAL MATCH (r)-[:HAS_ENDPOINT]->(e:Endpoint)-[:HANDLED_BY]->(handler:Function)`
+  as one pattern drops the endpoint entirely (not just the handler) when there's no
+  `HANDLED_BY` edge -- e.g. inline route handlers vanished from the context instead
+  of appearing with a null handler. Fixed by splitting into two `OPTIONAL MATCH`
+  clauses (see SCHEMA.md's "Update (Week 2 build)" section for detail).
+- `backend/app/providers/prompts.py` -- `SUMMARY_PROMPT_TEMPLATE`, asking for JSON
+  matching `{overview, tech_stack, services, dependencies}` -- deliberately mirrors
+  `frontend/src/lib/types.ts`'s `RepoSummary` shape.
+- `backend/tests/test_context_builder.py` -- 4 tests against a real Neo4j instance.
 
 **Phase 8 (dashboard shell, started):**
 - `frontend/` -- Vite + React 19 + TypeScript + Tailwind CSS v4, routed with
@@ -124,9 +169,9 @@ tests/test_ollama_provider.py::test_call_model_wraps_errors_as_provider_call_err
 
 - [x] **Phase 0** -- Contracts (parser schema, LLM result schema) + skeleton
 - [x] **Phase 1** -- Repository Acquisition + Express.js parser (tested, working)
-- [~] **Phase 2** -- Knowledge Graph Builder (Neo4j). Schema designed and validated against a live Neo4j instance (see `backend/app/graph/SCHEMA.md`); Python builder module not yet written.
-- [ ] **Phase 3** -- Structured Context Builder (3-way ablation: raw / dependency graph / full Neo4j context)
-- [~] **Phase 4** -- Ollama orchestration layer (3 local models: Qwen2.5-Coder 7B, Llama 3.1 8B, gpt-oss:20b/Mistral 7B -- no paid APIs). `OllamaProvider` built + unit-tested; not yet run against a real Ollama daemon.
+- [x] **Phase 2** -- Knowledge Graph Builder (Neo4j). `write_parsed_repository()` built and tested against a live Neo4j instance.
+- [~] **Phase 3** -- Structured Context Builder. `dependency_graph` and `knowledge_graph` built and tested live; `raw` deferred to Week 3 (needs raw-source retention, an open design question).
+- [~] **Phase 4** -- Ollama orchestration layer (3 local models: Qwen2.5-Coder 7B, Llama 3.1 8B, gpt-oss:20b/Mistral 7B -- no paid APIs). `OllamaProvider` + full pipeline wiring (`POST /summarize`) built and unit-tested; not yet run against a real Ollama daemon.
 - [ ] **Phase 5** -- Summary + architecture diagram generation
 - [ ] **Phase 6** -- NestJS parser
 - [ ] **Phase 7** -- Evaluation harness (LLM-as-judge hallucination metric, diagram graph-diff scorer, CSV export)
@@ -142,15 +187,25 @@ original, broader proposal.
 cd backend
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env   # fill in Neo4j creds (Phase 2) / Ollama host (Phase 4) -- not needed yet
+cp .env.example .env   # fill in Neo4j creds / Ollama host -- required for /summarize, not /analyze
 
 # run tests
 pytest tests/ -v                    # all tests, including real network clone
-pytest tests/ -v -m "not integration"   # fast, offline-only
+pytest tests/ -v -m "not integration"   # offline + neo4j (neo4j tests skip if none reachable)
+pytest tests/ -v -m "not integration and not neo4j"   # always-offline only, no infra needed
+
+# to actually run the neo4j-marked tests: start a throwaway Neo4j first
+docker run -d --name neo4j-test -p 7474:7474 -p 7687:7687 -e NEO4J_AUTH=neo4j/testpassword123 neo4j:5.26
+NEO4J_TEST_PASSWORD=testpassword123 pytest tests/ -v -m neo4j
+docker rm -f neo4j-test   # when done
 
 # run the API
 uvicorn app.main:app --reload
 # then: curl -X POST localhost:8000/analyze -H "Content-Type: application/json" \
+#         -d '{"url": "https://github.com/heroku/node-js-getting-started"}'
+# /summarize additionally requires a real Neo4j (per .env) AND a running Ollama
+# daemon with the model pulled -- neither is wired up in this sandboxed session:
+# curl -X POST localhost:8000/summarize -H "Content-Type: application/json" \
 #         -d '{"url": "https://github.com/heroku/node-js-getting-started"}'
 ```
 
@@ -185,3 +240,12 @@ npm run dev   # http://localhost:5173 -- fake-data dashboard, no backend needed 
 - All three comparison models run locally via Ollama; response-time comparisons are
   only meaningful when run on the single designated evaluation machine (see roadmap
   Section 1).
+- No Ollama daemon was available in the environment these Week 1-2 changes were
+  built in, so `OllamaProvider`/`POST /summarize` are unit-tested against a mocked
+  client only -- never exercised against a real running model. Confirm this works
+  end-to-end on the designated evaluation machine before trusting it for the Aug 1
+  checkpoint demo.
+- The `raw` `ContextVariant` isn't implemented (`ContextBuilderError` if requested) --
+  it needs the repo's raw source text, which isn't retained past
+  `analyze_repository()`'s cleanup step. Needs a design decision in Week 3: cache raw
+  source somewhere during acquisition, or re-clone for the raw arm of the ablation.

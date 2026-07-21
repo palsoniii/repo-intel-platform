@@ -32,10 +32,11 @@ relationship type, so the Week 2 build has an unambiguous target.
 | `RELATES_TO` | `Function` -> `DatabaseEntity` | `DatabaseEntity.related_function_ids` |
 | `DEPENDS_ON` | `Repository` -> `ExternalDependency` | `Dependencies.external` |
 | `HAS_CONFIG` | `Repository` -> `ConfigFile` | `config_files` |
+| `HAS_DATABASE_ENTITY` | `Repository` -> `DatabaseEntity` | implicit (added while implementing the builder -- see gap #5) |
 
-`Endpoint` is attached to `Repository` directly (`Repository -[:HAS_ENDPOINT]-> Endpoint`)
-rather than to `Module`, because `ApiEndpoint` currently has no `module_id` field --
-see gap #1.
+`Endpoint` and `DatabaseEntity` are both attached to `Repository` directly rather than
+to `Module`, because neither `ApiEndpoint` nor `DatabaseEntity` has a `module_id`
+field -- see gaps #1 and #5.
 
 ## Open gaps to resolve before the Week 2 build (found while doing this design pass)
 
@@ -68,6 +69,11 @@ see gap #1.
    Same repo-scoping problem as #3, worse because there's no id to composite against --
    recommend keying `ExternalDependency` on `(repo_name, name)` and `ConfigFile` on
    `(repo_name, path)`.
+
+5. **`DatabaseEntity` also has no `module_id` field**, the same gap as `ApiEndpoint`
+   (#1) -- found while writing `app/graph/builder.py` in the Week 2 build. Attached
+   to `Repository` directly via the `HAS_DATABASE_ENTITY` relationship (same pattern
+   as `HAS_ENDPOINT`) rather than to `Module`.
 
 ## Uniqueness constraints (apply once per Neo4j instance, not per repo)
 
@@ -110,8 +116,29 @@ only, it was run end-to-end against a throwaway Neo4j 5.26 Community Edition con
   rows normally, and correctly detects a deliberately-introduced cross-repo edge when
   one is forced in, so the check has real teeth.
 
-## Not yet done (explicitly out of scope for this design pass)
+## Update (Week 2 build)
 
-- No Python graph-builder module (`app/graph/builder.py` or similar) -- that's Week 2.
-  The validation above used raw Cypher via the `neo4j` Python driver directly, not
-  any code that will ship in the repo.
+`app/graph/builder.py` and `app/context/builder.py` now implement this design (see
+their module docstrings). Building them against a real Neo4j instance (via
+`tests/test_graph_builder.py` and `tests/test_context_builder.py`, both marked
+`@pytest.mark.neo4j` and skipped gracefully without one) surfaced two more real
+issues beyond the 5 gaps above:
+
+6. **`DatabaseEntity` needed the same `HAS_DATABASE_ENTITY` treatment as `Endpoint`**
+   -- added to the relationship table above.
+7. **A genuine Cypher semantics bug**, caught only by testing against a live
+   database with an endpoint that has no handler: `OPTIONAL MATCH
+   (r)-[:HAS_ENDPOINT]->(e:Endpoint)-[:HANDLED_BY]->(handler:Function)` as a single
+   chained pattern drops the *entire* pattern -- including `e` -- for any endpoint
+   with no `HANDLED_BY` edge (e.g. inline handlers), silently excluding it from
+   results instead of returning `handler = null`. Fixed by splitting into two
+   separate `OPTIONAL MATCH` clauses in both `schema.cypher` and
+   `context/builder.py`. The two-repo Week 1 validation didn't catch this because
+   that test data didn't include a handler-less endpoint.
+
+## Not yet done
+
+- Week 3's ablation runner (calling all 3 models against all 3 representations
+  across the fixed evaluation set) and the RAW representation (needs raw source
+  text retained past `analyze_repository()`'s cleanup, an open design question --
+  see `context/builder.py`'s docstring).

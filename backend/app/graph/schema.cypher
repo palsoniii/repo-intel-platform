@@ -107,23 +107,29 @@ RETURN m.path AS module_path,
        collect(DISTINCT target.path) AS imports,
        collect(DISTINCT dep.name) AS external_dependencies;
 
-// knowledge_graph variant: full structured context (everything)
+// knowledge_graph variant: full structured context (everything) -- kept in sync with
+// the actual query in app/context/builder.py's _query_knowledge_graph
 MATCH (r:Repository {name: $repo_name})
 OPTIONAL MATCH (r)-[:HAS_MODULE]->(m:Module)
 OPTIONAL MATCH (m)-[:DEFINES]->(c:Class)
-OPTIONAL MATCH (c)-[:HAS_METHOD]->(fn:Function)
-OPTIONAL MATCH (m)-[:DEFINES]->(freeFn:Function) WHERE NOT (freeFn)<-[:HAS_METHOD]-()
-OPTIONAL MATCH (r)-[:HAS_ENDPOINT]->(e:Endpoint)-[:HANDLED_BY]->(handler:Function)
-OPTIONAL MATCH (fnAny:Function)-[:CALLS]->(callee:Function)
-  WHERE fnAny.repo_name = $repo_name
+// Two separate OPTIONAL MATCHes, not one chained pattern: chaining
+// (e:Endpoint)-[:HANDLED_BY]->(handler) in a single OPTIONAL MATCH drops the whole
+// pattern -- including `e` -- for endpoints with no handler (e.g. inline handlers),
+// silently excluding them from the results instead of returning handler = null.
+// Caught by test_context_builder.py against a live Neo4j instance.
+OPTIONAL MATCH (r)-[:HAS_ENDPOINT]->(e:Endpoint)
+OPTIONAL MATCH (e)-[:HANDLED_BY]->(handler:Function)
 OPTIONAL MATCH (r)-[:DEPENDS_ON]->(dep:ExternalDependency)
 OPTIONAL MATCH (r)-[:HAS_CONFIG]->(cfg:ConfigFile)
+OPTIONAL MATCH (r)-[:HAS_DATABASE_ENTITY]->(db:DatabaseEntity)
 RETURN r.detected_framework AS framework,
+       r.framework_version AS framework_version,
        collect(DISTINCT m.path) AS modules,
        collect(DISTINCT c.name) AS classes,
        collect(DISTINCT {method: e.method, path: e.path, handler: handler.name}) AS endpoints,
        collect(DISTINCT dep.name) AS external_dependencies,
-       collect(DISTINCT cfg.path) AS config_files;
+       collect(DISTINCT cfg.path) AS config_files,
+       collect(DISTINCT db.name) AS database_entities;
 
 // Sanity-check query: verify no relationship connects nodes from two DIFFERENT
 // repos -- this is the real regression to guard against (e.g. a MATCH clause in the
