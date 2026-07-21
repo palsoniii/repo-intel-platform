@@ -115,6 +115,7 @@ class BaseLLMProvider(ABC):
             repo_name=repo_name,
             system_prompt=system_prompt,
             user_prompt=prompt_template.format(context=context),
+            model=model,
         )
 
     def generate_architecture_diagram(
@@ -132,4 +133,5 @@ class BaseLLMProvider(ABC):
             repo_name=repo_name,
             system_prompt=system_prompt,
             user_prompt=prompt_template.format(context=context),
+            model=model,
         )

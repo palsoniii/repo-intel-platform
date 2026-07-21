@@ -1,12 +1,17 @@
 # AI-Powered Repository Intelligence Platform
 
-## Status: Phase 1 -- Acquisition + Express.js Parser (working, tested)
+## Status: Phase 1 done, Phase 4 (Ollama layer) started
 
 This project is being built incrementally, module by module, per the build order below.
 Phase 1 is a real, working, tested slice: give it a GitHub URL for an Express.js repo
 and it clones it, detects the framework, and statically extracts modules, functions,
 routes, dependencies, and config files -- verified against both a hand-built fixture
 and a live public repo (`heroku/node-js-getting-started`).
+
+Phase 4's `OllamaProvider` is built and unit-tested against a mocked Ollama client
+(no local Ollama daemon required to run the test suite). It has not yet been
+exercised against a real running Ollama instance with the 3 pulled models --
+that's still the Day-0 hardware-check step from the roadmap.
 
 ### What exists right now
 
@@ -37,6 +42,20 @@ and a live public repo (`heroku/node-js-getting-started`).
 - `backend/tests/` -- 9 fixture-based unit tests (fast, no network) + 1 real-network
   integration test. All 10 passing.
 
+**Phase 4 (Ollama orchestration layer, in progress):**
+- `backend/app/providers/ollama_provider.py` -- `OllamaProvider(BaseLLMProvider)`: the
+  one class all 3 comparison models run through (Qwen2.5-Coder, Llama 3.1,
+  gpt-oss/Mistral) -- model choice is just the `model` argument, so the call shape is
+  identical across all three per the roadmap's Week 1 requirement. Wraps the `ollama`
+  Python client's `.chat()`, reading `prompt_eval_count`/`eval_count` for token counts.
+- `backend/app/providers/pricing.py` -- always returns $0 (local models, no billing).
+- `backend/tests/test_ollama_provider.py` -- 5 unit tests against a mocked Ollama
+  client (no local Ollama daemon needed to run these).
+- Fixed a real bug found while writing these tests: `BaseLLMProvider.generate_summary()`
+  and `.generate_architecture_diagram()` accepted a `model` argument but never passed
+  it to `_run()`, so model selection silently no-op'd and every call used
+  `default_model` regardless of what was requested.
+
 ### Verified test results (this session)
 
 ```
@@ -50,7 +69,12 @@ tests/test_express_parser.py::test_inline_handler_has_no_function_id PASSED
 tests/test_express_parser.py::test_external_dependencies_from_package_json PASSED
 tests/test_express_parser.py::test_config_files_detected PASSED
 tests/test_pipeline_integration.py::test_analyze_real_express_repo PASSED
-================= 10 passed =================
+tests/test_ollama_provider.py::test_provider_name_is_ollama PASSED
+tests/test_ollama_provider.py::test_generate_summary_success PASSED
+tests/test_ollama_provider.py::test_identical_call_shape_across_models PASSED
+tests/test_ollama_provider.py::test_connection_failure_raises_provider_call_error_and_records_failed_status PASSED
+tests/test_ollama_provider.py::test_call_model_wraps_errors_as_provider_call_error PASSED
+================= 15 passed (14 offline + 1 network-dependent) =================
 ```
 
 ### Known gaps in the Phase 1 parser (real, not hypothetical -- worth noting in your paper)
@@ -72,7 +96,7 @@ tests/test_pipeline_integration.py::test_analyze_real_express_repo PASSED
 - [x] **Phase 1** -- Repository Acquisition + Express.js parser (tested, working)
 - [ ] **Phase 2** -- Knowledge Graph Builder (Neo4j)
 - [ ] **Phase 3** -- Structured Context Builder (3-way ablation: raw / dependency graph / full Neo4j context)
-- [ ] **Phase 4** -- Ollama orchestration layer (3 local models: Qwen2.5-Coder 7B, Llama 3.1 8B, gpt-oss:20b/Mistral 7B -- no paid APIs)
+- [~] **Phase 4** -- Ollama orchestration layer (3 local models: Qwen2.5-Coder 7B, Llama 3.1 8B, gpt-oss:20b/Mistral 7B -- no paid APIs). `OllamaProvider` built + unit-tested; not yet run against a real Ollama daemon.
 - [ ] **Phase 5** -- Summary + architecture diagram generation
 - [ ] **Phase 6** -- NestJS parser
 - [ ] **Phase 7** -- Evaluation harness (LLM-as-judge hallucination metric, diagram graph-diff scorer, CSV export)
