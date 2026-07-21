@@ -1,26 +1,37 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { mockAnalysis } from "../lib/mockData";
+import { summarizeRepository, SummarizeError } from "../lib/api";
 
 export default function AnalyzePage() {
   const [url, setUrl] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    // Placeholder: real submit will POST to /analyze (backend/app/main.py) and
-    // route to the returned repo's pages. For now every submission jumps to the
-    // one mock repo so the rest of the dashboard is reachable.
-    navigate(`/repo/${encodeURIComponent(mockAnalysis.repoName)}/summary`);
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      const result = await summarizeRepository(url);
+      navigate(`/repo/${encodeURIComponent(result.repoName)}/summary`, {
+        state: { real: result },
+      });
+    } catch (err) {
+      setError(err instanceof SummarizeError ? err.message : "Something went wrong.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
     <div className="mx-auto max-w-xl">
       <h2 className="mb-2 text-2xl font-semibold">Analyze a repository</h2>
       <p className="mb-6 text-sm text-slate-600 dark:text-slate-400">
-        Paste a GitHub URL for an Express.js or NestJS repo. This form is not wired to
-        the backend yet -- submitting takes you to placeholder results for{" "}
-        <span className="font-mono">{mockAnalysis.repoName}</span>.
+        Paste a GitHub URL for an Express.js or NestJS repo. This calls the real{" "}
+        <span className="font-mono">POST /summarize</span> pipeline (parser -&gt; Neo4j -&gt;
+        context -&gt; Ollama) -- it needs a reachable Neo4j and Ollama daemon (see backend/
+        README) to succeed.
       </p>
       <form onSubmit={handleSubmit} className="flex gap-2">
         <input
@@ -29,15 +40,32 @@ export default function AnalyzePage() {
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           placeholder="https://github.com/owner/repo"
-          className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 dark:border-slate-700 dark:bg-slate-900"
+          disabled={isSubmitting}
+          className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900"
         />
         <button
           type="submit"
-          className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+          disabled={isSubmitting}
+          className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-60"
         >
-          Analyze
+          {isSubmitting ? "Analyzing..." : "Analyze"}
         </button>
       </form>
+      {error && (
+        <p className="mt-4 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+          {error}
+        </p>
+      )}
+      <p className="mt-6 text-xs text-slate-500 dark:text-slate-400">
+        Want to see the dashboard shell without a live backend? Visit{" "}
+        <a
+          className="underline"
+          href={`/repo/${encodeURIComponent("node-js-getting-started")}/summary`}
+        >
+          the placeholder summary page
+        </a>{" "}
+        directly.
+      </p>
     </div>
   );
 }

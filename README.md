@@ -1,6 +1,6 @@
 # AI-Powered Repository Intelligence Platform
 
-## Status: Phase 1 done; Phases 2/3/4/8 have a first real build each
+## Status: Full pipeline works end-to-end -- GitHub URL to real summary in the dashboard
 
 This project is being built incrementally, module by module, per the build order below.
 Phase 1 is a real, working, tested slice: give it a GitHub URL for an Express.js repo
@@ -8,12 +8,15 @@ and it clones it, detects the framework, and statically extracts modules, functi
 routes, dependencies, and config files -- verified against both a hand-built fixture
 and a live public repo (`heroku/node-js-getting-started`).
 
-Phases 2 (Neo4j graph builder), 3 (context builder), and 4 (Ollama layer) now form a
-real, wired pipeline (`pipeline.generate_repository_summary`, exposed as `POST
-/summarize`): parser output -> Neo4j -> knowledge_graph context -> Ollama -> parsed
-JSON summary. Verified against a live Neo4j instance and with the Ollama call mocked
-(no local Ollama daemon was available in this environment -- see Known limitations).
-Wiring the dashboard to this real endpoint (rather than mock data) is still open.
+Phases 2 (Neo4j graph builder), 3 (context builder), 4 (Ollama layer), and the
+dashboard wiring now form one real, no-mocks pipeline: paste a GitHub URL into the
+dashboard's Analyze page, it calls `POST /summarize`, which runs parser -> Neo4j ->
+knowledge_graph context -> Ollama (Qwen2.5-Coder by default) -> parsed JSON summary,
+rendered on the Summary page. Verified for real: a local Ollama install (3 models
+pulled -- Qwen2.5-Coder, Llama 3.1, Mistral 7B in place of gpt-oss:20b, see Known
+limitations for why) and a live Neo4j produced a correct summary for
+`heroku/node-js-getting-started` in ~15s, visible in the actual browser UI with zero
+console errors.
 
 ### What exists right now
 
@@ -44,7 +47,7 @@ Wiring the dashboard to this real endpoint (rather than mock data) is still open
 - `backend/tests/` -- 9 fixture-based unit tests (fast, no network) + 1 real-network
   integration test. All 10 passing.
 
-**Phase 4 (Ollama orchestration layer, in progress):**
+**Phase 4 (Ollama orchestration layer, validated live):**
 - `backend/app/providers/ollama_provider.py` -- `OllamaProvider(BaseLLMProvider)`: the
   one class all 3 comparison models run through (Qwen2.5-Coder, Llama 3.1,
   gpt-oss/Mistral) -- model choice is just the `model` argument, so the call shape is
@@ -64,10 +67,33 @@ Wiring the dashboard to this real endpoint (rather than mock data) is still open
   happens here (downstream of the provider, per `providers/base.py`'s design), and
   malformed/off-schema output is marked invalid rather than raised, since that's a
   real possibility with local models, not just a hypothetical.
-- `backend/tests/test_pipeline_summary.py` -- 6 offline unit tests (mocked Neo4j
-  driver + LLM provider) covering orchestration order, driver-ownership/cleanup, and
-  malformed-JSON handling. Real Ollama behavior isn't exercised anywhere yet -- no
-  Ollama daemon was available in this environment.
+- `backend/tests/test_pipeline_summary.py` -- 7 offline unit tests (mocked Neo4j
+  driver + LLM provider) covering orchestration order, driver-ownership/cleanup,
+  malformed-JSON handling, and Neo4j-unreachable error wrapping.
+- **Validated for real**: installed Ollama (Homebrew), freed ~15GB of stale Docker
+  build cache/dangling images to make room, pulled all 3 models (Qwen2.5-Coder,
+  Llama 3.1, Mistral 7B substituted for gpt-oss:20b -- this dev machine has 16GB
+  RAM, not the ~16GB gpt-oss:20b alone needs), started a real Neo4j via Docker, and
+  ran `POST /summarize` against `heroku/node-js-getting-started` for real: correct
+  JSON summary in ~15s, $0 cost, zero errors.
+- Two real bugs found only by testing against live infra (not just mocks):
+  1. `generate_repository_summary` let raw `neo4j.exceptions.ServiceUnavailable`
+     propagate as an unhandled exception when Neo4j was down. Added
+     `PipelineInfrastructureError` (caught in `main.py`, returned as a clean 503)
+     -- catches both `Neo4jError` (server-side errors) and `DriverError`
+     (connection-level errors), not the driver's `GqlError` common base, since
+     that's an explicitly-labeled preview feature that could change without a
+     deprecation cycle.
+  2. A FastAPI/Starlette gotcha: Starlette routes handlers registered for the bare
+     `Exception` class to `ServerErrorMiddleware`, which wraps `CORSMiddleware`
+     from the *outside* -- so a global `@app.exception_handler(Exception)` never
+     gets CORS headers from the middleware, no matter how CORS is configured. An
+     unrelated backend bug looked, from the browser, indistinguishable from a
+     CORS/network failure. Fixed by setting `Access-Control-Allow-Origin`
+     manually in that handler. Caught first via manual browser testing, then
+     regression-tested in `tests/test_main.py` (which deliberately disables
+     `TestClient`'s `raise_server_exceptions` to inspect the response instead of
+     having pytest re-raise it).
 
 ### Verified test results (this session)
 
@@ -87,10 +113,15 @@ tests/test_ollama_provider.py::test_generate_summary_success PASSED
 tests/test_ollama_provider.py::test_identical_call_shape_across_models PASSED
 tests/test_ollama_provider.py::test_connection_failure_raises_provider_call_error_and_records_failed_status PASSED
 tests/test_ollama_provider.py::test_call_model_wraps_errors_as_provider_call_error PASSED
-tests/test_pipeline_summary.py:: (6 tests, mocked Neo4j + LLM provider) PASSED
+tests/test_pipeline_summary.py:: (7 tests, mocked Neo4j + LLM provider) PASSED
 tests/test_graph_builder.py:: (9 tests, real Neo4j -- @pytest.mark.neo4j) PASSED
 tests/test_context_builder.py:: (4 tests, real Neo4j -- @pytest.mark.neo4j) PASSED
-======= 34 passed total (20 always-offline + 1 network + 13 neo4j-gated) =======
+tests/test_main.py:: (3 tests, CORS-header-on-error regression) PASSED
+======= 38 passed total (23 always-offline + 1 network + 13 neo4j-gated) =======
+
+# plus one real, manual, no-mocks run of the whole pipeline:
+POST /summarize {"url": "https://github.com/heroku/node-js-getting-started"}
+-> 200 OK in ~15s, correct JSON summary, $0 cost (see Status at the top of this file)
 ```
 
 The 13 `neo4j`-marked tests SKIP (not fail) when no Neo4j is reachable -- see Setup
@@ -136,21 +167,27 @@ below for how to run them for real.
   `frontend/src/lib/types.ts`'s `RepoSummary` shape.
 - `backend/tests/test_context_builder.py` -- 4 tests against a real Neo4j instance.
 
-**Phase 8 (dashboard shell, started):**
+**Phase 8 (dashboard shell + real wiring):**
 - `frontend/` -- Vite + React 19 + TypeScript + Tailwind CSS v4, routed with
-  `react-router-dom`. Four pages: Analyze (URL input), Summary, Diagram, Comparison --
-  all built against `frontend/src/lib/mockData.ts`, not a real backend yet.
+  `react-router-dom`. Four pages: Analyze, Summary, Diagram, Comparison.
 - `frontend/src/lib/types.ts` mirrors the backend's `ContextVariant` (3-way) and the 3
-  Ollama models, so swapping in real `/analyze` responses later doesn't require
-  reshaping the page components.
-- Diagram page shows raw Mermaid source in a `<pre>` block, not yet rendered --
-  real Mermaid rendering is Week 3 (diagram generation branches off the Neo4j graph
-  directly, not the LLM).
-- Comparison page is a table of all 3 models x 3 representations (latency, tokens,
-  a placeholder hallucination score, $0 cost) -- the ablation the research question
-  is about, though the numbers themselves are fake until Week 4's evaluation battery.
-- Verified manually in-browser: all 4 routes render, form navigation and direct-URL
-  SPA routing both work, no console errors.
+  Ollama models. Diagram and Comparison pages still use `mockData.ts` -- there's no
+  backend yet for diagram generation (Phase 5) or multi-model/multi-representation
+  comparison (Week 3), so there's nothing real for them to show.
+- `frontend/src/lib/api.ts` -- `summarizeRepository()`: calls the real `POST
+  /summarize`, with a snake_case -> camelCase mapping at the boundary (the model's
+  own JSON output stays snake_case, matching the prompt). The Analyze page now
+  actually submits to this instead of only navigating to mock data, with loading
+  and error states; the Summary page renders the real result when it has one
+  (via router state), falling back to `mockData.ts` when visited directly (e.g. from
+  the nav bar) so the shell is still browsable without a live backend.
+- Backend: added `CORSMiddleware` (regex-matched to any `localhost`/`127.0.0.1`
+  port, since Vite's default 5173 is often taken by other local projects) and a
+  global exception handler -- see the CORS bug under Phase 4 above, which this
+  wiring work is what actually surfaced it.
+- Verified for real in-browser: submitted a live GitHub URL through the Analyze
+  page, watched it hit the real backend, and got a correct rendered summary on the
+  Summary page with zero console errors (see Status above).
 
 ### Known gaps in the Phase 1 parser (real, not hypothetical -- worth noting in your paper)
 
@@ -171,11 +208,11 @@ below for how to run them for real.
 - [x] **Phase 1** -- Repository Acquisition + Express.js parser (tested, working)
 - [x] **Phase 2** -- Knowledge Graph Builder (Neo4j). `write_parsed_repository()` built and tested against a live Neo4j instance.
 - [~] **Phase 3** -- Structured Context Builder. `dependency_graph` and `knowledge_graph` built and tested live; `raw` deferred to Week 3 (needs raw-source retention, an open design question).
-- [~] **Phase 4** -- Ollama orchestration layer (3 local models: Qwen2.5-Coder 7B, Llama 3.1 8B, gpt-oss:20b/Mistral 7B -- no paid APIs). `OllamaProvider` + full pipeline wiring (`POST /summarize`) built and unit-tested; not yet run against a real Ollama daemon.
-- [ ] **Phase 5** -- Summary + architecture diagram generation
+- [x] **Phase 4** -- Ollama orchestration layer (3 local models: Qwen2.5-Coder 7B, Llama 3.1 8B, Mistral 7B substituted for gpt-oss:20b on this dev machine's 16GB RAM -- no paid APIs). Built, unit-tested, and validated against a real running Ollama daemon with all 3 models pulled.
+- [ ] **Phase 5** -- Architecture diagram generation (summary generation is done, folded into Phase 4's pipeline)
 - [ ] **Phase 6** -- NestJS parser
 - [ ] **Phase 7** -- Evaluation harness (LLM-as-judge hallucination metric, diagram graph-diff scorer, CSV export)
-- [~] **Phase 8** -- React dashboard. Shell + routing + fake-data pages built; not yet wired to the real backend.
+- [x] **Phase 8** -- React dashboard. Shell + routing built; Analyze/Summary pages wired to the real `POST /summarize` backend, verified end-to-end in-browser. Diagram/Comparison still on mock data (nothing real for them to show until Phase 5/Week 3 exist).
 
 This build order reflects the negotiated scope in `Capstone_Roadmap.docx` (Neo4j, Express+NestJS only,
 3 free local Ollama models, 3-way ablation, no commercial LLM APIs, no conference paper) -- not the
@@ -201,19 +238,38 @@ docker rm -f neo4j-test   # when done
 
 # run the API
 uvicorn app.main:app --reload
-# then: curl -X POST localhost:8000/analyze -H "Content-Type: application/json" \
-#         -d '{"url": "https://github.com/heroku/node-js-getting-started"}'
-# /summarize additionally requires a real Neo4j (per .env) AND a running Ollama
-# daemon with the model pulled -- neither is wired up in this sandboxed session:
-# curl -X POST localhost:8000/summarize -H "Content-Type: application/json" \
-#         -d '{"url": "https://github.com/heroku/node-js-getting-started"}'
+```
+
+**For `/summarize` to actually work** (not just `/analyze`), you need a running Neo4j
+*and* Ollama with the models pulled, matching whatever `.env` points at:
+
+```bash
+# Neo4j (persistent, not the throwaway test one above -- match .env's NEO4J_PASSWORD)
+docker run -d --name neo4j-dev -p 7474:7474 -p 7687:7687 -e NEO4J_AUTH=neo4j/<your-password> neo4j:5.26
+
+# Ollama (macOS)
+brew install ollama && brew services start ollama
+ollama pull qwen2.5-coder:7b
+ollama pull llama3.1:8b
+ollama pull gpt-oss:20b   # or: ollama pull mistral:7b if your machine has <=16GB RAM
+
+curl -X POST localhost:8000/summarize -H "Content-Type: application/json" \
+        -d '{"url": "https://github.com/heroku/node-js-getting-started"}'
+# ~15s, real cloned repo, real Neo4j graph, real model inference -- this exact
+# command produced a correct summary in the session that built this pipeline.
 ```
 
 ```bash
 cd frontend
 npm install
-npm run dev   # http://localhost:5173 -- fake-data dashboard, no backend needed yet
+npm run dev   # http://localhost:5180 (Vite config pins this -- 5173 is often taken
+              # by other local projects). Analyze/Summary pages need the backend
+              # running (above) to show real data; Diagram/Comparison still work
+              # off mock data with no backend at all.
 ```
+
+The backend's CORS is regex-matched to any `localhost`/`127.0.0.1` port, so it
+doesn't matter which port Vite actually lands on if 5180 is also taken.
 
 ### How to add a new framework parser (once the pattern is established in Phase 1)
 
@@ -240,11 +296,15 @@ npm run dev   # http://localhost:5173 -- fake-data dashboard, no backend needed 
 - All three comparison models run locally via Ollama; response-time comparisons are
   only meaningful when run on the single designated evaluation machine (see roadmap
   Section 1).
-- No Ollama daemon was available in the environment these Week 1-2 changes were
-  built in, so `OllamaProvider`/`POST /summarize` are unit-tested against a mocked
-  client only -- never exercised against a real running model. Confirm this works
-  end-to-end on the designated evaluation machine before trusting it for the Aug 1
-  checkpoint demo.
+- This dev machine substitutes Mistral 7B for gpt-oss:20b (16GB RAM total isn't
+  enough to comfortably load a ~13GB model alongside Neo4j/Docker/the OS -- exactly
+  the case the roadmap's own fallback note anticipates). Whoever ends up as the
+  designated evaluation machine (roadmap Section 1) should re-check this: more RAM
+  might mean gpt-oss:20b is viable there instead.
+- Docker on this machine had ~36GB of stale build cache/dangling images from other
+  projects (`civicpulse`, `qann-dashboard`) before the model pulls fit -- worth a
+  `docker image prune -a` / `docker builder prune -a` check on a fresh machine that's
+  been used for other Docker projects before assuming there's room for the models.
 - The `raw` `ContextVariant` isn't implemented (`ContextBuilderError` if requested) --
   it needs the repo's raw source text, which isn't retained past
   `analyze_repository()`'s cleanup step. Needs a design decision in Week 3: cache raw

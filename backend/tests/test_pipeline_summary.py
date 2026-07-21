@@ -9,8 +9,9 @@ Ollama daemon available in this environment -- see README's known limitations).
 from unittest.mock import MagicMock, patch
 
 import pytest
+from neo4j.exceptions import ServiceUnavailable
 
-from app.pipeline import analyze_repository, generate_repository_summary
+from app.pipeline import PipelineInfrastructureError, analyze_repository, generate_repository_summary
 from app.schemas.llm_result import (
     ContextVariant,
     LLMMetrics,
@@ -118,6 +119,27 @@ def test_owned_driver_is_closed_even_if_context_build_fails(mock_driver):
             generate_repository_summary("https://github.com/test/fake-repo", provider=provider)
 
     mock_driver.close.assert_called_once()
+
+
+def test_neo4j_connection_failure_wrapped_as_infrastructure_error(mock_driver):
+    """Found via manual browser testing: /summarize against a real-but-down Neo4j
+    raised a raw neo4j.exceptions.ServiceUnavailable, which is a 500-shaped
+    unhandled exception at the API layer (and, worse, one that arrives at the
+    browser with no CORS headers -- see test_main.py). This should be a clean,
+    distinguishable error instead."""
+    provider = MagicMock()
+    provider.default_model = "qwen2.5-coder:7b"
+
+    with patch("app.pipeline.ensure_constraints"), patch("app.pipeline.write_parsed_repository"), patch(
+        "app.pipeline.build_context",
+        side_effect=ServiceUnavailable("Couldn't connect to localhost:7687"),
+    ):
+        with pytest.raises(PipelineInfrastructureError, match="Neo4j"):
+            generate_repository_summary(
+                "https://github.com/test/fake-repo", driver=mock_driver, provider=provider
+            )
+
+    mock_driver.close.assert_not_called()  # injected driver, not owned -- shouldn't be closed
 
 
 def test_malformed_model_output_marked_invalid_not_raised(mock_driver):

@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 
 from neo4j import Driver
+from neo4j.exceptions import DriverError, Neo4jError
 
 from app.acquisition.clone import AcquiredRepo, CloneFailedError, InvalidRepoUrlError, RepoTooLargeError, clone_repository
 from app.context.builder import build_context
@@ -28,6 +29,12 @@ REQUIRED_SUMMARY_KEYS = {"overview", "tech_stack", "services", "dependencies"}
 
 class AnalysisError(Exception):
     """Wraps all recoverable failure modes with a consistent message for the API layer."""
+
+
+class PipelineInfrastructureError(Exception):
+    """Neo4j (or another required service) is unreachable -- distinct from
+    AnalysisError (bad input) because it's a 503-shaped problem (retry later, or
+    start the service), not a 400-shaped one (fix your request)."""
 
 
 def analyze_repository(url: str, max_size_mb: int = 200) -> ParsedRepository:
@@ -65,9 +72,14 @@ def generate_repository_summary(
     driver = driver or get_driver()
     provider = provider or OllamaProvider()
     try:
-        ensure_constraints(driver)
-        write_parsed_repository(driver, parsed)
-        context = build_context(driver, parsed.metadata.name, ContextVariant.KNOWLEDGE_GRAPH)
+        try:
+            ensure_constraints(driver)
+            write_parsed_repository(driver, parsed)
+            context = build_context(driver, parsed.metadata.name, ContextVariant.KNOWLEDGE_GRAPH)
+        except (Neo4jError, DriverError, OSError) as e:
+            raise PipelineInfrastructureError(
+                f"Couldn't reach Neo4j -- is it running? ({e})"
+            ) from e
     finally:
         if owns_driver:
             driver.close()

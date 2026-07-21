@@ -4,18 +4,68 @@ providers, evaluation) is built out; /summarize is the first one that runs the f
 GitHub URL -> parser -> Neo4j -> context -> Ollama -> summary pipeline, no mocks.
 """
 
-from fastapi import FastAPI, HTTPException
+import logging
+import re
+
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from app.pipeline import AnalysisError, analyze_repository, generate_repository_summary
+from app.pipeline import (
+    AnalysisError,
+    PipelineInfrastructureError,
+    analyze_repository,
+    generate_repository_summary,
+)
 from app.schemas.llm_result import LLMMetrics, RunStatus
 from app.schemas.parser_schema import ParsedRepository
+
+logger = logging.getLogger(__name__)
+
+# Dev-only: the dashboard (Vite) calls this API directly from the browser. Vite's
+# default port (5173) may be taken by another local project, so it can land on any
+# port -- matched here via regex rather than a hardcoded origin. Tighten this to the
+# deployed frontend's real origin before Week 4's public/live demo. Shared between
+# CORSMiddleware and unhandled_exception_handler below -- see that handler's
+# docstring for why both need it.
+DEV_CORS_ORIGIN_REGEX = re.compile(r"^http://(localhost|127\.0\.0\.1):\d+$")
 
 app = FastAPI(
     title="Repository Intelligence Platform",
     description="Static-analysis-driven repository understanding + multi-LLM comparison",
     version="0.3.0-phase2-4",
 )
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex=DEV_CORS_ORIGIN_REGEX.pattern,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Safety net for genuinely unexpected exceptions. Specific, anticipated
+    failures (bad URL, Neo4j unreachable) are raised as HTTPException from the
+    route instead, which IS covered by CORSMiddleware correctly -- this handler
+    exists only for the rest.
+
+    The CORS header below is set manually, NOT inherited from CORSMiddleware:
+    Starlette special-cases handlers registered for `Exception`/500, routing them
+    to ServerErrorMiddleware, which wraps CORSMiddleware from the outside. So a
+    response built here never passes back through CORSMiddleware to pick up
+    Access-Control-Allow-Origin -- confirmed by testing this exact handler with
+    TestClient(raise_server_exceptions=False) and inspecting the response headers.
+    Without this, an unexpected backend error looks like an opaque network/CORS
+    failure in the browser instead of a readable one."""
+    logger.exception("Unhandled exception in %s %s", request.method, request.url.path)
+    response = JSONResponse(status_code=500, content={"detail": f"Internal error: {exc}"})
+    origin = request.headers.get("origin")
+    if origin and DEV_CORS_ORIGIN_REGEX.match(origin):
+        response.headers["Access-Control-Allow-Origin"] = origin
+    return response
 
 
 class AnalyzeRequest(BaseModel):
@@ -68,6 +118,8 @@ def summarize(req: SummarizeRequest) -> SummarizeResponse:
         )
     except AnalysisError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except PipelineInfrastructureError as e:
+        raise HTTPException(status_code=503, detail=str(e))
 
     return SummarizeResponse(
         repo_name=parsed.metadata.name,

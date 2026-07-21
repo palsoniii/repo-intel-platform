@@ -143,9 +143,15 @@ def test_two_repos_with_colliding_ids_stay_isolated(neo4j_driver, sample_parsed_
     write_parsed_repository(neo4j_driver, sample_parsed_repository)
     write_parsed_repository(neo4j_driver, repo_b)
 
+    # Scoped to just these two repo_names -- a bare `id: 'mod_0'` match would also
+    # pick up unrelated repos already in a shared, persistent Neo4j instance (a real
+    # id like "mod_0" is common enough that other repos legitimately have one too;
+    # this test only cares about isolation between its own two repos).
     rows = _run(
         neo4j_driver,
-        "MATCH (m:Module {id: 'mod_0'}) RETURN m.repo_name AS repo_name ORDER BY repo_name",
+        "MATCH (m:Module {id: 'mod_0'}) WHERE m.repo_name IN $repo_names "
+        "RETURN m.repo_name AS repo_name ORDER BY repo_name",
+        repo_names=[sample_parsed_repository.metadata.name, repo_b.metadata.name],
     )
     repo_names = {row["repo_name"] for row in rows}
     assert sample_parsed_repository.metadata.name in repo_names
