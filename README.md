@@ -192,7 +192,7 @@ tests/test_main.py:: (5 tests, CORS-header-on-error + diagram/compare mapping) P
 tests/test_hallucination.py:: (8 tests, mocked judge) PASSED
 tests/test_harness.py:: (5 tests, mocked ablation + scorer) PASSED
 tests/test_diagram_score.py:: (9 tests, pure logic) PASSED
-======= 82 passed total (offline + neo4j-gated, with Neo4j up) =======
+======= 86 passed total (offline + neo4j-gated, with Neo4j up) =======
 
 # plus real, manual, no-mocks runs against the running backend + browser:
 POST /summarize {"url": "https://github.com/heroku/node-js-getting-started"}
@@ -271,7 +271,8 @@ below for how to run them for real.
 - Exposed as `POST /diagram`: parse -> write to Neo4j -> generate diagram. No LLM,
   so this is effectively instant compared to `/summarize`.
 - `backend/tests/test_diagram.py` -- 3 tests against a real Neo4j instance.
-- Rendering the Mermaid text visually (not just showing the raw source) is still open.
+- The Diagram page now renders the Mermaid visually (via mermaid.js) instead of raw
+  text -- see Phase 8. The raw source stays available under the rendered diagram.
 
 **Phase 7 (LLM-as-judge hallucination scorer, built + live-validated):**
 - `backend/app/evaluation/hallucination.py` -- `score_summary()`: formats the
@@ -318,13 +319,21 @@ below for how to run them for real.
   (hallucination score) side by side. `write_csv()` produces the results table the
   report is built from.
 - Runs as a script on the designated evaluation machine:
-  `python -m app.evaluation.harness <url> [<url> ...] --models qwen2.5-coder:7b mistral:7b --judge-model llama3.1:8b --out results.csv`.
+  `python -m app.evaluation.harness <url> [...] --models qwen2.5-coder:7b mistral:7b --judge-model llama3.1:8b --annotations-dir ./annotations --out results.csv --sqlite results.db`.
 - One shared Neo4j driver + provider across the batch; a single repo failing (bad URL,
   unsupported framework, Neo4j blip) records a failure row and continues rather than
   aborting the whole run. Records a `self_judged` flag when the generator and judge
   are the same model, so those rows can be filtered out during analysis.
-- `backend/tests/test_harness.py` -- 5 offline unit tests (mocked ablation + scorer),
-  plus a real end-to-end run producing an actual CSV (see "Verified test results").
+- `--annotations-dir` adds the diagram graph-diff columns (module/import/endpoint/
+  overall F1) per repo when a `<repo_name>.json` expected-structure annotation exists.
+  `--sqlite` also appends every row into a SQLite table that accumulates across runs
+  (the CSV is overwritten each run).
+- The same scoring is wired into the live `POST /compare` (`run_scored_ablation`), so
+  the dashboard's Comparison page shows hallucination scores interactively, not only
+  via the batch CSV.
+- `backend/tests/test_harness.py` -- offline unit tests (mocked ablation + scorer,
+  diagram-scoring integration, SQLite roundtrip), plus a real end-to-end run
+  producing an actual CSV (see "Verified test results").
 
 **Phase 8 (dashboard shell + real wiring, all 4 pages):**
 - `frontend/` -- Vite + React 19 + TypeScript + Tailwind CSS v4, routed with
@@ -346,12 +355,14 @@ below for how to run them for real.
   port, since Vite's default 5173 is often taken by other local projects) and a
   global exception handler -- see the CORS bug under Phase 4 above, which this
   wiring work is what actually surfaced it.
-- Comparison page explicitly warns the 9-call ablation takes 1-5 minutes and shows
-  a `status` column instead of the mock data's hallucination-score column for real
-  runs (that scoring is Week 4 work, not built yet).
+- Comparison page shows a live hallucination score per (model, representation) --
+  `/compare` now scores each summary via `run_scored_ablation` (see Phase 7). The
+  Diagram page renders the Mermaid as an actual SVG flowchart (mermaid.js,
+  theme-aware, raw source under a `<details>`), not raw text.
 - Verified for real in-browser, not just via curl: submitted live GitHub URLs
   through the Analyze and Diagram pages' forms, watched both hit the real backend,
-  and got correctly rendered results with zero console errors.
+  saw the diagram render and the comparison table populate with scores, zero console
+  errors.
 
 ### Known gaps in the Phase 1 parser (real, not hypothetical -- worth noting in your paper)
 
@@ -499,5 +510,8 @@ doesn't matter which port Vite actually lands on if 5180 is also taken.
   (`ContextBuilderError` if requested directly) -- its signature is Neo4j-only.
   RAW is only available via `pipeline.run_representation_ablation()`, which reads
   source during its own dedicated clone (`_read_raw_source()`) before cleanup.
-- `num_ctx` (Ollama's context window) isn't configured anywhere -- `DEFAULT_MAX_RAW_CHARS`
-  (8000 chars) in `pipeline.py` is a conservative guess, not a measured value.
+- `num_ctx` (Ollama's context window) is now configurable via `OLLAMA_NUM_CTX` but
+  unset by default (falls back to each model's own default, often only ~2-4K tokens).
+  `DEFAULT_MAX_RAW_CHARS` (8000) in `pipeline.py` is still a conservative guess paired
+  with that -- raise both together and measure if you want the raw arm to use a
+  larger window.
