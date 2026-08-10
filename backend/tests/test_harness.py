@@ -7,6 +7,7 @@ and CSV output shape.
 """
 
 import csv
+import json
 from unittest.mock import MagicMock, patch
 
 from app.evaluation.harness import EvaluationRow, run_evaluation, write_csv
@@ -21,7 +22,7 @@ from app.schemas.llm_result import (
     ProviderName,
     RunStatus,
 )
-from app.schemas.parser_schema import ParsedRepository, RepoMetadata
+from app.schemas.parser_schema import ModuleNode, ParsedRepository, RepoMetadata
 
 
 def _parsed(name="repo-a") -> ParsedRepository:
@@ -156,3 +157,51 @@ def test_write_csv_roundtrip(tmp_path):
     assert parsed_rows[0]["model"] == "mistral:7b"
     assert parsed_rows[0]["context_variant"] == "raw"
     assert parsed_rows[0]["hallucination_score"] == "0.25"
+
+
+def _parsed_with_modules() -> ParsedRepository:
+    return ParsedRepository(
+        metadata=RepoMetadata(
+            name="repo-a", source_url="https://github.com/test/repo-a",
+            detected_language="javascript", detected_framework="express",
+        ),
+        modules=[ModuleNode(id="mod_0", path="app.js")],
+    )
+
+
+def test_diagram_scored_when_annotation_present(tmp_path):
+    (tmp_path / "repo-a.json").write_text(
+        json.dumps({"modules": ["app.js"], "imports": [], "endpoints": []})
+    )
+    with patch(
+        "app.evaluation.harness.run_representation_ablation",
+        return_value=(_parsed_with_modules(), [_result("mistral:7b", ContextVariant.RAW)]),
+    ), patch("app.evaluation.harness.score_summary", side_effect=lambda p, pr, txt, v, judge_model: _scored(v)):
+        rows = run_evaluation(
+            ["https://github.com/test/repo-a"],
+            judge_model="llama3.1:8b",
+            annotations_dir=tmp_path,
+            driver=MagicMock(),
+            provider=MagicMock(),
+        )
+
+    assert rows[0].diagram_scored is True
+    assert rows[0].diagram_module_f1 == 1.0  # annotation's single module matches
+    assert rows[0].diagram_overall_f1 == 1.0
+
+
+def test_diagram_not_scored_when_no_annotation(tmp_path):
+    with patch(
+        "app.evaluation.harness.run_representation_ablation",
+        return_value=(_parsed_with_modules(), [_result("mistral:7b", ContextVariant.RAW)]),
+    ), patch("app.evaluation.harness.score_summary", side_effect=lambda p, pr, txt, v, judge_model: _scored(v)):
+        rows = run_evaluation(
+            ["https://github.com/test/repo-a"],
+            judge_model="llama3.1:8b",
+            annotations_dir=tmp_path,  # dir exists but has no repo-a.json
+            driver=MagicMock(),
+            provider=MagicMock(),
+        )
+
+    assert rows[0].diagram_scored is False
+    assert rows[0].diagram_overall_f1 is None

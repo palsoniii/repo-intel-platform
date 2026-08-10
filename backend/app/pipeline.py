@@ -14,9 +14,12 @@ from pathlib import Path
 from neo4j import Driver
 from neo4j.exceptions import DriverError, Neo4jError
 
+from pydantic import BaseModel
+
 from app.acquisition.clone import AcquiredRepo, CloneFailedError, InvalidRepoUrlError, RepoTooLargeError, clone_repository
 from app.context.builder import build_context
 from app.db.neo4j_client import get_driver
+from app.evaluation.hallucination import HallucinationResult, score_summary
 from app.graph.builder import ensure_constraints, write_parsed_repository
 from app.graph.diagram import generate_architecture_diagram
 from app.parsers.base import UnsupportedFrameworkError
@@ -265,3 +268,53 @@ def run_representation_ablation(
             results.append(result)
 
     return parsed, results
+
+
+class ScoredResult(BaseModel):
+    """One ablation result paired with its hallucination score. `hallucination` is
+    None for a run that failed (nothing to grade)."""
+
+    result: LLMResult
+    hallucination: HallucinationResult | None = None
+
+
+def run_scored_ablation(
+    url: str,
+    models: list[str] | None = None,
+    judge_model: str | None = None,
+    max_size_mb: int = 200,
+    driver: Driver | None = None,
+    provider: BaseLLMProvider | None = None,
+) -> tuple[ParsedRepository, list[ScoredResult]]:
+    """The ablation plus a hallucination score per successful result -- what the
+    /compare endpoint and dashboard use, so the comparison shows quality (not just
+    latency/tokens). One shared provider does both generation and judging. The judge
+    reads ground-truth facts from the ParsedRepository, so scoring needs no Neo4j and
+    happens after the driver is released."""
+    owns_driver = driver is None
+    driver = driver or get_driver()
+    provider = provider or OllamaProvider()
+    judge_model = judge_model or provider.default_model
+
+    try:
+        parsed, results = run_representation_ablation(
+            url, models=models, max_size_mb=max_size_mb, driver=driver, provider=provider
+        )
+    finally:
+        if owns_driver:
+            driver.close()
+
+    scored: list[ScoredResult] = []
+    for result in results:
+        hallucination = None
+        if result.status == RunStatus.SUCCESS:
+            hallucination = score_summary(
+                provider,
+                parsed,
+                result.output.raw_text,
+                result.context_variant,
+                judge_model=judge_model,
+            )
+        scored.append(ScoredResult(result=result, hallucination=hallucination))
+
+    return parsed, scored

@@ -19,7 +19,7 @@ from app.pipeline import (
     analyze_repository,
     generate_repository_diagram,
     generate_repository_summary,
-    run_representation_ablation,
+    run_scored_ablation,
 )
 from app.schemas.llm_result import ContextVariant, LLMMetrics, RunStatus
 from app.schemas.parser_schema import ParsedRepository
@@ -116,6 +116,7 @@ class DiagramResponse(BaseModel):
 class CompareRequest(BaseModel):
     url: str
     models: list[str] | None = None  # defaults to the 3 comparison models (.env)
+    judge_model: str | None = None  # defaults to the provider's default model
     max_size_mb: int = 200
 
 
@@ -128,6 +129,13 @@ class ComparisonRun(BaseModel):
     estimated_cost_usd: float
     status: RunStatus
     error: str | None = None
+    # Quality metric -- null when the run failed or the judge's own output didn't parse.
+    hallucination_score: float | None = None
+    hallucination_judged: bool = False
+    total_claims: int = 0
+    unsupported_claims: int = 0
+    judge_model: str | None = None
+    self_judged: bool = False  # generator == judge (exclude when analysing)
 
 
 class CompareResponse(BaseModel):
@@ -201,12 +209,12 @@ def diagram(req: DiagramRequest) -> DiagramResponse:
 @app.post("/compare", response_model=CompareResponse)
 def compare(req: CompareRequest) -> CompareResponse:
     """Runs the full 3-way representation ablation (raw / dependency_graph /
-    knowledge_graph) across all requested models (default: the 3 comparison models
-    configured in .env). This is len(models) * 3 sequential Ollama calls -- expect
-    this to take minutes, not seconds, especially with the default 3 models."""
+    knowledge_graph) across all requested models, then scores each summary for
+    hallucination. This is len(models) * 3 generation calls PLUS a judge call each --
+    expect several minutes, especially with the default 3 models."""
     try:
-        parsed, results = run_representation_ablation(
-            req.url, models=req.models, max_size_mb=req.max_size_mb
+        parsed, scored = run_scored_ablation(
+            req.url, models=req.models, judge_model=req.judge_model, max_size_mb=req.max_size_mb
         )
     except AnalysisError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -217,19 +225,28 @@ def compare(req: CompareRequest) -> CompareResponse:
         repo_name=parsed.metadata.name,
         source_url=parsed.metadata.source_url,
         framework=parsed.metadata.detected_framework,
-        runs=[
-            ComparisonRun(
-                model=r.model,
-                context_variant=r.context_variant,
-                latency_ms=r.metrics.latency_ms,
-                input_tokens=r.metrics.input_tokens,
-                output_tokens=r.metrics.output_tokens,
-                estimated_cost_usd=r.metrics.estimated_cost_usd,
-                status=r.status,
-                error=r.error,
-            )
-            for r in results
-        ],
+        runs=[_comparison_run(s) for s in scored],
+    )
+
+
+def _comparison_run(scored) -> "ComparisonRun":
+    r = scored.result
+    h = scored.hallucination
+    return ComparisonRun(
+        model=r.model,
+        context_variant=r.context_variant,
+        latency_ms=r.metrics.latency_ms,
+        input_tokens=r.metrics.input_tokens,
+        output_tokens=r.metrics.output_tokens,
+        estimated_cost_usd=r.metrics.estimated_cost_usd,
+        status=r.status,
+        error=r.error,
+        hallucination_score=(h.hallucination_score if h and h.judged else None),
+        hallucination_judged=(h.judged if h else False),
+        total_claims=(h.total_claims if h else 0),
+        unsupported_claims=(len(h.unsupported_claims) if h else 0),
+        judge_model=(h.judge_model if h else None),
+        self_judged=(bool(h and h.judge_model == r.model)),
     )
 
 

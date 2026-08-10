@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from app.acquisition.clone import AcquiredRepo
-from app.pipeline import run_representation_ablation
+from app.pipeline import run_representation_ablation, run_scored_ablation
 from app.schemas.llm_result import (
     ContextVariant,
     LLMMetrics,
@@ -23,7 +23,9 @@ from app.schemas.llm_result import (
 from app.schemas.parser_schema import ModuleNode, ParsedRepository, RepoMetadata
 
 
-def _fake_llm_result(model: str, variant: ContextVariant) -> LLMResult:
+def _fake_llm_result(
+    model: str, variant: ContextVariant, status: RunStatus = RunStatus.SUCCESS
+) -> LLMResult:
     return LLMResult(
         provider=ProviderName.OLLAMA,
         model=model,
@@ -34,7 +36,7 @@ def _fake_llm_result(model: str, variant: ContextVariant) -> LLMResult:
             raw_text='{"overview": "x", "tech_stack": [], "services": [], "dependencies": []}'
         ),
         metrics=LLMMetrics(latency_ms=100, input_tokens=10, output_tokens=5, estimated_cost_usd=0.0),
-        status=RunStatus.SUCCESS,
+        status=status,
     )
 
 
@@ -165,3 +167,37 @@ def test_cleans_up_acquired_repo_even_if_neo4j_fails(fake_acquired_repo, fake_pa
             )
 
     fake_acquired_repo_mock.cleanup.assert_called_once()
+
+
+def test_run_scored_ablation_attaches_a_score_per_successful_result(fake_parsed_repository):
+    from app.evaluation.hallucination import HallucinationResult
+
+    results = [
+        _fake_llm_result("model-a", ContextVariant.RAW),
+        _fake_llm_result("model-a", ContextVariant.KNOWLEDGE_GRAPH, status=RunStatus.FAILED),
+    ]
+
+    def _fake_score(provider, parsed, text, variant, judge_model):
+        return HallucinationResult(
+            repo_name="fake-repo", context_variant=variant, judge_model=judge_model,
+            total_claims=2, unsupported_claims=[], hallucination_score=0.0, judged=True,
+            judge_raw_output="{}",
+        )
+
+    with patch(
+        "app.pipeline.run_representation_ablation",
+        return_value=(fake_parsed_repository, results),
+    ), patch("app.pipeline.score_summary", side_effect=_fake_score) as mock_score:
+        parsed, scored = run_scored_ablation(
+            "https://github.com/test/fake-repo",
+            judge_model="llama3.1:8b",
+            driver=MagicMock(),
+            provider=MagicMock(),
+        )
+
+    assert len(scored) == 2
+    # successful result got a score; failed one did not (nothing to grade)
+    assert scored[0].hallucination is not None
+    assert scored[0].hallucination.hallucination_score == 0.0
+    assert scored[1].hallucination is None
+    assert mock_score.call_count == 1  # only the successful result was judged

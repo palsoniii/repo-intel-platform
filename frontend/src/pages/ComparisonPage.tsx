@@ -38,8 +38,9 @@ export default function ComparisonPage() {
       <h2 className="mb-2 text-2xl font-semibold">{displayName} -- model comparison</h2>
       <p className="mb-4 text-sm text-slate-600 dark:text-slate-400">
         All 3 models x 3 representations -- the ablation this project's research
-        question is about. This runs 9 sequential local-model calls, so expect
-        1-5 minutes, not seconds.
+        question is about. Each summary is also graded for hallucination (0 = fully
+        grounded in the parser's facts). That's 9 generations plus a judge call each,
+        so expect several minutes, not seconds.
       </p>
 
       <form onSubmit={handleSubmit} className="mb-4 flex gap-2">
@@ -68,8 +69,7 @@ export default function ComparisonPage() {
       {!real && (
         <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">
           Showing placeholder data for {mockAnalysis.repoName} -- submit a URL above for the
-          real thing. Hallucination scoring isn't built yet (Week 4), so that column is
-          only shown for placeholder data.
+          real thing (real runs include live hallucination scores).
         </p>
       )}
 
@@ -82,11 +82,7 @@ export default function ComparisonPage() {
               <th className="px-4 py-2 font-medium">Latency</th>
               <th className="px-4 py-2 font-medium">Input tokens</th>
               <th className="px-4 py-2 font-medium">Output tokens</th>
-              {real ? (
-                <th className="px-4 py-2 font-medium">Status</th>
-              ) : (
-                <th className="px-4 py-2 font-medium">Hallucination score</th>
-              )}
+              <th className="px-4 py-2 font-medium">Hallucination score</th>
               <th className="px-4 py-2 font-medium">Cost</th>
             </tr>
           </thead>
@@ -103,11 +99,7 @@ export default function ComparisonPage() {
                 <td className="px-4 py-2">{run.latencyMs.toLocaleString()} ms</td>
                 <td className="px-4 py-2">{run.inputTokens}</td>
                 <td className="px-4 py-2">{run.outputTokens}</td>
-                {"hallucinationScore" in run ? (
-                  <td className="px-4 py-2">{run.hallucinationScore.toFixed(2)}</td>
-                ) : (
-                  <td className="px-4 py-2">{run.status}</td>
-                )}
+                <td className="px-4 py-2">{renderScore(run)}</td>
                 <td className="px-4 py-2">${run.estimatedCostUsd.toFixed(2)}</td>
               </tr>
             ))}
@@ -116,4 +108,10 @@ export default function ComparisonPage() {
       </div>
     </div>
   );
+}
+
+function renderScore(run: { hallucinationScore: number | null; status?: string }): string {
+  if (typeof run.hallucinationScore === "number") return run.hallucinationScore.toFixed(2);
+  if (run.status === "failed") return "failed";
+  return "—"; // em dash: no score (run failed, or the judge's own output didn't parse)
 }

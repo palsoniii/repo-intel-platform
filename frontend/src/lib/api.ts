@@ -103,6 +103,12 @@ export interface ComparisonRunResponse {
   estimatedCostUsd: number;
   status: "success" | "partial" | "failed";
   error: string | null;
+  hallucinationScore: number | null; // null if the run failed or the judge didn't parse
+  hallucinationJudged: boolean;
+  totalClaims: number;
+  unsupportedClaims: number;
+  judgeModel: string | null;
+  selfJudged: boolean;
 }
 
 export interface CompareResponse {
@@ -126,6 +132,12 @@ export async function compareModels(url: string, models?: string[]): Promise<Com
       estimated_cost_usd: number;
       status: ComparisonRunResponse["status"];
       error: string | null;
+      hallucination_score: number | null;
+      hallucination_judged: boolean;
+      total_claims: number;
+      unsupported_claims: number;
+      judge_model: string | null;
+      self_judged: boolean;
     }[];
   }>("/compare", { url, models });
 
@@ -142,6 +154,12 @@ export async function compareModels(url: string, models?: string[]): Promise<Com
       estimatedCostUsd: r.estimated_cost_usd,
       status: r.status,
       error: r.error,
+      hallucinationScore: r.hallucination_score,
+      hallucinationJudged: r.hallucination_judged,
+      totalClaims: r.total_claims,
+      unsupportedClaims: r.unsupported_claims,
+      judgeModel: r.judge_model,
+      selfJudged: r.self_judged,
     })),
   };
 }

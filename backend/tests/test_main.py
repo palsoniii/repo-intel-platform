@@ -99,7 +99,10 @@ def test_diagram_endpoint_returns_mermaid():
     assert "graph TD" in body["diagram_mermaid"]
 
 
-def test_compare_endpoint_maps_results_to_comparison_runs():
+def test_compare_endpoint_maps_scored_results_to_comparison_runs():
+    from app.evaluation.hallucination import HallucinationResult
+    from app.pipeline import ScoredResult
+
     fake_result = LLMResult(
         provider=ProviderName.OLLAMA,
         model="qwen2.5-coder:7b",
@@ -112,9 +115,20 @@ def test_compare_endpoint_maps_results_to_comparison_runs():
         ),
         status=RunStatus.SUCCESS,
     )
+    fake_hallucination = HallucinationResult(
+        repo_name="fake-repo",
+        context_variant=ContextVariant.RAW,
+        judge_model="llama3.1:8b",
+        total_claims=4,
+        unsupported_claims=["uses MongoDB"],
+        hallucination_score=0.25,
+        judged=True,
+        judge_raw_output="{}",
+    )
+    scored = [ScoredResult(result=fake_result, hallucination=fake_hallucination)]
     with patch(
-        "app.main.run_representation_ablation",
-        return_value=(_fake_parsed_repository(), [fake_result]),
+        "app.main.run_scored_ablation",
+        return_value=(_fake_parsed_repository(), scored),
     ):
         response = client.post("/compare", json={"url": "https://github.com/test/fake-repo"})
     assert response.status_code == 200
@@ -123,3 +137,8 @@ def test_compare_endpoint_maps_results_to_comparison_runs():
     assert runs[0]["model"] == "qwen2.5-coder:7b"
     assert runs[0]["context_variant"] == "raw"
     assert runs[0]["latency_ms"] == 1234
+    assert runs[0]["hallucination_score"] == 0.25
+    assert runs[0]["hallucination_judged"] is True
+    assert runs[0]["unsupported_claims"] == 1
+    assert runs[0]["judge_model"] == "llama3.1:8b"
+    assert runs[0]["self_judged"] is False

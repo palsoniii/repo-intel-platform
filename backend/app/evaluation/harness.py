@@ -25,6 +25,12 @@ from pydantic import BaseModel
 
 from app.db.neo4j_client import get_driver
 from app.evaluation.hallucination import score_summary
+from app.evaluation.diagram_score import (
+    GraphDiffScore,
+    extract_actual_structure,
+    load_expected,
+    score_diagram,
+)
 from app.pipeline import AnalysisError, PipelineInfrastructureError, run_representation_ablation
 from app.providers.base import BaseLLMProvider
 from app.providers.ollama_provider import OllamaProvider
@@ -49,6 +55,13 @@ class EvaluationRow(BaseModel):
     hallucination_score: float
     total_claims: int
     unsupported_claims: int
+    # Diagram graph-diff (per repo, same across a repo's rows -- populated only when a
+    # `<repo_name>.json` expected-structure annotation is found). None when unscored.
+    diagram_scored: bool = False
+    diagram_module_f1: Optional[float] = None
+    diagram_import_f1: Optional[float] = None
+    diagram_endpoint_f1: Optional[float] = None
+    diagram_overall_f1: Optional[float] = None
     error: Optional[str] = None
 
 
@@ -57,13 +70,18 @@ def run_evaluation(
     models: Optional[list[str]] = None,
     judge_model: Optional[str] = None,
     max_size_mb: int = 200,
+    annotations_dir: Optional[str | Path] = None,
     driver: Optional[Driver] = None,
     provider: Optional[BaseLLMProvider] = None,
 ) -> list[EvaluationRow]:
     """One shared Neo4j driver and provider across the whole batch (created here if
     not injected). A single repo failing -- bad URL, unsupported framework, Neo4j
     blip -- records a failure row and moves on rather than aborting the batch;
-    'something always breaks on repos you didn't build against' (roadmap Week 4)."""
+    'something always breaks on repos you didn't build against' (roadmap Week 4).
+
+    If `annotations_dir` is given, each repo is also diagram-scored against
+    `<annotations_dir>/<repo_name>.json` when that file exists (repos without an
+    annotation just leave the diagram columns empty -- no error)."""
     owns_driver = driver is None
     driver = driver or get_driver()
     provider = provider or OllamaProvider()
@@ -84,12 +102,29 @@ def run_evaluation(
                 rows.append(_failure_row(url, judge_model, str(e)))
                 continue
 
+            diagram = _diagram_score(parsed, annotations_dir)
             for result in results:
-                rows.append(_row_for_result(provider, parsed, result, judge_model))
+                rows.append(_row_for_result(provider, parsed, result, judge_model, diagram))
     finally:
         if owns_driver:
             driver.close()
     return rows
+
+
+def _diagram_score(
+    parsed: ParsedRepository, annotations_dir: Optional[str | Path]
+) -> Optional[GraphDiffScore]:
+    """Score the extracted structure against an annotation file if one exists for
+    this repo. Per-repo (the diagram is deterministic from the graph), so it's
+    computed once and repeated onto each of the repo's rows."""
+    if annotations_dir is None:
+        return None
+    annotation_path = Path(annotations_dir) / f"{parsed.metadata.name}.json"
+    if not annotation_path.exists():
+        return None
+    expected = load_expected(annotation_path)
+    actual = extract_actual_structure(parsed)
+    return score_diagram(actual, expected, parsed.metadata.name)
 
 
 def _row_for_result(
@@ -97,6 +132,7 @@ def _row_for_result(
     parsed: ParsedRepository,
     result: LLMResult,
     judge_model: str,
+    diagram: Optional[GraphDiffScore] = None,
 ) -> EvaluationRow:
     self_judged = result.model == judge_model
 
@@ -136,6 +172,11 @@ def _row_for_result(
         hallucination_score=hallucination_score,
         total_claims=total_claims,
         unsupported_claims=unsupported,
+        diagram_scored=diagram is not None,
+        diagram_module_f1=diagram.modules.f1 if diagram else None,
+        diagram_import_f1=diagram.imports.f1 if diagram else None,
+        diagram_endpoint_f1=diagram.endpoints.f1 if diagram else None,
+        diagram_overall_f1=diagram.overall_f1 if diagram else None,
     )
 
 
@@ -184,10 +225,20 @@ def main() -> None:
         "--models", nargs="*", default=None, help="Models to compare (default: the .env comparison models)"
     )
     parser.add_argument("--judge-model", default=None, help="Model used as the hallucination judge")
+    parser.add_argument(
+        "--annotations-dir",
+        default=None,
+        help="Directory of <repo_name>.json expected-structure annotations for diagram scoring",
+    )
     parser.add_argument("--out", default="evaluation_results.csv", help="Output CSV path")
     args = parser.parse_args()
 
-    rows = run_evaluation(args.urls, models=args.models, judge_model=args.judge_model)
+    rows = run_evaluation(
+        args.urls,
+        models=args.models,
+        judge_model=args.judge_model,
+        annotations_dir=args.annotations_dir,
+    )
     write_csv(rows, args.out)
     failures = sum(1 for r in rows if r.run_status == "failed")
     print(f"Wrote {len(rows)} rows to {args.out} ({failures} repo-level failures).")
