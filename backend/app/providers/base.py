@@ -135,3 +135,26 @@ class BaseLLMProvider(ABC):
             user_prompt=prompt_template.format(context=context),
             model=model,
         )
+
+    def judge(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        repo_name: str,
+        context_variant: ContextVariant,
+        model: Optional[str] = None,
+    ) -> LLMResult:
+        """Generic evaluation call -- used by the hallucination scorer to have one
+        model grade another's summary. Takes fully-formed prompts (the caller owns
+        the judging rubric) rather than a fixed template, and records the
+        context_variant of the summary being judged so results are attributable to
+        a representation arm. Parsing the verdict is the caller's job, as with
+        generate_summary()."""
+        return self._run(
+            task=LLMTask.HALLUCINATION_JUDGE,
+            context_variant=context_variant,
+            repo_name=repo_name,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            model=model,
+        )

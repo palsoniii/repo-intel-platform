@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 class LLMTask(str, Enum):
     SUMMARY = "summary"
     ARCHITECTURE_DIAGRAM = "architecture_diagram"
+    HALLUCINATION_JUDGE = "hallucination_judge"  # one model grading another's summary
 
 
 class ContextVariant(str, Enum):

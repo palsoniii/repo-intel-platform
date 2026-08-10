@@ -266,6 +266,30 @@ below for how to run them for real.
 - `backend/tests/test_diagram.py` -- 3 tests against a real Neo4j instance.
 - Rendering the Mermaid text visually (not just showing the raw source) is still open.
 
+**Phase 7 (LLM-as-judge hallucination scorer, built + live-validated):**
+- `backend/app/evaluation/hallucination.py` -- `score_summary()`: formats the
+  parser's ground-truth facts (framework, dependencies, endpoints, counts, ...) into
+  a reference block, has a judge model flag any specific claim in a generated summary
+  the facts don't support, and returns a `HallucinationResult` (score = unsupported /
+  total claims, plus the flagged claims). Ground truth is the parser output, so this
+  measures faithfulness to static analysis -- the exact axis the research question
+  needs, and the missing "quality" half that latency/token metrics alone couldn't show.
+- `BaseLLMProvider.judge()` + a `HALLUCINATION_JUDGE` task were added so a judge call
+  reuses the same retry/latency/result plumbing and records the context_variant of the
+  summary being graded (so scores are attributable to a representation arm).
+- Verdict parsing tolerates local-model quirks: JSON wrapped in prose/code fences,
+  stray empty-string claims, and inconsistent counts (clamped so the score stays in [0, 1]).
+- `backend/tests/test_hallucination.py` -- 8 offline unit tests (mocked judge).
+- **Live-validated against real Ollama** (the roadmap's "validate the judge against a
+  small sample" step): a faithful Express summary and one with injected false claims
+  (Django, MongoDB, GraphQL, Stripe, TensorFlow). The first pass over-flagged true
+  claims (scored the faithful summary 0.6); tightening the judge prompt to treat
+  fact-consistent phrasing as supported fixed it -- faithful now scores 0.0, the
+  hallucinated one 1.0 with every fabricated technology caught. Broader validation
+  across more models and summaries is still needed before trusting absolute scores.
+- Still to build for Phase 7: the diagram graph-diff scorer and the batch evaluation
+  harness (run models x representations x repos, log to CSV/SQLite).
+
 **Phase 8 (dashboard shell + real wiring, all 4 pages):**
 - `frontend/` -- Vite + React 19 + TypeScript + Tailwind CSS v4, routed with
   `react-router-dom`. Four pages: Analyze, Summary, Diagram, Comparison -- all four
@@ -332,7 +356,7 @@ below for how to run them for real.
 - [x] **Phase 4** -- Ollama orchestration layer (3 local models: Qwen2.5-Coder 7B, Llama 3.1 8B, Mistral 7B substituted for gpt-oss:20b on this dev machine's 16GB RAM -- no paid APIs). Built, unit-tested, and validated against a real running Ollama daemon with all 3 models pulled -- including the full 3-way ablation across 2 models live.
 - [x] **Phase 5** -- Architecture diagram generation. Deterministic Neo4j -> Mermaid, no LLM, validated live against real repos.
 - [x] **Phase 6** -- NestJS parser. Built and validated against a real repo (`nestjs/typescript-starter`).
-- [ ] **Phase 7** -- Evaluation harness (LLM-as-judge hallucination metric, diagram graph-diff scorer, CSV export)
+- [~] **Phase 7** -- Evaluation. LLM-as-judge hallucination scorer built and live-validated; diagram graph-diff scorer and the batch evaluation harness (CSV/SQLite logging) still to come.
 - [x] **Phase 8** -- React dashboard. All 4 pages (Analyze, Summary, Diagram, Comparison) wired to real backend endpoints, each independently, verified end-to-end in-browser.
 
 This build order reflects the negotiated scope in `Capstone_Roadmap.docx` (Neo4j, Express+NestJS only,
