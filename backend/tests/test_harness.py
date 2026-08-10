@@ -8,9 +8,10 @@ and CSV output shape.
 
 import csv
 import json
+import sqlite3
 from unittest.mock import MagicMock, patch
 
-from app.evaluation.harness import EvaluationRow, run_evaluation, write_csv
+from app.evaluation.harness import EvaluationRow, run_evaluation, write_csv, write_sqlite
 from app.evaluation.hallucination import HallucinationResult
 from app.pipeline import AnalysisError
 from app.schemas.llm_result import (
@@ -188,6 +189,32 @@ def test_diagram_scored_when_annotation_present(tmp_path):
     assert rows[0].diagram_scored is True
     assert rows[0].diagram_module_f1 == 1.0  # annotation's single module matches
     assert rows[0].diagram_overall_f1 == 1.0
+
+
+def _sample_row() -> EvaluationRow:
+    return EvaluationRow(
+        repo_name="repo-a", source_url="u", framework="express", model="mistral:7b",
+        context_variant="raw", run_status="success", latency_ms=1000, input_tokens=300,
+        output_tokens=60, estimated_cost_usd=0.0, judge_model="llama3.1:8b", self_judged=False,
+        hallucination_judged=True, hallucination_score=0.25, total_claims=4, unsupported_claims=1,
+    )
+
+
+def test_write_sqlite_accumulates_across_runs(tmp_path):
+    db = tmp_path / "results.db"
+    write_sqlite([_sample_row()], db)
+    write_sqlite([_sample_row()], db)  # second run appends, not overwrites
+
+    conn = sqlite3.connect(str(db))
+    try:
+        rows = conn.execute(
+            "SELECT model, context_variant, hallucination_score, self_judged FROM evaluation_runs"
+        ).fetchall()
+    finally:
+        conn.close()
+    assert len(rows) == 2  # both runs present
+    assert rows[0][0] == "mistral:7b"
+    assert rows[0][3] == 0  # bool coerced to 0/1
 
 
 def test_diagram_not_scored_when_no_annotation(tmp_path):

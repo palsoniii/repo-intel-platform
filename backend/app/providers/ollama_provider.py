@@ -24,12 +24,19 @@ class OllamaProvider(BaseLLMProvider):
     provider_name = ProviderName.OLLAMA
     default_model = "qwen2.5-coder:7b"
 
-    def __init__(self, host: Optional[str] = None):
+    def __init__(self, host: Optional[str] = None, num_ctx: Optional[int] = None):
         self._client = ollama.Client(host=host or os.environ.get("OLLAMA_HOST", DEFAULT_HOST))
+        # Context window. Ollama defaults these models to ~2-4K tokens, which silently
+        # truncates the larger raw-code context; set OLLAMA_NUM_CTX (or pass num_ctx) to
+        # widen it. Left as None -> use the model's own default. When raising this, the
+        # raw-source cap in pipeline.DEFAULT_MAX_RAW_CHARS can be raised to match.
+        env_ctx = os.environ.get("OLLAMA_NUM_CTX")
+        self._num_ctx = num_ctx if num_ctx is not None else (int(env_ctx) if env_ctx else None)
 
     def _call_model(
         self, model: str, system_prompt: str, user_prompt: str
     ) -> tuple[str, int, int]:
+        options = {"num_ctx": self._num_ctx} if self._num_ctx is not None else None
         try:
             response = self._client.chat(
                 model=model,
@@ -37,6 +44,7 @@ class OllamaProvider(BaseLLMProvider):
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
+                options=options,
             )
         except Exception as e:
             # Covers ollama.ResponseError (e.g. model not pulled) and connection

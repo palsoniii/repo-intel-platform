@@ -17,6 +17,7 @@ meaningless.
 from __future__ import annotations
 
 import csv
+import sqlite3
 from pathlib import Path
 from typing import Optional
 
@@ -212,6 +213,43 @@ def write_csv(rows: list[EvaluationRow], path: str | Path) -> None:
             writer.writerow(row.model_dump())
 
 
+def write_sqlite(rows: list[EvaluationRow], path: str | Path, table: str = "evaluation_runs") -> None:
+    """Append rows into a SQLite table (created if absent). Unlike the CSV -- which is
+    overwritten each run -- this accumulates across runs, so results from multiple
+    batches (or the same battery re-run) build up in one queryable place. A run_at
+    timestamp column distinguishes them."""
+    fields = list(EvaluationRow.model_fields.keys())
+    columns = ", ".join(f'"{f}"' for f in fields)
+    placeholders = ", ".join("?" for _ in fields)
+    conn = sqlite3.connect(str(path))
+    try:
+        # Columns declared with no type affinity so each value keeps its native
+        # storage class (int/float/text) for analysis, instead of everything becoming
+        # TEXT. run_at keeps a real type for its default.
+        col_defs = ", ".join(f'"{f}"' for f in fields)
+        conn.execute(
+            f'CREATE TABLE IF NOT EXISTS "{table}" '
+            f'(run_at TEXT DEFAULT CURRENT_TIMESTAMP, {col_defs})'
+        )
+        conn.executemany(
+            f'INSERT INTO "{table}" ({columns}) VALUES ({placeholders})',
+            [tuple(_sqlite_value(v) for v in row.model_dump().values()) for row in rows],
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _sqlite_value(value: object) -> object:
+    # sqlite3 handles str/int/float/None natively; coerce bools to 0/1 and anything
+    # else (shouldn't occur) to str, so the insert never raises on an odd type.
+    if isinstance(value, bool):
+        return int(value)
+    if value is None or isinstance(value, (str, int, float)):
+        return value
+    return str(value)
+
+
 def main() -> None:
     import argparse
 
@@ -231,6 +269,9 @@ def main() -> None:
         help="Directory of <repo_name>.json expected-structure annotations for diagram scoring",
     )
     parser.add_argument("--out", default="evaluation_results.csv", help="Output CSV path")
+    parser.add_argument(
+        "--sqlite", default=None, help="Optional SQLite DB path to also append results to"
+    )
     args = parser.parse_args()
 
     rows = run_evaluation(
@@ -240,8 +281,11 @@ def main() -> None:
         annotations_dir=args.annotations_dir,
     )
     write_csv(rows, args.out)
+    if args.sqlite:
+        write_sqlite(rows, args.sqlite)
     failures = sum(1 for r in rows if r.run_status == "failed")
-    print(f"Wrote {len(rows)} rows to {args.out} ({failures} repo-level failures).")
+    sqlite_note = f" and appended to {args.sqlite}" if args.sqlite else ""
+    print(f"Wrote {len(rows)} rows to {args.out}{sqlite_note} ({failures} repo-level failures).")
 
 
 if __name__ == "__main__":
