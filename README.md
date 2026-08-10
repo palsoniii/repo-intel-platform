@@ -191,7 +191,8 @@ tests/test_run_representation_ablation.py:: (4 tests, mocked clone/Neo4j/provide
 tests/test_main.py:: (5 tests, CORS-header-on-error + diagram/compare mapping) PASSED
 tests/test_hallucination.py:: (8 tests, mocked judge) PASSED
 tests/test_harness.py:: (5 tests, mocked ablation + scorer) PASSED
-======= 73 passed total (offline + neo4j-gated, with Neo4j up) =======
+tests/test_diagram_score.py:: (9 tests, pure logic) PASSED
+======= 82 passed total (offline + neo4j-gated, with Neo4j up) =======
 
 # plus real, manual, no-mocks runs against the running backend + browser:
 POST /summarize {"url": "https://github.com/heroku/node-js-getting-started"}
@@ -293,7 +294,21 @@ below for how to run them for real.
   fact-consistent phrasing as supported fixed it -- faithful now scores 0.0, the
   hallucinated one 1.0 with every fabricated technology caught. Broader validation
   across more models and summaries is still needed before trusting absolute scores.
-- Still to build for Phase 7: the diagram graph-diff scorer.
+**Phase 7 (diagram graph-diff scorer, built -- awaiting annotations to run for real):**
+- `backend/app/evaluation/diagram_score.py` -- `score_diagram()`: precision / recall /
+  F1 over modules (nodes), import relationships (edges), and endpoints, comparing the
+  structure the pipeline extracted against a manually annotated expected structure.
+  Since the diagram is generated deterministically from the graph, this measures
+  parser + graph-builder fidelity -- which is what "diagram correctness" means here.
+- Actual structure is read from the `ParsedRepository` (`extract_actual_structure()`),
+  not by re-parsing our own Mermaid text -- same structural content, far more robust.
+  `load_expected()` reads a per-repo JSON annotation (`GraphStructure`).
+- `backend/tests/test_diagram_score.py` -- 9 offline unit tests. Also spot-checked on
+  real Express parser output, where it correctly flagged a real discrepancy (0 resolved
+  import edges vs. an annotation that expected one).
+- The scoring logic is complete; it can't produce real numbers until the team writes
+  the expected-structure annotations for the chosen evaluation repos (roadmap Week 3
+  annotation task, still blocked on repo selection).
 
 **Phase 7 (batch evaluation harness, built):**
 - `backend/app/evaluation/harness.py` -- `run_evaluation()`: runs the full battery
@@ -377,7 +392,7 @@ below for how to run them for real.
 - [x] **Phase 4** -- Ollama orchestration layer (3 local models: Qwen2.5-Coder 7B, Llama 3.1 8B, Mistral 7B substituted for gpt-oss:20b on this dev machine's 16GB RAM -- no paid APIs). Built, unit-tested, and validated against a real running Ollama daemon with all 3 models pulled -- including the full 3-way ablation across 2 models live.
 - [x] **Phase 5** -- Architecture diagram generation. Deterministic Neo4j -> Mermaid, no LLM, validated live against real repos.
 - [x] **Phase 6** -- NestJS parser. Built and validated against a real repo (`nestjs/typescript-starter`).
-- [~] **Phase 7** -- Evaluation. LLM-as-judge hallucination scorer and the batch evaluation harness (CSV output) built and live-validated; only the diagram graph-diff scorer still to come.
+- [x] **Phase 7** -- Evaluation. LLM-as-judge hallucination scorer, batch evaluation harness (CSV output), and diagram graph-diff scorer all built and tested. The diagram scorer needs the team's expected-structure annotations to produce real numbers (blocked on repo selection, not code).
 - [x] **Phase 8** -- React dashboard. All 4 pages (Analyze, Summary, Diagram, Comparison) wired to real backend endpoints, each independently, verified end-to-end in-browser.
 
 This build order reflects the negotiated scope in `Capstone_Roadmap.docx` (Neo4j, Express+NestJS only,
