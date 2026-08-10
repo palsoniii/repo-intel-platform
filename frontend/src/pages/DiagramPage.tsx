@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { mockAnalysis } from "../lib/mockData";
 import { getArchitectureDiagram, ApiError, type DiagramResponse } from "../lib/api";
+import MermaidDiagram from "../components/MermaidDiagram";
 
 export default function DiagramPage() {
   const { repoName } = useParams();
@@ -36,8 +37,8 @@ export default function DiagramPage() {
     <div>
       <h2 className="mb-2 text-2xl font-semibold">{displayName} -- architecture diagram</h2>
       <p className="mb-4 text-sm text-slate-600 dark:text-slate-400">
-        Raw Mermaid source generated directly from the Neo4j graph -- no LLM call.
-        Rendering it visually (not just as text) is still open.
+        Generated directly from the Neo4j graph -- no LLM call. Rendered below; the
+        raw Mermaid source is available under the diagram.
       </p>
 
       <form onSubmit={handleSubmit} className="mb-6 flex gap-2">
@@ -70,9 +71,7 @@ export default function DiagramPage() {
         </p>
       )}
 
-      <pre className="overflow-x-auto rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm dark:border-slate-800 dark:bg-slate-900">
-        <code>{diagramMermaid}</code>
-      </pre>
+      <MermaidDiagram chart={diagramMermaid} />
     </div>
   );
 }
