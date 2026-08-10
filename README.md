@@ -189,7 +189,9 @@ tests/test_context_builder.py:: (4 tests, real Neo4j -- @pytest.mark.neo4j) PASS
 tests/test_diagram.py:: (3 tests, real Neo4j -- @pytest.mark.neo4j) PASSED
 tests/test_run_representation_ablation.py:: (4 tests, mocked clone/Neo4j/provider) PASSED
 tests/test_main.py:: (5 tests, CORS-header-on-error + diagram/compare mapping) PASSED
-======= 60 passed total (42 always-offline + 2 network + 16 neo4j-gated) =======
+tests/test_hallucination.py:: (8 tests, mocked judge) PASSED
+tests/test_harness.py:: (5 tests, mocked ablation + scorer) PASSED
+======= 73 passed total (offline + neo4j-gated, with Neo4j up) =======
 
 # plus real, manual, no-mocks runs against the running backend + browser:
 POST /summarize {"url": "https://github.com/heroku/node-js-getting-started"}
@@ -204,6 +206,10 @@ POST /diagram {"url": "https://github.com/heroku/node-js-getting-started"}
 POST /compare {"url": "...", "models": ["qwen2.5-coder:7b", "mistral:7b"]}
 -> 200 OK in 54s (6 calls), all successful -- raw context ~4x slower than the
    structured representations, a real signal on the very first live run
+python -m app.evaluation.harness <url> --models qwen2.5-coder:7b mistral:7b --judge-model llama3.1:8b
+-> wrote a real 6-row results CSV, 0 failures; hallucination score 0.0 across every
+   arm on this small repo (all summaries faithful -- the quality gap the research
+   question predicts would need larger, context-window-straining repos to surface)
 ```
 
 The 16 `neo4j`-marked tests SKIP (not fail) when no Neo4j is reachable -- see Setup
