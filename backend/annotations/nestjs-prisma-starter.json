@@ -44,7 +44,36 @@
     "src/users/users.resolver.ts",
     "src/users/users.service.ts"
   ],
-  "imports": [],
+  "imports": [
+    [
+      "src/app.module.ts",
+      "src/app.controller.ts"
+    ],
+    [
+      "src/app.module.ts",
+      "src/app.service.ts"
+    ],
+    [
+      "src/app.module.ts",
+      "src/app.resolver.ts"
+    ],
+    [
+      "src/app.module.ts",
+      "src/auth/auth.module.ts"
+    ],
+    [
+      "src/auth/auth.module.ts",
+      "src/auth/password.service.ts"
+    ],
+    [
+      "src/auth/auth.module.ts",
+      "src/auth/auth.service.ts"
+    ],
+    [
+      "src/auth/auth.module.ts",
+      "src/auth/auth.resolver.ts"
+    ]
+  ],
   "endpoints": [
     "GET /",
     "GET /hello/:name"

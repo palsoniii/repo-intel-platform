@@ -8,14 +8,22 @@
     "routes/index.js",
     "routes/users.js"
   ],
-  "imports": [],
+  "imports": [
+    ["app.js", "config/passport.js"],
+    ["app.js", "config/keys.js"],
+    ["app.js", "routes/index.js"],
+    ["app.js", "routes/users.js"],
+    ["routes/index.js", "config/auth.js"],
+    ["routes/users.js", "models/User.js"],
+    ["routes/users.js", "config/auth.js"]
+  ],
   "endpoints": [
     "GET /",
     "GET /dashboard",
-    "GET /login",
-    "GET /register",
-    "GET /logout",
-    "POST /login",
-    "POST /register"
+    "GET /users/login",
+    "GET /users/register",
+    "POST /users/register",
+    "POST /users/login",
+    "GET /users/logout"
   ]
 }

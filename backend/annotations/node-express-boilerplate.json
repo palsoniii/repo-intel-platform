@@ -1,7 +1,5 @@
 {
   "modules": [
-    "bin/createNodejsApp.js",
-    "jest.config.js",
     "src/app.js",
     "src/config/config.js",
     "src/config/logger.js",
@@ -39,29 +37,44 @@
     "src/validations/auth.validation.js",
     "src/validations/custom.validation.js",
     "src/validations/index.js",
-    "src/validations/user.validation.js",
-    "tests/fixtures/token.fixture.js",
-    "tests/fixtures/user.fixture.js",
-    "tests/integration/auth.test.js",
-    "tests/integration/docs.test.js",
-    "tests/integration/user.test.js",
-    "tests/unit/middlewares/error.test.js",
-    "tests/unit/models/plugins/paginate.plugin.test.js",
-    "tests/unit/models/plugins/toJSON.plugin.test.js",
-    "tests/unit/models/user.model.test.js",
-    "tests/utils/setupTestDB.js"
+    "src/validations/user.validation.js"
   ],
-  "imports": [],
+  "imports": [
+    [
+      "src/app.js",
+      "src/routes/v1/index.js"
+    ],
+    [
+      "src/routes/v1/index.js",
+      "src/routes/v1/auth.route.js"
+    ],
+    [
+      "src/routes/v1/index.js",
+      "src/routes/v1/user.route.js"
+    ],
+    [
+      "src/routes/v1/index.js",
+      "src/routes/v1/docs.route.js"
+    ],
+    [
+      "src/routes/v1/index.js",
+      "src/config/config.js"
+    ]
+  ],
   "endpoints": [
-    "OPTIONS *",
-    "POST /logout",
-    "POST /refresh-tokens",
-    "POST /verify-email",
-    "POST /register",
-    "POST /reset-password",
-    "POST /send-verification-email",
-    "POST /login",
-    "POST /forgot-password",
-    "GET /"
+    "POST /v1/auth/register",
+    "POST /v1/auth/login",
+    "POST /v1/auth/logout",
+    "POST /v1/auth/refresh-tokens",
+    "POST /v1/auth/forgot-password",
+    "POST /v1/auth/reset-password",
+    "POST /v1/auth/send-verification-email",
+    "POST /v1/auth/verify-email",
+    "POST /v1/users",
+    "GET /v1/users",
+    "GET /v1/users/:userId",
+    "PATCH /v1/users/:userId",
+    "DELETE /v1/users/:userId",
+    "GET /v1/docs"
   ]
 }

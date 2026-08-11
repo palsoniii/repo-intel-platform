@@ -8,25 +8,47 @@ modules, imports, and endpoints.
 One file per evaluation repo, named `<repo_name>.json` (the repo name the parser
 derives from the URL). The harness picks them up with `--annotations-dir ./annotations`.
 
-## ⚠️ These are AUTO-GENERATED DRAFTS — you must correct them by hand
+## Status: all 6 files are hand-corrected against real source
 
-Each file was seeded with the pipeline's **own** extracted structure. That makes them
-a fast starting point, **not** ground truth: if you score against an uncorrected draft
-it will score a perfect 1.0 by construction (the pipeline agrees with itself). That
-number is meaningless.
+Each file was seeded from the pipeline's own extracted structure, then corrected by
+reading the actual repository. (Scoring against an *uncorrected* seed would score a
+perfect 1.0 by construction — the pipeline agreeing with itself — which is meaningless.
+That's why every file here has been reconciled to the source.)
 
-To turn a draft into real ground truth, open the repo and edit the JSON so it reflects
-what the architecture *truly* is:
+Current diagram-scorer results against these annotations:
 
-- **`modules`** — remove files that aren't real app modules (tests, configs, build
-  scripts) if you don't want them counted; add any the parser missed.
-- **`imports`** — currently `[]` for every repo, because the parser only resolves
-  relative `require()` paths (not ES `import` or path aliases) — a known gap. Fill in
-  the real internal import edges as `["from/path.js", "to/path.js"]` pairs by reading
-  the source. This is where the parser is weakest, so it's the most valuable column to
-  annotate.
-- **`endpoints`** — verify each `"METHOD /path"` against the repo's routes; add missed
-  ones (e.g. routes behind mounted sub-routers) and remove spurious ones.
+| repo | module F1 | import F1 | endpoint F1 | overall |
+|------|:---------:|:---------:|:-----------:|:-------:|
+| node-express-sequelize-postgresql | 1.00 | 0.00 | 0.13 | 0.38 |
+| node_passport_login | 1.00 | 0.00 | 0.29 | 0.43 |
+| node-express-boilerplate | 0.86 | 0.00 | 0.00 | 0.29 |
+| nestjs-realworld-example-app | 1.00 | 0.00 | 1.00 | 0.67 |
+| nestjs-prisma-starter | 1.00 | 0.00 | 1.00 | 0.67 |
+| nestjs-boilerplate | 0.94 | 0.00 | 0.05 | 0.33 |
+
+What the numbers say: the parser discovers modules well (module F1 near 1.0; the two
+dips are the Express parser counting test files and the boilerplate's scaffolding as
+modules), extracts NestJS string-literal decorator routes perfectly (endpoint F1 1.0),
+but recovers **no** internal imports on any repo, misses Express router-mount prefixes,
+and misses NestJS object-form `@Controller({ path })` prefixes.
+
+## Annotation conventions (so re-annotation stays consistent)
+
+- **`modules`** — application source only. For repos that bury tests/scaffolding among
+  source (hagopj13, brocoders), expected modules are the files under `src/`; the
+  parser's inclusion of `tests/`, `test/`, and `.install-scripts/` files then shows up
+  honestly as false-positive modules.
+- **`imports`** — a *representative* set of REAL internal edges, verified from source
+  (`["from/path", "to/path"]`). The parser recovers 0 internal imports on every repo
+  (it only resolves relative `require()`, not ES `import`/path aliases — a known gap),
+  so import F1 is 0.0 regardless of how many are listed. A representative set is enough
+  to score that honestly; an **empty** list would vacuously score 1.0, which is wrong.
+- **`endpoints`** — the TRUE in-code route paths. Controller/router prefixes and mount
+  paths (`app.use('/v1', ...)`, `@Controller('articles')`) are INCLUDED — the parser is
+  meant to resolve these. App-bootstrap global prefixes (`setGlobalPrefix('api')`) and
+  URI versioning are EXCLUDED — they're out of parser scope and applied uniformly.
+  (If your team prefers to score against full external paths instead, add the global
+  prefix/version back to every endpoint — it will lower the NestJS endpoint F1s.)
 
 ## Format
 

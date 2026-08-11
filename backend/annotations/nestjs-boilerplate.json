@@ -1,19 +1,5 @@
 {
   "modules": [
-    ".install-scripts/helpers/replace.ts",
-    ".install-scripts/index.ts",
-    ".install-scripts/scripts/property-generation-scripts/remove-all-db.ts",
-    ".install-scripts/scripts/property-generation-scripts/remove-document.ts",
-    ".install-scripts/scripts/property-generation-scripts/remove-relational.ts",
-    ".install-scripts/scripts/remove-auth-apple.ts",
-    ".install-scripts/scripts/remove-auth-facebook.ts",
-    ".install-scripts/scripts/remove-auth-google.ts",
-    ".install-scripts/scripts/remove-install-scripts.ts",
-    ".install-scripts/scripts/remove-mongodb.ts",
-    ".install-scripts/scripts/remove-postgresql.ts",
-    ".install-scripts/scripts/resource-generation-scripts/remove-all-db.ts",
-    ".install-scripts/scripts/resource-generation-scripts/remove-document.ts",
-    ".install-scripts/scripts/resource-generation-scripts/remove-relational.ts",
     "src/app.module.ts",
     "src/auth/auth-providers.enum.ts",
     "src/auth/auth.controller.ts",
@@ -170,40 +156,48 @@
     "src/utils/types/pagination-options.ts",
     "src/utils/types/request-with-user.type.ts",
     "src/utils/validate-config.ts",
-    "src/utils/validation-options.ts",
-    "test/generators/fixtures/matrix.ts",
-    "test/generators/helpers/auth.ts",
-    "test/generators/helpers/exec.ts",
-    "test/generators/helpers/payloads-document.ts",
-    "test/generators/helpers/payloads-relational.ts",
-    "test/utils/constants.ts",
-    "test/utils/types/mail-message.type.ts"
+    "src/utils/validation-options.ts"
   ],
-  "imports": [],
+  "imports": [
+    [
+      "src/users/users.controller.ts",
+      "src/users/users.service.ts"
+    ],
+    [
+      "src/users/users.controller.ts",
+      "src/roles/roles.decorator.ts"
+    ],
+    [
+      "src/users/users.controller.ts",
+      "src/roles/roles.guard.ts"
+    ],
+    [
+      "src/users/users.controller.ts",
+      "src/users/dto/create-user.dto.ts"
+    ]
+  ],
   "endpoints": [
-    "POST /email/login",
-    "POST /email/register",
-    "POST /email/confirm",
-    "POST /email/confirm/new",
-    "POST /forgot/password",
-    "POST /reset/password",
-    "GET /me",
-    "POST /refresh",
-    "POST /logout",
-    "PATCH /me",
-    "DELETE /me",
-    "POST /login",
-    "POST /login",
-    "POST /login",
-    "POST /upload",
-    "GET /:path",
-    "POST /upload",
-    "POST /upload",
     "GET /",
-    "POST /",
-    "GET /",
-    "GET /:id",
-    "PATCH /:id",
-    "DELETE /:id"
+    "POST /auth/email/login",
+    "POST /auth/email/register",
+    "POST /auth/email/confirm",
+    "POST /auth/email/confirm/new",
+    "POST /auth/forgot/password",
+    "POST /auth/reset/password",
+    "GET /auth/me",
+    "POST /auth/refresh",
+    "POST /auth/logout",
+    "PATCH /auth/me",
+    "DELETE /auth/me",
+    "POST /auth/apple/login",
+    "POST /auth/google/login",
+    "POST /auth/facebook/login",
+    "POST /users",
+    "GET /users",
+    "GET /users/:id",
+    "PATCH /users/:id",
+    "DELETE /users/:id",
+    "POST /files/upload",
+    "GET /files/:path"
   ]
 }
