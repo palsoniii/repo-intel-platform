@@ -20,36 +20,51 @@ only (no paid commercial APIs), a 3-way representation ablation (not 5-way).
 
 ## Current status / what to do next
 
-As of 2026-07-21, Weeks 1-3 of the roadmap are done: both framework parsers, the
-Neo4j graph builder, the context builder, the Ollama orchestration layer, Mermaid
-diagram generation, the 3-way representation ablation, and all 4 dashboard pages
-wired to real backend endpoints -- all validated against live infrastructure (not
-just mocks), not just unit tests. `README.md`'s "What exists right now" section has
-the detailed, phase-by-phase log of what was built, what broke, and what got fixed
--- read that before assuming something isn't implemented.
+As of 2026-08-11, all 8 phases are built: both framework parsers, the Neo4j graph
+builder, the context builder, the Ollama orchestration layer, Mermaid diagram
+generation (rendered visually in the dashboard), the 3-way representation ablation,
+all 4 dashboard pages wired to real backend endpoints, and the full Phase 7
+evaluation suite (LLM-as-judge hallucination scorer, diagram graph-diff scorer,
+batch harness with CSV + SQLite output). 89 tests pass. `README.md`'s "What exists
+right now" section has the phase-by-phase log -- read that before assuming
+something isn't implemented.
 
-**Not yet built** (Week 4 / Phase 7 of the roadmap):
-- LLM-as-judge hallucination scorer (one local model checks another's summary
-  against parser ground truth)
-- Diagram graph-diff scorer (generated diagram vs. manually annotated expected
-  structure)
-- Evaluation harness that runs the full battery (3 models x 3 representations x 2
-  frameworks x N repos) and logs results, instead of one-off manual runs
-- Visual Mermaid rendering in the dashboard (currently shows raw Mermaid text)
+**The first full evaluation battery has been run** (54 rows: 3 models x 3
+representations x 6 repos, zero failures) using `gemma2:9b` as an independent
+4th judge so no arm is self-judged. Results, methodology, and threats to validity
+are in `backend/evaluation_results/RESULTS.md`; the report draft is
+`docs/REPORT.md`.
+
+**Highest-priority task: re-run the battery.** Three parser defects were fixed
+*after* that run (see `docs/REPORT.md` §5.4a) -- most importantly a path-
+normalisation bug that silently dropped **every** internal import edge, leaving the
+`dependency_graph` arm nearly empty. The fixes change what two of the three arms
+receive, so the reported numbers are stale. Both RESULTS.md and REPORT.md carry
+staleness banners; don't quote those figures until they're regenerated.
+
+Run one generator at a time -- this is a 16GB laptop that throttles under sustained
+multi-model load:
+
+```bash
+python -m app.evaluation.harness <6 repo urls> --models qwen2.5-coder:7b \
+  --judge-model gemma2:9b --annotations-dir ./annotations \
+  --out clean_qwen.csv --sqlite study_clean.db
+```
 
 **Blocked on team decisions, not code:**
-- The fixed 6-repo evaluation set + 2 "held-back" repos (untouched by anyone until
-  demo day, to prove genuine generalization) haven't been chosen yet. Don't pick
-  these yourself -- it's an explicit team task (roadmap Week 4), and the repos used
-  for development/testing so far (`heroku/node-js-getting-started`,
-  `nestjs/typescript-starter`) are disqualified from the held-back set since they've
-  already been extensively exercised.
-- The "designated evaluation machine" (roadmap Section 1's Day-0 step, for
-  response-time comparisons to be meaningful) hasn't been formally chosen across the
-  team -- don't assume whichever machine you're running on is it.
-- Report drafting (methodology/related-work were supposed to start in Week 3;
-  results/discussion needs the evaluation battery above), slides, and demo
-  rehearsal haven't started.
+- The 6-repo evaluation set is a *candidate* set (vetted and annotated in
+  `backend/annotations/`), not yet ratified by the team. The 2 "held-back" repos
+  (untouched by anyone until demo day, to prove genuine generalization) still
+  haven't been chosen -- don't pick these yourself, and note the repos used for
+  development (`heroku/node-js-getting-started`, `nestjs/typescript-starter`) are
+  disqualified from the held-back set.
+- The user has designated **this machine** as the evaluation machine (2026-08-11),
+  which also makes the Mistral-for-gpt-oss:20b substitution final. Latency figures
+  still need re-measuring under controlled conditions -- the existing ones come from
+  chunked runs with varying thermal state.
+- Related work (`docs/REPORT.md` §2) is deliberately an empty scaffold: it needs a
+  genuine literature review. Do not populate it with unverified citations.
+- Slides and demo rehearsal haven't started.
 
 See `README.md`'s "Known limitations" and the two "Known gaps" sections (Express
 parser, NestJS parser) for specific, real (not hypothetical) limitations already

@@ -43,6 +43,11 @@ from app.schemas.parser_schema import (
 TS_LANGUAGE = Language(tsts.language_typescript())
 
 SKIP_DIRS = {"node_modules", ".git", "dist", "build", "coverage"}
+# Test trees are not application architecture -- counting them as modules inflates the
+# module set with files that don't describe the running service. Unlike SKIP_DIRS these
+# are *recorded* in files_skipped rather than dropped silently, so the exclusion stays
+# auditable (SKIP_DIRS would drown that list in node_modules noise).
+TEST_DIRS = {"test", "tests", "__tests__", "__mocks__", "spec", "e2e", "cypress"}
 SOURCE_EXTENSIONS = {".ts"}  # .tsx is a frontend concern -- NestJS backends don't use it
 MAX_FILES = 3000
 
@@ -109,12 +114,15 @@ class NestJSParser(BaseParser):
             source_files = source_files[:MAX_FILES]
 
         parser = Parser(TS_LANGUAGE)
+        # Keyed on the RESOLVED path: _resolve_imports() resolves its candidates, and on
+        # macOS a clone under /var/folders resolves to /private/var/folders, so keying on
+        # the unresolved path made every internal-import lookup miss silently.
         path_to_module_id: dict[Path, str] = {}
         for i, file_path in enumerate(source_files):
-            path_to_module_id[file_path] = f"mod_{i}"
+            path_to_module_id[file_path.resolve()] = f"mod_{i}"
 
         for file_path in source_files:
-            module_id = path_to_module_id[file_path]
+            module_id = path_to_module_id[file_path.resolve()]
             rel_path = str(file_path.relative_to(repo_path))
             try:
                 source_bytes = file_path.read_bytes()
@@ -189,7 +197,12 @@ class NestJSParser(BaseParser):
         for f in repo_path.rglob("*"):
             if not f.is_file():
                 continue
-            if any(part in SKIP_DIRS for part in f.parts):
+            rel_parts = f.relative_to(repo_path).parts
+            if any(part in SKIP_DIRS for part in rel_parts):
+                continue
+            # Hidden directories (.husky, .install-scripts, .github, ...) hold tooling
+            # and scaffolding, not the service being described.
+            if any(part.startswith(".") for part in rel_parts[:-1]):
                 continue
             if f.suffix not in SOURCE_EXTENSIONS:
                 continue
@@ -198,7 +211,11 @@ class NestJSParser(BaseParser):
             # unit-test convention (*.spec.ts) and NestJS's scaffolded e2e convention
             # (*.e2e-spec.ts, e.g. test/app.e2e-spec.ts in every `nest new` project) --
             # found missing by testing against the real nestjs/typescript-starter repo.
-            if f.name.endswith(".spec.ts") or f.name.endswith(".e2e-spec.ts"):
+            if (
+                f.name.endswith(".spec.ts")
+                or f.name.endswith(".e2e-spec.ts")
+                or any(part in TEST_DIRS for part in rel_parts)
+            ):
                 files_skipped.append(str(f.relative_to(repo_path)) + " (test file, skipped)")
                 continue
             results.append(f)
@@ -365,11 +382,17 @@ class NestJSParser(BaseParser):
     def _decorator_string_arg(
         self, decorators: list[Node], name: str, source: bytes
     ) -> str | None:
-        """Returns the first string-literal argument of the named decorator (e.g.
-        @Controller('users') -> 'users'), or '' if present with no/non-string args,
-        or None if the decorator isn't present at all. Only a single string literal
-        is handled -- an options-object or array argument (valid but rarer NestJS
-        usage) resolves to '' rather than being parsed further."""
+        """Returns the route prefix declared by the named decorator, or None if the
+        decorator isn't present at all. Three argument forms are handled, all of
+        which occur in real NestJS code:
+
+            @Controller('users')                       -> 'users'
+            @Controller({ path: 'users', version: '1' }) -> 'users'
+            @Controller(['v1/users', 'v2/users'])      -> 'v1/users'  (first entry)
+
+        Anything else (no args, computed values) resolves to ''. The array form
+        deliberately keeps only the first path: ApiEndpoint carries a single path,
+        and the alternatives are the same handler under another prefix."""
         for dec in decorators:
             if self._decorator_name(dec, source) != name:
                 continue
@@ -379,15 +402,52 @@ class NestJSParser(BaseParser):
                 return ""
             for arg in args.named_children:
                 if arg.type == "string":
-                    fragment = next(
-                        (c for c in arg.named_children if c.type == "string_fragment"), None
-                    )
-                    if fragment is not None:
-                        return source[fragment.start_byte:fragment.end_byte].decode(
+                    text = self._string_text(arg, source)
+                    if text is not None:
+                        return text
+                if arg.type == "object":
+                    # options form: pull the `path` property, ignore version/host/etc.
+                    for pair in arg.named_children:
+                        if pair.type != "pair":
+                            continue
+                        key = pair.child_by_field_name("key")
+                        value = pair.child_by_field_name("value")
+                        if key is None or value is None:
+                            continue
+                        key_text = source[key.start_byte:key.end_byte].decode(
                             "utf-8", "replace"
-                        )
+                        ).strip("'\"")
+                        if key_text != "path":
+                            continue
+                        if value.type == "string":
+                            text = self._string_text(value, source)
+                            if text is not None:
+                                return text
+                        elif value.type == "array":
+                            for element in value.named_children:
+                                text = self._string_text(element, source)
+                                if text is not None:
+                                    return text
+                if arg.type == "array":
+                    for element in arg.named_children:
+                        text = self._string_text(element, source)
+                        if text is not None:
+                            return text
             return ""
         return None
+
+    @staticmethod
+    def _string_text(node: Node, source: bytes) -> str | None:
+        """Unwraps a tree-sitter `string` node to its literal text, or None if the
+        node isn't a plain string literal (e.g. a template string with substitutions)."""
+        if node.type != "string":
+            return None
+        fragment = next(
+            (c for c in node.named_children if c.type == "string_fragment"), None
+        )
+        if fragment is None:
+            return ""  # empty string literal
+        return source[fragment.start_byte:fragment.end_byte].decode("utf-8", "replace")
 
     def _route_decorator(
         self, decorators: list[Node], source: bytes

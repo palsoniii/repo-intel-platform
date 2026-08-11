@@ -5,6 +5,27 @@ evaluation set. **These are candidate-set results — the team has not yet ratif
 6 fixed repos or the 2 held-back repos, so treat this as the first full battery, not
 the final reported study.**
 
+> ## ⚠️ SUPERSEDED BY PARSER FIXES — RE-RUN REQUIRED
+>
+> These 54 rows were generated **before** the parser fixes landed. At the time, the
+> parser recovered **zero internal import edges** on every repository (a path-
+> normalisation bug: candidate paths were `.resolve()`d while the lookup table was
+> keyed on unresolved paths, so on macOS every lookup missed). It also dropped Express
+> router-mount prefixes and NestJS object-form `@Controller({ path })` prefixes.
+>
+> That directly changes the inputs to two of the three arms:
+> - **`dependency_graph`** was built almost entirely from import edges — of which there
+>   were none. That arm was close to structurally empty, which plausibly explains why
+>   it failed to outperform raw source. It now carries 6–414 real edges per repo.
+> - **`knowledge_graph`** gains those edges plus corrected endpoint paths.
+>
+> **The headline result below (knowledge_graph > raw, p = 0.002) was therefore measured
+> against a degraded dependency_graph arm and partially incorrect endpoints.** The
+> efficiency figures are also affected, since the structured contexts are now larger.
+> The battery must be re-run before any of this is reported as a finding. The
+> diagram-scorer figures in the last section have already been superseded — see
+> `../annotations/README.md` for current values.
+
 ## Setup
 
 - **Generators (3):** `qwen2.5-coder:7b`, `llama3.1:8b`, `mistral:7b`

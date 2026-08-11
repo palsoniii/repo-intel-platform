@@ -5,6 +5,14 @@
 Status: results chapters complete and backed by a real evaluation run; related work
 and final framing still to be written by the team. Last updated 2026-08-11.
 
+> **⚠️ Results in §5.1–§5.3 require re-measurement.** They were produced before three
+> parser defects were fixed (see §5.4a). The most consequential of these caused the
+> parser to recover **zero internal import edges**, which left the `dependency_graph`
+> arm — one third of the ablation — almost structurally empty. The primary result
+> (§5.1) compares `knowledge_graph` against `raw` and is less exposed, but the
+> dependency-graph comparisons and all efficiency figures must be regenerated. §5.4
+> already reflects the fixed parser.
+
 ---
 
 ## Abstract
@@ -315,36 +323,63 @@ withdrawn.
 Precision/recall/F1 of extracted structure against hand-written ground-truth
 annotations. Model-independent — diagram generation involves no LLM.
 
-| Repository | module F1 | import F1 | endpoint F1 | overall |
-|---|:---:|:---:|:---:|:---:|
-| node-express-sequelize-postgresql | 1.00 | 0.00 | 0.13 | 0.38 |
-| node_passport_login | 1.00 | 0.00 | 0.29 | 0.43 |
-| node-express-boilerplate | 0.86 | 0.00 | 0.00 | 0.29 |
-| nestjs-realworld-example-app | 1.00 | 0.00 | **1.00** | 0.67 |
-| nestjs-prisma-starter | 1.00 | 0.00 | **1.00** | 0.67 |
-| nestjs-boilerplate | 0.94 | 0.00 | 0.05 | 0.33 |
+Import **recall** is reported rather than F1: the two small Express repositories are
+annotated exhaustively, but the four larger ones list a verified *subset* of edges
+(4–7 of 63–414), against which precision measures annotation completeness rather than
+parser error.
 
-Three distinct behaviours:
+| Repository | module F1 | import recall | endpoint F1 |
+|---|:---:|:---:|:---:|
+| node-express-sequelize-postgresql | 1.00 | 1.00 | 1.00 |
+| node_passport_login | 1.00 | 1.00 | 1.00 |
+| node-express-boilerplate | 0.97 | 1.00 | 0.00 |
+| nestjs-realworld-example-app | 1.00 | 1.00 | 1.00 |
+| nestjs-prisma-starter | 1.00 | 1.00 | 1.00 |
+| nestjs-boilerplate | 1.00 | 1.00 | 1.00 |
 
-- **Module discovery is near-perfect** (F1 0.86–1.00). The two sub-1.0 scores are
-  false positives — the Express parser counts test files as modules, and the NestJS
-  boilerplate's installation scripts are counted as application source.
-- **Internal import recovery fails completely** (F1 0.00 on *every* repository). The
-  parsers resolve only relative `require()` calls, not ES `import` statements or
-  tsconfig/webpack path aliases. Since modern TypeScript projects use ES imports
-  exclusively, no import edge is recovered anywhere in the evaluation set.
-- **Endpoint extraction is bimodal.** NestJS controllers using string-literal
-  decorators (`@Controller('articles')`) score a perfect 1.00. Express router mounting
-  (`app.use('/api/tutorials', router)`) and NestJS object-form decorators
-  (`@Controller({ path: 'users', version: '1' })`) are not resolved, producing
-  router-relative or prefix-less paths and near-zero F1.
+Structural extraction is accurate on five of six repositories. The single failure is
+`hagopj13/node-express-boilerplate`, which registers routes by iterating an array of
+`{ path, route }` objects (`defaultRoutes.forEach(r => router.use(r.path, r.route))`).
+The mount path is a runtime *value* rather than a literal, so recovering it would
+require data-flow analysis rather than syntactic matching. Those routes retain their
+router-relative paths.
 
-This has a direct bearing on §5.1. The `dependency_graph` representation is built
-largely from import edges — **which the parser recovers none of**. Its failure to
-outperform raw source is therefore partly explained: on this evaluation set that
-representation is close to structurally empty. This is a limitation of the *parser*,
-not evidence about dependency graphs in general, and it should temper any claim
-about representation ranking.
+### 5.4a Parser defects found and fixed during evaluation
+
+The table above reflects the parser *after* three defects were identified — each
+surfaced by the graph-diff scorer rather than by the unit-test suite, which passed
+throughout.
+
+1. **Silent loss of every internal import edge.** Import candidates were normalised
+   with `Path.resolve()` while the module lookup table was keyed on unresolved paths.
+   On macOS a repository cloned under `/var/folders/...` resolves to
+   `/private/var/folders/...`, so *every* lookup missed. The parse appeared healthy —
+   modules, functions, and endpoints were all extracted — it simply produced no edges.
+   Recovery after the fix: 6, 8, 75, 63, 67, and 414 edges across the six repositories.
+2. **Express router-mount prefixes dropped.** Routes declared on a router
+   (`router.get('/')`) were emitted with their router-relative path, ignoring the
+   prefix the router is mounted at (`app.use('/api/tutorials', router)`). Mounts are
+   now collected across all files in a first pass and composed in a second, covering
+   both same-file mounting and cross-file mounting via `require()` or an identifier
+   bound to one.
+3. **NestJS object-form `@Controller` prefixes dropped.** Only the string form
+   `@Controller('users')` was parsed; the options form
+   `@Controller({ path: 'users', version: '1' })` yielded an empty prefix. Every
+   controller in the largest repository uses the options form, so its endpoints
+   collapsed to bare method paths.
+
+Additionally, test trees and hidden tooling directories are now excluded from the
+module set (recorded in `files_skipped` rather than dropped silently), removing the
+module false positives.
+
+**Consequence for §5.1–§5.3.** The `dependency_graph` representation is built largely
+from import edges — of which, before fix 1, there were none. That arm was close to
+structurally empty during the reported evaluation, which is the most plausible
+explanation for its failure to outperform raw source. That finding should therefore be
+read as a statement about a degraded arm, not about dependency graphs, and the battery
+must be re-run before it is reported. This is also a methodological observation worth
+recording: an evaluation harness detected a defect that a passing unit-test suite did
+not, because the suite asserted the buggy behaviour as expected output.
 
 ---
 
@@ -429,15 +464,20 @@ tion occurs.
 All timed results must be reproduced on a single agreed machine before latency is
 reported as a finding (§6.4).
 
-### 7.3 Parser improvements with direct evaluative impact
+### 7.3 Re-run the battery against the fixed parser
 
-Ordered by effect on the results above:
+**This is now the highest-priority item.** The three defects in §5.4a are fixed, so the
+`dependency_graph` and `knowledge_graph` arms receive materially different input than
+they did during the reported run. §5.1–§5.3 must be regenerated before publication.
 
-1. **ES `import` resolution** — would populate the currently empty import edges,
-   making the `dependency_graph` arm a fair test rather than a near-empty one (§5.4).
-2. **Express router-mount path composition** and **NestJS object-form `@Controller`
-   parsing** — would raise endpoint F1 from near-zero on four of six repositories.
-3. **Test/scaffolding file exclusion** — would remove the module false positives.
+Remaining parser work, none of it blocking:
+
+1. **Data-flow-driven route mounting** — would recover
+   `hagopj13/node-express-boilerplate`'s endpoints, the last structural failure (§5.4).
+2. **`@Module()` metadata** (`controllers`/`providers`/`imports` arrays) — would add
+   NestJS's actual DI wiring to the graph, currently absent.
+3. **Path aliases** (tsconfig/webpack `paths`) — not exercised by the current set, but
+   common in larger codebases.
 
 ### 7.4 Methodological strengthening
 

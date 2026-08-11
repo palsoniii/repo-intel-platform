@@ -17,20 +17,29 @@ That's why every file here has been reconciled to the source.)
 
 Current diagram-scorer results against these annotations:
 
-| repo | module F1 | import F1 | endpoint F1 | overall |
-|------|:---------:|:---------:|:-----------:|:-------:|
-| node-express-sequelize-postgresql | 1.00 | 0.00 | 0.13 | 0.38 |
-| node_passport_login | 1.00 | 0.00 | 0.29 | 0.43 |
-| node-express-boilerplate | 0.86 | 0.00 | 0.00 | 0.29 |
-| nestjs-realworld-example-app | 1.00 | 0.00 | 1.00 | 0.67 |
-| nestjs-prisma-starter | 1.00 | 0.00 | 1.00 | 0.67 |
-| nestjs-boilerplate | 0.94 | 0.00 | 0.05 | 0.33 |
+| repo | module F1 | import recall | endpoint F1 |
+|------|:---------:|:-------------:|:-----------:|
+| node-express-sequelize-postgresql | 1.00 | 1.00 | 1.00 |
+| node_passport_login | 1.00 | 1.00 | 1.00 |
+| node-express-boilerplate | 0.97 | 1.00 | 0.00 |
+| nestjs-realworld-example-app | 1.00 | 1.00 | 1.00 |
+| nestjs-prisma-starter | 1.00 | 1.00 | 1.00 |
+| nestjs-boilerplate | 1.00 | 1.00 | 1.00 |
 
-What the numbers say: the parser discovers modules well (module F1 near 1.0; the two
-dips are the Express parser counting test files and the boilerplate's scaffolding as
-modules), extracts NestJS string-literal decorator routes perfectly (endpoint F1 1.0),
-but recovers **no** internal imports on any repo, misses Express router-mount prefixes,
-and misses NestJS object-form `@Controller({ path })` prefixes.
+The single remaining endpoint failure is `hagopj13/node-express-boilerplate`, which
+registers routes by iterating an array of `{ path, route }` objects
+(`defaultRoutes.forEach(r => router.use(r.path, r.route))`). The mount path is a
+*value*, not a literal, so it cannot be recovered without data-flow analysis. Its
+routes keep their router-relative paths.
+
+### Why import is reported as recall, not F1
+
+Import **precision is only interpretable when the annotation is exhaustive.** The two
+small Express repos are annotated completely, so their import F1 is meaningful (1.00).
+The four larger repos list a verified *subset* (4–7 edges out of 63–414), so precision
+there measures how few edges were annotated, not parser error — the parser finds every
+annotated edge (recall 1.00) plus many more that are genuinely real. Report **recall**
+for those repos, or annotate them exhaustively before quoting precision.
 
 ## Annotation conventions (so re-annotation stays consistent)
 
@@ -38,11 +47,11 @@ and misses NestJS object-form `@Controller({ path })` prefixes.
   source (hagopj13, brocoders), expected modules are the files under `src/`; the
   parser's inclusion of `tests/`, `test/`, and `.install-scripts/` files then shows up
   honestly as false-positive modules.
-- **`imports`** — a *representative* set of REAL internal edges, verified from source
-  (`["from/path", "to/path"]`). The parser recovers 0 internal imports on every repo
-  (it only resolves relative `require()`, not ES `import`/path aliases — a known gap),
-  so import F1 is 0.0 regardless of how many are listed. A representative set is enough
-  to score that honestly; an **empty** list would vacuously score 1.0, which is wrong.
+- **`imports`** — REAL internal edges verified from source (`["from/path", "to/path"]`).
+  Annotate **exhaustively** where feasible (both small Express repos are), because
+  precision is only interpretable against a complete list. Where exhaustive annotation
+  isn't practical (63–414 edges), a verified subset is acceptable but then only
+  **recall** may be quoted. An **empty** list would vacuously score 1.0, which is wrong.
 - **`endpoints`** — the TRUE in-code route paths. Controller/router prefixes and mount
   paths (`app.use('/v1', ...)`, `@Controller('articles')`) are INCLUDED — the parser is
   meant to resolve these. App-bootstrap global prefixes (`setGlobalPrefix('api')`) and

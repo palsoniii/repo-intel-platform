@@ -15,7 +15,8 @@
     ["app.js", "routes/users.js"],
     ["routes/index.js", "config/auth.js"],
     ["routes/users.js", "models/User.js"],
-    ["routes/users.js", "config/auth.js"]
+    ["routes/users.js", "config/auth.js"],
+    ["config/passport.js", "models/User.js"]
   ],
   "endpoints": [
     "GET /",
