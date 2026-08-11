@@ -1,0 +1,21 @@
+{
+  "modules": [
+    "app.js",
+    "config/auth.js",
+    "config/keys.js",
+    "config/passport.js",
+    "models/User.js",
+    "routes/index.js",
+    "routes/users.js"
+  ],
+  "imports": [],
+  "endpoints": [
+    "GET /",
+    "GET /dashboard",
+    "GET /login",
+    "GET /register",
+    "GET /logout",
+    "POST /login",
+    "POST /register"
+  ]
+}
