@@ -107,6 +107,12 @@ export interface ComparisonRunResponse {
   hallucinationJudged: boolean;
   totalClaims: number;
   unsupportedClaims: number;
+  // Coverage (recall): how much of the parser's ground truth the summary actually
+  // mentioned, vs. hallucination (precision-like): whether what it said was true.
+  coverageScore: number | null; // null if the run failed or the judge didn't parse
+  coverageJudged: boolean;
+  totalFacts: number;
+  missingFacts: number;
   judgeModel: string | null;
   selfJudged: boolean;
 }
@@ -136,6 +142,10 @@ export async function compareModels(url: string, models?: string[]): Promise<Com
       hallucination_judged: boolean;
       total_claims: number;
       unsupported_claims: number;
+      coverage_score: number | null;
+      coverage_judged: boolean;
+      total_facts: number;
+      missing_facts: number;
       judge_model: string | null;
       self_judged: boolean;
     }[];
@@ -158,6 +168,10 @@ export async function compareModels(url: string, models?: string[]): Promise<Com
       hallucinationJudged: r.hallucination_judged,
       totalClaims: r.total_claims,
       unsupportedClaims: r.unsupported_claims,
+      coverageScore: r.coverage_score,
+      coverageJudged: r.coverage_judged,
+      totalFacts: r.total_facts,
+      missingFacts: r.missing_facts,
       judgeModel: r.judge_model,
       selfJudged: r.self_judged,
     })),

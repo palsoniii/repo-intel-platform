@@ -20,30 +20,37 @@ only (no paid commercial APIs), a 3-way representation ablation (not 5-way).
 
 ## Current status / what to do next
 
-As of 2026-07-21, Weeks 1-3 of the roadmap are done: both framework parsers, the
-Neo4j graph builder, the context builder, the Ollama orchestration layer, Mermaid
-diagram generation, the 3-way representation ablation, and all 4 dashboard pages
-wired to real backend endpoints -- all validated against live infrastructure (not
-just mocks), not just unit tests. `README.md`'s "What exists right now" section has
-the detailed, phase-by-phase log of what was built, what broke, and what got fixed
--- read that before assuming something isn't implemented.
+As of 2026-08-14, all 8 build phases (Weeks 1-4) are done: both framework parsers,
+the Neo4j graph builder, the context builder, the Ollama orchestration layer,
+Mermaid diagram generation (rendered visually via mermaid.js, not raw text), the
+3-way representation ablation, the LLM-as-judge hallucination scorer plus its
+companion coverage/recall scorer (`app/evaluation/coverage.py` -- how much of the
+parser's ground truth a summary actually mentions, not just whether its claims are
+true), the diagram graph-diff scorer, the batch evaluation harness, and all 4
+dashboard pages wired to real backend endpoints -- all validated against live
+infrastructure (not just mocks), not just unit tests, 94+ tests passing.
+`README.md`'s "What exists right now" section has the detailed, phase-by-phase log
+of what was built, what broke, and what got fixed -- read that before assuming
+something isn't implemented. (This section previously said the Phase 7 evaluation
+work below was "not yet built" -- that was stale; it's built and tested.)
 
-**Not yet built** (Week 4 / Phase 7 of the roadmap):
-- LLM-as-judge hallucination scorer (one local model checks another's summary
-  against parser ground truth)
-- Diagram graph-diff scorer (generated diagram vs. manually annotated expected
-  structure)
-- Evaluation harness that runs the full battery (3 models x 3 representations x 2
-  frameworks x N repos) and logs results, instead of one-off manual runs
-- Visual Mermaid rendering in the dashboard (currently shows raw Mermaid text)
+**Built, but not yet producing real results** (blocked on the team decisions below,
+not code):
+- Batch evaluation harness (`app/evaluation/harness.py`; run via
+  `python -m app.evaluation.harness <url> ... --out results.csv --sqlite results.db`)
+  runs the full battery (models x representations x repos) and logs CSV/SQLite
+  results -- ready the moment the team's repo list exists.
+- Diagram graph-diff scorer (`app/evaluation/diagram_score.py`) can't produce real
+  numbers until the team writes expected-structure annotations for the chosen repos.
 
 **Blocked on team decisions, not code:**
 - The fixed 6-repo evaluation set + 2 "held-back" repos (untouched by anyone until
   demo day, to prove genuine generalization) haven't been chosen yet. Don't pick
   these yourself -- it's an explicit team task (roadmap Week 4), and the repos used
   for development/testing so far (`heroku/node-js-getting-started`,
-  `nestjs/typescript-starter`) are disqualified from the held-back set since they've
-  already been extensively exercised.
+  `nestjs/typescript-starter`, `lujakob/nestjs-realworld-example-app`,
+  `osandadeshan/expressjs-restful-apis-demo`) are disqualified from the held-back
+  set since they've already been extensively exercised.
 - The "designated evaluation machine" (roadmap Section 1's Day-0 step, for
   response-time comparisons to be meaningful) hasn't been formally chosen across the
   team -- don't assume whichever machine you're running on is it.
@@ -124,9 +131,14 @@ Three pipeline entrypoints, one per dashboard capability:
   representation (knowledge_graph)
 - `generate_repository_diagram()` -> `POST /diagram` -- no LLM, `graph/diagram.py`
   queries Neo4j directly and formats Mermaid text
-- `run_representation_ablation()` -> `POST /compare` -- all 3 models x all 3
-  representations, `len(models) * 3` results; clones/parses/writes-to-graph once
-  and reuses it across every model
+- `run_scored_ablation()` -> `POST /compare` -- runs `run_representation_ablation()`
+  (all 3 models x all 3 representations, `len(models) * 3` results; clones/parses/
+  writes-to-graph once and reuses it across every model), then grades each
+  successful result with two LLM-as-judge metrics: hallucination
+  (`evaluation/hallucination.py`, precision-like -- are its claims true) and
+  coverage (`evaluation/coverage.py`, recall-like -- how much of the parser's
+  ground truth did it mention). That's up to 2 extra judge calls per result on top
+  of the `len(models) * 3` generations.
 
 **Parser registry order matters**: `NestJSParser` is checked before `ExpressParser`
 in `parsers/registry.py` -- NestJS repos often list `express` directly too (their

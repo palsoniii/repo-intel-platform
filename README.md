@@ -17,7 +17,8 @@ pipeline. Three dashboard pages call three real endpoints:
   no LLM call, effectively instant.
 - **Comparison** -> `POST /compare`: Week 3's 3-way representation ablation (raw /
   dependency_graph / knowledge_graph) across all 3 comparison models -- 9 sequential
-  Ollama calls, 1-5 minutes.
+  generation calls, each followed by two judge calls (hallucination + coverage, Phase
+  7), so up to 27 Ollama calls total; several minutes to tens of minutes on CPU.
 
 All three verified for real in-browser (not just via curl): a local Ollama install
 (3 models pulled -- Qwen2.5-Coder, Llama 3.1, Mistral 7B in place of gpt-oss:20b, see
@@ -295,6 +296,32 @@ below for how to run them for real.
   fact-consistent phrasing as supported fixed it -- faithful now scores 0.0, the
   hallucinated one 1.0 with every fabricated technology caught. Broader validation
   across more models and summaries is still needed before trusting absolute scores.
+
+**Phase 7 (coverage/recall scorer, built -- companion to the hallucination scorer):**
+- `backend/app/evaluation/coverage.py` -- `score_coverage()`: hallucination measures
+  precision (are the claims a summary made true); it says nothing about
+  completeness, so a summary that mentions almost nothing can still score a perfect
+  0.0. Coverage measures the missing half -- of the facts the parser actually found,
+  how many did the summary mention (recall).
+- Structural difference from the hallucination scorer: hallucination's "claims" are
+  extracted BY the judge FROM the summary (unknowable in advance); coverage's fact
+  list (`build_coverable_facts()`) is built DETERMINISTICALLY from the
+  `ParsedRepository` before the judge ever runs, so the denominator (`total_facts`)
+  is never at the judge's mercy the way hallucination's claim count is -- only "is
+  this specific fact mentioned" needs judgment.
+- Reuses `BaseLLMProvider.judge()` (now takes an optional `task`, defaulting to
+  `HALLUCINATION_JUDGE` for backward compatibility) with the new `COVERAGE_JUDGE`
+  task, so both judge calls share the same retry/latency/result plumbing.
+- `backend/tests/test_coverage.py` -- 8 offline unit tests (mocked judge), covering
+  fact-list construction, verdict parsing, a judge inventing a fact never asked
+  about (dropped rather than trusted), and the vacuous zero-facts case.
+- Wired everywhere hallucination is: `run_scored_ablation()` (`POST /compare`),
+  `ComparisonRun`/the dashboard's Comparison page (a second aggregate panel,
+  higher-is-better), and the batch harness's `EvaluationRow`/CSV output.
+- Not yet live-validated against real Ollama the way the hallucination scorer was
+  (faithful vs. injected-false-claims summaries) -- same "needs broader validation"
+  caveat applies.
+
 **Phase 7 (diagram graph-diff scorer, built -- awaiting annotations to run for real):**
 - `backend/app/evaluation/diagram_score.py` -- `score_diagram()`: precision / recall /
   F1 over modules (nodes), import relationships (edges), and endpoints, comparing the
@@ -313,10 +340,10 @@ below for how to run them for real.
 
 **Phase 7 (batch evaluation harness, built):**
 - `backend/app/evaluation/harness.py` -- `run_evaluation()`: runs the full battery
-  (every repo x every model x all 3 representations), scores each summary with the
-  hallucination judge, and emits one flat `EvaluationRow` per (repo, model,
-  representation) with efficiency metrics (latency, tokens) and the quality metric
-  (hallucination score) side by side. `write_csv()` produces the results table the
+  (every repo x every model x all 3 representations), scores each summary with both
+  the hallucination and coverage judges, and emits one flat `EvaluationRow` per
+  (repo, model, representation) with efficiency metrics (latency, tokens) alongside
+  both quality metrics side by side. `write_csv()` produces the results table the
   report is built from.
 - Runs as a script on the designated evaluation machine:
   `python -m app.evaluation.harness <url> [...] --models qwen2.5-coder:7b mistral:7b --judge-model llama3.1:8b --annotations-dir ./annotations --out results.csv --sqlite results.db`.
@@ -329,8 +356,8 @@ below for how to run them for real.
   `--sqlite` also appends every row into a SQLite table that accumulates across runs
   (the CSV is overwritten each run).
 - The same scoring is wired into the live `POST /compare` (`run_scored_ablation`), so
-  the dashboard's Comparison page shows hallucination scores interactively, not only
-  via the batch CSV.
+  the dashboard's Comparison page shows hallucination + coverage scores
+  interactively, not only via the batch CSV.
 - `backend/tests/test_harness.py` -- offline unit tests (mocked ablation + scorer,
   diagram-scoring integration, SQLite roundtrip), plus a real end-to-end run
   producing an actual CSV (see "Verified test results").
@@ -355,9 +382,16 @@ below for how to run them for real.
   port, since Vite's default 5173 is often taken by other local projects) and a
   global exception handler -- see the CORS bug under Phase 4 above, which this
   wiring work is what actually surfaced it.
-- Comparison page shows a live hallucination score per (model, representation) --
-  `/compare` now scores each summary via `run_scored_ablation` (see Phase 7). The
-  Diagram page renders the Mermaid as an actual SVG flowchart (mermaid.js,
+- Comparison page shows live hallucination AND coverage scores per (model,
+  representation) -- `/compare` now scores each summary via `run_scored_ablation`
+  (see Phase 7) -- plus a per-representation average for each metric (hallucination
+  lower-is-better, coverage higher-is-better, kept as two separate panels since the
+  two axes can disagree on which representation wins), the single best-hallucination
+  run highlighted in the table, and a **token efficiency** column (output / input
+  tokens) replacing the raw token-count columns -- structured representations feed
+  far fewer input tokens for comparable output, so this reads directly as "more
+  summary per token spent" instead of making the reader compare two numbers by eye.
+  The Diagram page renders the Mermaid as an actual SVG flowchart (mermaid.js,
   theme-aware, raw source under a `<details>`), not raw text.
 - Verified for real in-browser, not just via curl: submitted live GitHub URLs
   through the Analyze and Diagram pages' forms, watched both hit the real backend,
@@ -491,9 +525,11 @@ doesn't matter which port Vite actually lands on if 5180 is also taken.
 - NestJS parsing will be heuristic-based (tree-sitter + decorator pattern matching),
   not a full semantic parser -- expect lower precision than the Express parser.
 - Mermaid diagram validation is structural, not a true Mermaid-spec parse.
-- The hallucination metric is an LLM-as-judge (one local model checking another's
-  summary against parser ground truth), validated against only a small manually
-  scored sample -- not a fully validated NLP metric.
+- The hallucination and coverage metrics are both LLM-as-judge (one local model
+  checking another's summary against parser ground truth). Hallucination was
+  validated against only a small manually scored sample; coverage hasn't been
+  live-validated against real Ollama at all yet. Neither is a fully validated NLP
+  metric.
 - All three comparison models run locally via Ollama; response-time comparisons are
   only meaningful when run on the single designated evaluation machine (see roadmap
   Section 1).
@@ -510,8 +546,8 @@ doesn't matter which port Vite actually lands on if 5180 is also taken.
   (`ContextBuilderError` if requested directly) -- its signature is Neo4j-only.
   RAW is only available via `pipeline.run_representation_ablation()`, which reads
   source during its own dedicated clone (`_read_raw_source()`) before cleanup.
-- `num_ctx` (Ollama's context window) is now configurable via `OLLAMA_NUM_CTX` but
-  unset by default (falls back to each model's own default, often only ~2-4K tokens).
-  `DEFAULT_MAX_RAW_CHARS` (8000) in `pipeline.py` is still a conservative guess paired
-  with that -- raise both together and measure if you want the raw arm to use a
-  larger window.
+- `num_ctx` (Ollama's context window) is configurable via `OLLAMA_NUM_CTX`; this
+  dev machine's `.env` now sets it to 8192 (was unset, falling back to each model's
+  default of often only ~2-4K tokens), with `DEFAULT_MAX_RAW_CHARS` in `pipeline.py`
+  raised from 8000 to 24000 to match, so the raw arm can use the larger window
+  instead of being truncated well under it.

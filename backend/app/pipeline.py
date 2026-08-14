@@ -6,7 +6,7 @@ GitPython, tree-sitter, Neo4j, or Ollama directly, just these two functions.
 """
 
 from __future__ import annotations
-
+import re 
 import json
 import os
 from pathlib import Path
@@ -19,6 +19,7 @@ from pydantic import BaseModel
 from app.acquisition.clone import AcquiredRepo, CloneFailedError, InvalidRepoUrlError, RepoTooLargeError, clone_repository
 from app.context.builder import build_context
 from app.db.neo4j_client import get_driver
+from app.evaluation.coverage import CoverageResult, score_coverage
 from app.evaluation.hallucination import HallucinationResult, score_summary
 from app.graph.builder import ensure_constraints, write_parsed_repository
 from app.graph.diagram import generate_architecture_diagram
@@ -32,11 +33,13 @@ from app.schemas.parser_schema import ParsedRepository
 
 REQUIRED_SUMMARY_KEYS = {"overview", "tech_stack", "services", "dependencies"}
 
-# Conservative default: these 7-8B Ollama models commonly default to a 2-4K token
-# context window (num_ctx isn't configured anywhere in this pipeline yet -- a known
-# follow-up), so the raw-source arm of the ablation is capped well under that rather
-# than assuming a larger window is available.
-DEFAULT_MAX_RAW_CHARS = 8000
+# Raw-source arm cap. num_ctx is now configurable via OLLAMA_NUM_CTX (see
+# providers/ollama_provider.py) and .env sets it to 8192 tokens; this char cap is
+# sized to fit inside that window with headroom left for the prompt scaffold, the
+# ground-truth facts, and the model's own output. Keep this in step with
+# OLLAMA_NUM_CTX -- raising the window without raising this leaves the raw arm
+# needlessly truncated, and raising this above the window just gets truncated by Ollama.
+DEFAULT_MAX_RAW_CHARS = 24000
 
 
 class AnalysisError(Exception):
@@ -139,7 +142,28 @@ def generate_repository_diagram(
     return parsed, diagram
 
 
+def _strip_code_fence(raw_text: str) -> str:
+    """Local models often wrap JSON output in a markdown code fence (```json ... ```)
+    even when the prompt asks for raw JSON. Strip that fence before parsing, since
+    json.loads() otherwise fails on the leading/trailing backticks."""
+    match = re.search(r"```(?:json)?\s*(.*?)\s*```", raw_text, re.DOTALL)
+    if match:
+        return match.group(1)
+    return raw_text
+
+
 def _try_parse_summary_json(raw_text: str) -> tuple[dict | None, bool]:
+    """Downstream parsing of the model's raw_text into the structured shape the
+    prompt asked for (see providers/base.py: this is deliberately not the
+    provider's job). Malformed or off-schema output is a real possibility with
+    local models, not just a hypothetical -- treated as invalid, not raised."""
+    try:
+        parsed = json.loads(_strip_code_fence(raw_text))
+    except json.JSONDecodeError:
+        return None, False
+    if not isinstance(parsed, dict) or not REQUIRED_SUMMARY_KEYS.issubset(parsed.keys()):
+        return None, False
+    return parsed, True
     """Downstream parsing of the model's raw_text into the structured shape the
     prompt asked for (see providers/base.py: this is deliberately not the
     provider's job). Malformed or off-schema output is a real possibility with
@@ -271,11 +295,13 @@ def run_representation_ablation(
 
 
 class ScoredResult(BaseModel):
-    """One ablation result paired with its hallucination score. `hallucination` is
-    None for a run that failed (nothing to grade)."""
+    """One ablation result paired with its hallucination (precision-like: are the
+    claims it made true) and coverage (recall-like: how much of the ground truth did
+    it mention) scores. Both are None for a run that failed (nothing to grade)."""
 
     result: LLMResult
     hallucination: HallucinationResult | None = None
+    coverage: CoverageResult | None = None
 
 
 def run_scored_ablation(
@@ -286,11 +312,12 @@ def run_scored_ablation(
     driver: Driver | None = None,
     provider: BaseLLMProvider | None = None,
 ) -> tuple[ParsedRepository, list[ScoredResult]]:
-    """The ablation plus a hallucination score per successful result -- what the
-    /compare endpoint and dashboard use, so the comparison shows quality (not just
-    latency/tokens). One shared provider does both generation and judging. The judge
-    reads ground-truth facts from the ParsedRepository, so scoring needs no Neo4j and
-    happens after the driver is released."""
+    """The ablation plus hallucination + coverage scores per successful result --
+    what the /compare endpoint and dashboard use, so the comparison shows quality
+    (not just latency/tokens) along both the precision axis (hallucination) and the
+    recall axis (coverage). One shared provider does generation and both judging
+    passes. The judge reads ground-truth facts from the ParsedRepository, so scoring
+    needs no Neo4j and happens after the driver is released."""
     owns_driver = driver is None
     driver = driver or get_driver()
     provider = provider or OllamaProvider()
@@ -307,6 +334,7 @@ def run_scored_ablation(
     scored: list[ScoredResult] = []
     for result in results:
         hallucination = None
+        coverage = None
         if result.status == RunStatus.SUCCESS:
             hallucination = score_summary(
                 provider,
@@ -315,6 +343,13 @@ def run_scored_ablation(
                 result.context_variant,
                 judge_model=judge_model,
             )
-        scored.append(ScoredResult(result=result, hallucination=hallucination))
+            coverage = score_coverage(
+                provider,
+                parsed,
+                result.output.raw_text,
+                result.context_variant,
+                judge_model=judge_model,
+            )
+        scored.append(ScoredResult(result=result, hallucination=hallucination, coverage=coverage))
 
     return parsed, scored

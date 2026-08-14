@@ -16,7 +16,14 @@ dependencies, or endpoints that aren't listed there. Respond with a single JSON 
 object with exactly these keys:
 
 - "overview": a 2-4 sentence plain-English description of what this repository does.
-- "tech_stack": a list of frameworks/languages/major libraries actually named in the context.
+- "tech_stack": a flat JSON array of short plain strings (NOT objects, NOT nested) \
+naming the key technologies -- e.g. ["<language>", "<framework>", "<library>"]. Include \
+the detected language, the detected framework, and the significant libraries from the \
+dependency list (such as an ORM, database driver, or validation/auth library, when \
+present). Copy the language and framework names exactly as the context states them -- \
+never rename the language (if the context says the language is JavaScript, it must not \
+become TypeScript). Include only technologies that appear in the context, and do not \
+return only the framework when the dependency list names more.
 - "services": short descriptions of the repository's main services or entry points \
 (e.g. "HTTP server", "background worker"), inferred only from the modules and \
 endpoints given.

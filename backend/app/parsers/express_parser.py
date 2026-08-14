@@ -1,7 +1,8 @@
 """
 Express.js parser: walks a repo's .js/.ts files, uses tree-sitter to extract
-functions, imports, and Express route definitions (app.get/post/... and
-router.get/post/...), plus package.json for external dependencies.
+functions, imports, and Express route definitions -- both the direct style
+(app.get/post/... and router.get/post/...) and the chained style
+(app.route('/x').get(...).post(...)) -- plus package.json for external dependencies.
 
 This is the first parser implementation and establishes the pattern that the
 NestJS parser (Phase 6) will follow.
@@ -259,7 +260,14 @@ class ExpressParser(BaseParser):
         module_id: str,
         func_name_to_id: dict[str, str],
     ) -> list[ApiEndpoint]:
-        """Matches app.<method>(path, handler) and router.<method>(path, handler)."""
+        """Extracts Express routes in both supported styles:
+          * direct:  app.get('/x', handler) / router.post('/x', handler)
+          * chained: app.route('/x').get(handler).post(handler)  (and router.route(...))
+        In the chained style the path lives on the `.route('/x')` call, and each
+        HTTP-verb call hanging off the chain is a separate endpoint sharing that path.
+        Both styles are gated on the chain rooting at an `app` or `router` object, so
+        this stays general across Express repos without matching unrelated
+        .get()/.post() calls on other objects (e.g. a promise or an array)."""
         routes = []
         cursor = QueryCursor(CALL_QUERY)
         matches = cursor.captures(root)
@@ -273,26 +281,31 @@ class ExpressParser(BaseParser):
             if obj_node is None or prop_node is None:
                 continue
 
-            obj_name = source[obj_node.start_byte:obj_node.end_byte].decode("utf-8", "replace")
             method_name = source[prop_node.start_byte:prop_node.end_byte].decode("utf-8", "replace")
-
-            if obj_name not in {"app", "router"} or method_name not in ROUTE_METHODS:
+            if method_name not in ROUTE_METHODS:
                 continue
 
             args_node = call_node.child_by_field_name("arguments")
-            if args_node is None or args_node.named_child_count == 0:
-                continue
-            path_arg = args_node.named_children[0]
-            if path_arg.type != "string":
-                continue
-            fragment = next(
-                (c for c in path_arg.named_children if c.type == "string_fragment"), None
-            )
-            if fragment is None:
-                continue
-            route_path = source[fragment.start_byte:fragment.end_byte].decode("utf-8", "replace")
+            obj_name = source[obj_node.start_byte:obj_node.end_byte].decode("utf-8", "replace")
 
-            handler_id = self._resolve_handler_id(args_node, source, func_name_to_id)
+            if obj_node.type == "identifier" and obj_name in {"app", "router"}:
+                # direct style: app.get('/x', handler) -- path is the first argument
+                route_path = self._first_string_arg(call_node, source)
+                base_name = obj_name
+                handler_node = self._last_handler_arg(args_node, skip_first=True)
+            else:
+                # chained style: app.route('/x').get(handler) -- path comes from the
+                # `.route('/x')` call up the chain; this call's only arg is the handler
+                chain = self._chain_route_path(obj_node, source)
+                if chain is None:
+                    continue
+                route_path, base_name = chain
+                handler_node = self._last_handler_arg(args_node, skip_first=False)
+
+            if route_path is None:
+                continue
+
+            handler_id = self._resolve_handler_node(handler_node, source, func_name_to_id)
 
             routes.append(
                 ApiEndpoint(
@@ -300,25 +313,86 @@ class ExpressParser(BaseParser):
                     method=HttpMethod(method_name.upper()) if method_name.upper() in HttpMethod.__members__ else HttpMethod.UNKNOWN,
                     path=route_path,
                     handler_function_id=handler_id,
-                    framework_annotation=f"{obj_name}.{method_name}",
+                    framework_annotation=f"{base_name}.{method_name}",
                 )
             )
             route_index += 1
         return routes
 
-    def _resolve_handler_id(
-        self, args_node: Node, source: bytes, func_name_to_id: dict[str, str]
-    ) -> str | None:
-        """Handler is usually the last argument. If it's a named identifier
-        (e.g. router.post('/x', createUser)), resolve it to a known function id.
-        If it's an inline arrow/anonymous function, we don't have a stable id for it."""
-        if args_node.named_child_count < 2:
+    def _first_string_arg(self, call_node: Node, source: bytes) -> str | None:
+        """The value of the first argument of a call, if it's a plain string literal."""
+        args_node = call_node.child_by_field_name("arguments")
+        if args_node is None or args_node.named_child_count == 0:
             return None
-        last_arg = args_node.named_children[-1]
-        if last_arg.type == "identifier":
-            name = source[last_arg.start_byte:last_arg.end_byte].decode("utf-8", "replace")
-            return func_name_to_id.get(name)
-        return None  # inline anonymous handler -- no stable function id to point to
+        first = args_node.named_children[0]
+        if first.type != "string":
+            return None
+        fragment = next(
+            (c for c in first.named_children if c.type == "string_fragment"), None
+        )
+        if fragment is None:
+            return None
+        return source[fragment.start_byte:fragment.end_byte].decode("utf-8", "replace")
+
+    def _chain_route_path(self, chain_obj: Node, source: bytes) -> tuple[str, str] | None:
+        """Walk down a member/call chain from `chain_obj` looking for a `.route('/path')`
+        call rooted at an `app`/`router` object -- the chained routing style. Returns
+        (path, base_name) or None if this isn't such a chain."""
+        node = chain_obj
+        while node is not None and node.type == "call_expression":
+            fn = node.child_by_field_name("function")
+            if fn is None or fn.type != "member_expression":
+                return None
+            prop = fn.child_by_field_name("property")
+            obj = fn.child_by_field_name("object")
+            if prop is None or obj is None:
+                return None
+            prop_name = source[prop.start_byte:prop.end_byte].decode("utf-8", "replace")
+            if prop_name == "route":
+                path = self._first_string_arg(node, source)
+                base_name = self._root_identifier(obj, source)
+                if path is not None and base_name in {"app", "router"}:
+                    return path, base_name
+                return None
+            node = obj  # keep walking down the chain (e.g. .post -> .get -> .route)
+        return None
+
+    def _root_identifier(self, node: Node, source: bytes) -> str | None:
+        """The leftmost identifier a member/call chain hangs off (e.g. 'app' in
+        app.route('/x').get(...))."""
+        while node is not None:
+            if node.type == "identifier":
+                return source[node.start_byte:node.end_byte].decode("utf-8", "replace")
+            if node.type == "member_expression":
+                node = node.child_by_field_name("object")
+            elif node.type == "call_expression":
+                fn = node.child_by_field_name("function")
+                node = fn.child_by_field_name("object") if (fn is not None and fn.type == "member_expression") else None
+            else:
+                return None
+        return None
+
+    def _last_handler_arg(self, args_node: Node | None, skip_first: bool) -> Node | None:
+        """The handler node for an endpoint: the last argument, optionally skipping a
+        leading path-string argument. Direct style is (path, handler); chained style
+        is just (handler)."""
+        if args_node is None:
+            return None
+        args = list(args_node.named_children)
+        if skip_first:
+            args = args[1:]
+        return args[-1] if args else None
+
+    def _resolve_handler_node(
+        self, handler_node: Node | None, source: bytes, func_name_to_id: dict[str, str]
+    ) -> str | None:
+        """If the handler is a named identifier (e.g. router.post('/x', createUser)),
+        resolve it to a known function id. Inline arrow/anonymous handlers, or handlers
+        referenced through an object (e.g. controller.create), have no stable id here."""
+        if handler_node is None or handler_node.type != "identifier":
+            return None
+        name = source[handler_node.start_byte:handler_node.end_byte].decode("utf-8", "replace")
+        return func_name_to_id.get(name)
 
     def _find_config_files(self, repo_path: Path) -> list[ConfigFile]:
         configs = []

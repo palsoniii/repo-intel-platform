@@ -129,11 +129,19 @@ class ComparisonRun(BaseModel):
     estimated_cost_usd: float
     status: RunStatus
     error: str | None = None
-    # Quality metric -- null when the run failed or the judge's own output didn't parse.
+    # Quality metrics -- null when the run failed or the judge's own output didn't parse.
+    # Hallucination = precision-like (are the claims it made true); coverage =
+    # recall-like (how much of the parser's ground truth did it actually mention).
+    # Neither alone is "quality": a summary can hit 0 hallucination by saying almost
+    # nothing, which is exactly what low coverage would reveal.
     hallucination_score: float | None = None
     hallucination_judged: bool = False
     total_claims: int = 0
     unsupported_claims: int = 0
+    coverage_score: float | None = None
+    coverage_judged: bool = False
+    total_facts: int = 0
+    missing_facts: int = 0
     judge_model: str | None = None
     self_judged: bool = False  # generator == judge (exclude when analysing)
 
@@ -232,6 +240,8 @@ def compare(req: CompareRequest) -> CompareResponse:
 def _comparison_run(scored) -> "ComparisonRun":
     r = scored.result
     h = scored.hallucination
+    c = scored.coverage
+    judge_model = h.judge_model if h else (c.judge_model if c else None)
     return ComparisonRun(
         model=r.model,
         context_variant=r.context_variant,
@@ -245,8 +255,12 @@ def _comparison_run(scored) -> "ComparisonRun":
         hallucination_judged=(h.judged if h else False),
         total_claims=(h.total_claims if h else 0),
         unsupported_claims=(len(h.unsupported_claims) if h else 0),
-        judge_model=(h.judge_model if h else None),
-        self_judged=(bool(h and h.judge_model == r.model)),
+        coverage_score=(c.coverage_score if c and c.judged else None),
+        coverage_judged=(c.judged if c else False),
+        total_facts=(c.total_facts if c else 0),
+        missing_facts=(len(c.missing_facts) if c else 0),
+        judge_model=judge_model,
+        self_judged=(bool(judge_model and judge_model == r.model)),
     )
 
 

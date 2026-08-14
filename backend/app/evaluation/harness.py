@@ -2,11 +2,14 @@
 Batch evaluation harness (Week 4 / Phase 7).
 
 Runs the full battery -- every repo x every model x all 3 representations -- scoring
-each generated summary with the LLM-as-judge hallucination metric, and writes one
-flat CSV row per (repo, model, representation). That CSV is the results table the
-report is built from; each row carries both the efficiency metrics (latency, tokens)
-and the quality metric (hallucination score) side by side, so the representation
-ablation can be read straight off it.
+each generated summary with two LLM-as-judge metrics (hallucination: are the claims
+it made true; coverage: how much of the parser's ground truth did it mention), and
+writes one flat CSV row per (repo, model, representation). That CSV is the results
+table the report is built from; each row carries the efficiency metrics (latency,
+tokens) alongside both quality metrics, so the representation ablation can be read
+straight off it -- and so a summary that's faithful only because it said almost
+nothing (high hallucination score, but also low coverage) doesn't look identical to
+one that's faithful AND complete.
 
 Runs as a script: `python -m app.evaluation.harness <url> [<url> ...] --out results.csv`.
 Meant to run on the single designated evaluation machine (roadmap Section 1) so the
@@ -25,6 +28,7 @@ from neo4j import Driver
 from pydantic import BaseModel
 
 from app.db.neo4j_client import get_driver
+from app.evaluation.coverage import score_coverage
 from app.evaluation.hallucination import score_summary
 from app.evaluation.diagram_score import (
     GraphDiffScore,
@@ -56,6 +60,14 @@ class EvaluationRow(BaseModel):
     hallucination_score: float
     total_claims: int
     unsupported_claims: int
+    # Coverage (recall) -- companion to hallucination (precision): how much of the
+    # parser's ground truth the summary actually mentioned, vs. how much of what it
+    # said was true. A summary can score 0.0 hallucination by saying almost nothing;
+    # coverage is what would catch that.
+    coverage_judged: bool
+    coverage_score: float
+    total_facts: int
+    missing_facts: int
     # Diagram graph-diff (per repo, same across a repo's rows -- populated only when a
     # `<repo_name>.json` expected-structure annotation is found). None when unscored.
     diagram_scored: bool = False
@@ -149,12 +161,28 @@ def _row_for_result(
         hallucination_score = scored.hallucination_score
         total_claims = scored.total_claims
         unsupported = len(scored.unsupported_claims)
+
+        coverage = score_coverage(
+            provider,
+            parsed,
+            result.output.raw_text,
+            result.context_variant,
+            judge_model=judge_model,
+        )
+        coverage_judged = coverage.judged
+        coverage_score = coverage.coverage_score
+        total_facts = coverage.total_facts
+        missing = len(coverage.missing_facts)
     else:
         # A failed/empty generation has nothing to judge -- don't spend a judge call.
         hallucination_judged = False
         hallucination_score = 0.0
         total_claims = 0
         unsupported = 0
+        coverage_judged = False
+        coverage_score = 0.0
+        total_facts = 0
+        missing = 0
 
     return EvaluationRow(
         repo_name=parsed.metadata.name,
@@ -173,6 +201,10 @@ def _row_for_result(
         hallucination_score=hallucination_score,
         total_claims=total_claims,
         unsupported_claims=unsupported,
+        coverage_judged=coverage_judged,
+        coverage_score=coverage_score,
+        total_facts=total_facts,
+        missing_facts=missing,
         diagram_scored=diagram is not None,
         diagram_module_f1=diagram.modules.f1 if diagram else None,
         diagram_import_f1=diagram.imports.f1 if diagram else None,
@@ -199,6 +231,10 @@ def _failure_row(url: str, judge_model: str, error: str) -> EvaluationRow:
         hallucination_score=0.0,
         total_claims=0,
         unsupported_claims=0,
+        coverage_judged=False,
+        coverage_score=0.0,
+        total_facts=0,
+        missing_facts=0,
         error=error,
     )
 

@@ -170,6 +170,7 @@ def test_cleans_up_acquired_repo_even_if_neo4j_fails(fake_acquired_repo, fake_pa
 
 
 def test_run_scored_ablation_attaches_a_score_per_successful_result(fake_parsed_repository):
+    from app.evaluation.coverage import CoverageResult
     from app.evaluation.hallucination import HallucinationResult
 
     results = [
@@ -184,10 +185,19 @@ def test_run_scored_ablation_attaches_a_score_per_successful_result(fake_parsed_
             judge_raw_output="{}",
         )
 
+    def _fake_coverage(provider, parsed, text, variant, judge_model):
+        return CoverageResult(
+            repo_name="fake-repo", context_variant=variant, judge_model=judge_model,
+            total_facts=3, missing_facts=[], coverage_score=1.0, judged=True,
+            judge_raw_output="{}",
+        )
+
     with patch(
         "app.pipeline.run_representation_ablation",
         return_value=(fake_parsed_repository, results),
-    ), patch("app.pipeline.score_summary", side_effect=_fake_score) as mock_score:
+    ), patch("app.pipeline.score_summary", side_effect=_fake_score) as mock_score, patch(
+        "app.pipeline.score_coverage", side_effect=_fake_coverage
+    ) as mock_coverage:
         parsed, scored = run_scored_ablation(
             "https://github.com/test/fake-repo",
             judge_model="llama3.1:8b",
@@ -196,8 +206,12 @@ def test_run_scored_ablation_attaches_a_score_per_successful_result(fake_parsed_
         )
 
     assert len(scored) == 2
-    # successful result got a score; failed one did not (nothing to grade)
+    # successful result got both scores; failed one got neither (nothing to grade)
     assert scored[0].hallucination is not None
     assert scored[0].hallucination.hallucination_score == 0.0
+    assert scored[0].coverage is not None
+    assert scored[0].coverage.coverage_score == 1.0
     assert scored[1].hallucination is None
+    assert scored[1].coverage is None
     assert mock_score.call_count == 1  # only the successful result was judged
+    assert mock_coverage.call_count == 1

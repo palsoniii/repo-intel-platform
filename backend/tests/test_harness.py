@@ -12,6 +12,7 @@ import sqlite3
 from unittest.mock import MagicMock, patch
 
 from app.evaluation.harness import EvaluationRow, run_evaluation, write_csv, write_sqlite
+from app.evaluation.coverage import CoverageResult
 from app.evaluation.hallucination import HallucinationResult
 from app.pipeline import AnalysisError
 from app.schemas.llm_result import (
@@ -63,6 +64,19 @@ def _scored(variant: ContextVariant) -> HallucinationResult:
     )
 
 
+def _scored_coverage(variant: ContextVariant) -> CoverageResult:
+    return CoverageResult(
+        repo_name="repo-a",
+        context_variant=variant,
+        judge_model="llama3.1:8b",
+        total_facts=4,
+        missing_facts=["Endpoint: GET /users"],
+        coverage_score=0.75,
+        judged=True,
+        judge_raw_output="{}",
+    )
+
+
 def test_one_row_per_model_and_representation():
     ablation_results = [
         _result(m, v)
@@ -74,6 +88,9 @@ def test_one_row_per_model_and_representation():
         return_value=(_parsed(), ablation_results),
     ), patch(
         "app.evaluation.harness.score_summary", side_effect=lambda p, pr, txt, v, judge_model: _scored(v)
+    ), patch(
+        "app.evaluation.harness.score_coverage",
+        side_effect=lambda p, pr, txt, v, judge_model: _scored_coverage(v),
     ):
         rows = run_evaluation(
             ["https://github.com/test/repo-a"],
@@ -86,13 +103,20 @@ def test_one_row_per_model_and_representation():
     assert {r.context_variant for r in rows} == {"raw", "dependency_graph", "knowledge_graph"}
     assert all(r.hallucination_score == 0.25 for r in rows)
     assert all(r.unsupported_claims == 1 for r in rows)
+    assert all(r.coverage_score == 0.75 for r in rows)
+    assert all(r.missing_facts == 1 for r in rows)
 
 
 def test_self_judged_flag_set_when_generator_equals_judge():
     results = [_result("llama3.1:8b", ContextVariant.RAW), _result("mistral:7b", ContextVariant.RAW)]
     with patch(
         "app.evaluation.harness.run_representation_ablation", return_value=(_parsed(), results)
-    ), patch("app.evaluation.harness.score_summary", side_effect=lambda p, pr, txt, v, judge_model: _scored(v)):
+    ), patch(
+        "app.evaluation.harness.score_summary", side_effect=lambda p, pr, txt, v, judge_model: _scored(v)
+    ), patch(
+        "app.evaluation.harness.score_coverage",
+        side_effect=lambda p, pr, txt, v, judge_model: _scored_coverage(v),
+    ):
         rows = run_evaluation(["u"], judge_model="llama3.1:8b", driver=MagicMock(), provider=MagicMock())
 
     by_model = {r.model: r for r in rows}
@@ -103,16 +127,21 @@ def test_self_judged_flag_set_when_generator_equals_judge():
 def test_failed_generation_skips_the_judge():
     results = [_result("mistral:7b", ContextVariant.RAW, status=RunStatus.FAILED)]
     score = MagicMock()
+    coverage = MagicMock()
     with patch(
         "app.evaluation.harness.run_representation_ablation", return_value=(_parsed(), results)
-    ), patch("app.evaluation.harness.score_summary", score):
+    ), patch("app.evaluation.harness.score_summary", score), patch(
+        "app.evaluation.harness.score_coverage", coverage
+    ):
         rows = run_evaluation(
             ["u"], judge_model="llama3.1:8b", driver=MagicMock(), provider=MagicMock()
         )
 
     score.assert_not_called()
+    coverage.assert_not_called()  # neither judge is worth calling on a failed generation
     assert rows[0].run_status == "failed"
     assert rows[0].hallucination_judged is False
+    assert rows[0].coverage_judged is False
 
 
 def test_repo_level_failure_records_a_row_and_continues():
@@ -125,6 +154,9 @@ def test_repo_level_failure_records_a_row_and_continues():
 
     with patch("app.evaluation.harness.run_representation_ablation", side_effect=_ablation), patch(
         "app.evaluation.harness.score_summary", side_effect=lambda p, pr, txt, v, judge_model: _scored(v)
+    ), patch(
+        "app.evaluation.harness.score_coverage",
+        side_effect=lambda p, pr, txt, v, judge_model: _scored_coverage(v),
     ):
         rows = run_evaluation(
             ["https://github.com/test/bad-repo", "https://github.com/test/good-repo"],
@@ -147,6 +179,7 @@ def test_write_csv_roundtrip(tmp_path):
             context_variant="raw", run_status="success", latency_ms=1000, input_tokens=300,
             output_tokens=60, estimated_cost_usd=0.0, judge_model="llama3.1:8b", self_judged=False,
             hallucination_judged=True, hallucination_score=0.25, total_claims=4, unsupported_claims=1,
+            coverage_judged=True, coverage_score=0.75, total_facts=4, missing_facts=1,
         )
     ]
     out = tmp_path / "results.csv"
@@ -177,7 +210,12 @@ def test_diagram_scored_when_annotation_present(tmp_path):
     with patch(
         "app.evaluation.harness.run_representation_ablation",
         return_value=(_parsed_with_modules(), [_result("mistral:7b", ContextVariant.RAW)]),
-    ), patch("app.evaluation.harness.score_summary", side_effect=lambda p, pr, txt, v, judge_model: _scored(v)):
+    ), patch(
+        "app.evaluation.harness.score_summary", side_effect=lambda p, pr, txt, v, judge_model: _scored(v)
+    ), patch(
+        "app.evaluation.harness.score_coverage",
+        side_effect=lambda p, pr, txt, v, judge_model: _scored_coverage(v),
+    ):
         rows = run_evaluation(
             ["https://github.com/test/repo-a"],
             judge_model="llama3.1:8b",
@@ -197,6 +235,7 @@ def _sample_row() -> EvaluationRow:
         context_variant="raw", run_status="success", latency_ms=1000, input_tokens=300,
         output_tokens=60, estimated_cost_usd=0.0, judge_model="llama3.1:8b", self_judged=False,
         hallucination_judged=True, hallucination_score=0.25, total_claims=4, unsupported_claims=1,
+        coverage_judged=True, coverage_score=0.75, total_facts=4, missing_facts=1,
     )
 
 
@@ -221,7 +260,12 @@ def test_diagram_not_scored_when_no_annotation(tmp_path):
     with patch(
         "app.evaluation.harness.run_representation_ablation",
         return_value=(_parsed_with_modules(), [_result("mistral:7b", ContextVariant.RAW)]),
-    ), patch("app.evaluation.harness.score_summary", side_effect=lambda p, pr, txt, v, judge_model: _scored(v)):
+    ), patch(
+        "app.evaluation.harness.score_summary", side_effect=lambda p, pr, txt, v, judge_model: _scored(v)
+    ), patch(
+        "app.evaluation.harness.score_coverage",
+        side_effect=lambda p, pr, txt, v, judge_model: _scored_coverage(v),
+    ):
         rows = run_evaluation(
             ["https://github.com/test/repo-a"],
             judge_model="llama3.1:8b",

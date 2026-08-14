@@ -17,6 +17,7 @@ class LLMTask(str, Enum):
     SUMMARY = "summary"
     ARCHITECTURE_DIAGRAM = "architecture_diagram"
     HALLUCINATION_JUDGE = "hallucination_judge"  # one model grading another's summary
+    COVERAGE_JUDGE = "coverage_judge"  # one model checking another's summary for completeness
 
 
 class ContextVariant(str, Enum):
