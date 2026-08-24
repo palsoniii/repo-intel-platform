@@ -256,6 +256,127 @@ def test_write_sqlite_accumulates_across_runs(tmp_path):
     assert rows[0][3] == 0  # bool coerced to 0/1
 
 
+def test_text_overlap_scored_when_reference_summary_present(tmp_path):
+    (tmp_path / "repo-a.json").write_text(json.dumps({"overview": "A REST API for tutorials."}))
+    result_with_overview = LLMResult(
+        provider=ProviderName.OLLAMA, model="mistral:7b", task=LLMTask.SUMMARY,
+        context_variant=ContextVariant.RAW, repo_name="repo-a",
+        output=LLMOutput(raw_text=json.dumps({"overview": "A REST API for tutorials."})),
+        metrics=LLMMetrics(latency_ms=1000, input_tokens=300, output_tokens=60, estimated_cost_usd=0.0),
+        status=RunStatus.SUCCESS,
+    )
+    with patch(
+        "app.evaluation.harness.run_representation_ablation",
+        return_value=(_parsed(), [result_with_overview]),
+    ), patch(
+        "app.evaluation.harness.score_summary", side_effect=lambda p, pr, txt, v, judge_model: _scored(v)
+    ), patch(
+        "app.evaluation.harness.score_coverage",
+        side_effect=lambda p, pr, txt, v, judge_model: _scored_coverage(v),
+    ):
+        rows = run_evaluation(
+            ["https://github.com/test/repo-a"],
+            judge_model="llama3.1:8b",
+            reference_summaries_dir=tmp_path,
+            bert_scorer=lambda refs, hyps: [0.9] * len(hyps),
+            driver=MagicMock(),
+            provider=MagicMock(),
+        )
+
+    assert rows[0].text_overlap_scored is True
+    assert rows[0].bleu4 is not None and rows[0].bleu4 > 0.9  # identical text
+    assert rows[0].bertscore_f1 == 0.9
+
+
+def test_text_overlap_not_scored_without_reference_summaries_dir():
+    with patch(
+        "app.evaluation.harness.run_representation_ablation",
+        return_value=(_parsed(), [_result("mistral:7b", ContextVariant.RAW)]),
+    ), patch(
+        "app.evaluation.harness.score_summary", side_effect=lambda p, pr, txt, v, judge_model: _scored(v)
+    ), patch(
+        "app.evaluation.harness.score_coverage",
+        side_effect=lambda p, pr, txt, v, judge_model: _scored_coverage(v),
+    ):
+        rows = run_evaluation(
+            ["https://github.com/test/repo-a"], judge_model="llama3.1:8b",
+            driver=MagicMock(), provider=MagicMock(),
+        )
+    assert rows[0].text_overlap_scored is False
+    assert rows[0].bleu4 is None
+
+
+def test_quality_judge_off_by_default():
+    with patch(
+        "app.evaluation.harness.run_representation_ablation",
+        return_value=(_parsed(), [_result("mistral:7b", ContextVariant.RAW)]),
+    ), patch(
+        "app.evaluation.harness.score_summary", side_effect=lambda p, pr, txt, v, judge_model: _scored(v)
+    ), patch(
+        "app.evaluation.harness.score_coverage",
+        side_effect=lambda p, pr, txt, v, judge_model: _scored_coverage(v),
+    ), patch("app.evaluation.harness.score_summary_quality") as quality_mock:
+        rows = run_evaluation(
+            ["https://github.com/test/repo-a"], judge_model="llama3.1:8b",
+            driver=MagicMock(), provider=MagicMock(),
+        )
+    quality_mock.assert_not_called()
+    assert rows[0].quality_judged is False
+
+
+def test_quality_judge_runs_when_enabled():
+    from app.evaluation.quality_judge import GEvalScore, QualityJudgeResult
+
+    fake_result = QualityJudgeResult(
+        repo_name="repo-a", context_variant=ContextVariant.RAW, judge_model="llama3.1:8b",
+        target="summary",
+        scores={
+            "completeness": GEvalScore(criterion="completeness", score=4.0, method="logprob_weighted", raw_response=""),
+            "conciseness": GEvalScore(criterion="conciseness", score=4.0, method="logprob_weighted", raw_response=""),
+            "correctness": GEvalScore(criterion="correctness", score=4.0, method="logprob_weighted", raw_response=""),
+            "cohesiveness": GEvalScore(criterion="cohesiveness", score=4.0, method="logprob_weighted", raw_response=""),
+            "domain_specificity": GEvalScore(criterion="domain_specificity", score=4.0, method="logprob_weighted", raw_response=""),
+        },
+        mean_score=4.0,
+    )
+    with patch(
+        "app.evaluation.harness.run_representation_ablation",
+        return_value=(_parsed(), [_result("mistral:7b", ContextVariant.RAW)]),
+    ), patch(
+        "app.evaluation.harness.score_summary", side_effect=lambda p, pr, txt, v, judge_model: _scored(v)
+    ), patch(
+        "app.evaluation.harness.score_coverage",
+        side_effect=lambda p, pr, txt, v, judge_model: _scored_coverage(v),
+    ), patch("app.evaluation.harness.score_summary_quality", return_value=fake_result) as quality_mock:
+        rows = run_evaluation(
+            ["https://github.com/test/repo-a"], judge_model="llama3.1:8b",
+            enable_quality_judge=True,
+            driver=MagicMock(), provider=MagicMock(),
+        )
+    quality_mock.assert_called_once()
+    assert rows[0].quality_judged is True
+    assert rows[0].quality_mean_score == 4.0
+    assert rows[0].quality_completeness == 4.0
+
+
+def test_failure_tags_populated_on_successful_row():
+    with patch(
+        "app.evaluation.harness.run_representation_ablation",
+        return_value=(_parsed(), [_result("mistral:7b", ContextVariant.RAW)]),
+    ), patch(
+        "app.evaluation.harness.score_summary", side_effect=lambda p, pr, txt, v, judge_model: _scored(v)
+    ), patch(
+        "app.evaluation.harness.score_coverage",
+        side_effect=lambda p, pr, txt, v, judge_model: _scored_coverage(v),
+    ):
+        rows = run_evaluation(
+            ["https://github.com/test/repo-a"], judge_model="llama3.1:8b",
+            driver=MagicMock(), provider=MagicMock(),
+        )
+    # _scored()/_scored_coverage() fixtures carry a MongoDB claim and a missed endpoint
+    assert "missed_endpoint" in rows[0].failure_tags
+
+
 def test_diagram_not_scored_when_no_annotation(tmp_path):
     with patch(
         "app.evaluation.harness.run_representation_ablation",

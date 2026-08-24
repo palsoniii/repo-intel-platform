@@ -20,6 +20,7 @@ meaningless.
 from __future__ import annotations
 
 import csv
+import json
 import sqlite3
 from pathlib import Path
 from typing import Optional
@@ -36,6 +37,9 @@ from app.evaluation.diagram_score import (
     load_expected,
     score_diagram,
 )
+from app.evaluation.failure_analysis import analyze_failures
+from app.evaluation.quality_judge import QualityJudgeResult, score_summary_quality
+from app.evaluation.text_overlap import TextOverlapResult, extract_overview, score_text_overlap
 from app.pipeline import AnalysisError, PipelineInfrastructureError, run_representation_ablation
 from app.providers.base import BaseLLMProvider
 from app.providers.ollama_provider import OllamaProvider
@@ -75,6 +79,26 @@ class EvaluationRow(BaseModel):
     diagram_import_f1: Optional[float] = None
     diagram_endpoint_f1: Optional[float] = None
     diagram_overall_f1: Optional[float] = None
+    # Text-overlap metrics against reference_summaries/<repo_name>.json's `overview`
+    # (see reference_summaries/README.md) -- populated only when --reference-summaries-dir
+    # is given and a reference file exists for this repo.
+    text_overlap_scored: bool = False
+    bleu4: Optional[float] = None
+    rouge_l: Optional[float] = None
+    meteor: Optional[float] = None
+    bertscore_f1: Optional[float] = None
+    # G-Eval quality-judge scores (fixed rubric, see quality_judge.py) -- opt-in via
+    # --quality-judge since this multiplies judge calls by the number of criteria (5).
+    quality_judged: bool = False
+    quality_mean_score: Optional[float] = None
+    quality_completeness: Optional[float] = None
+    quality_conciseness: Optional[float] = None
+    quality_correctness: Optional[float] = None
+    quality_cohesiveness: Optional[float] = None
+    quality_domain_specificity: Optional[float] = None
+    # Failure taxonomy tags (see failure_analysis.py), comma-joined for a flat CSV
+    # cell -- empty string when nothing was tagged.
+    failure_tags: str = ""
     error: Optional[str] = None
 
 
@@ -84,6 +108,10 @@ def run_evaluation(
     judge_model: Optional[str] = None,
     max_size_mb: int = 200,
     annotations_dir: Optional[str | Path] = None,
+    reference_summaries_dir: Optional[str | Path] = None,
+    enable_quality_judge: bool = False,
+    quality_judge_host: Optional[str] = None,
+    bert_scorer=None,
     driver: Optional[Driver] = None,
     provider: Optional[BaseLLMProvider] = None,
 ) -> list[EvaluationRow]:
@@ -94,11 +122,28 @@ def run_evaluation(
 
     If `annotations_dir` is given, each repo is also diagram-scored against
     `<annotations_dir>/<repo_name>.json` when that file exists (repos without an
-    annotation just leave the diagram columns empty -- no error)."""
+    annotation just leave the diagram columns empty -- no error).
+
+    If `reference_summaries_dir` is given, text-overlap metrics (BLEU-4/ROUGE-L/
+    METEOR/BERTScore) are scored against `<reference_summaries_dir>/<repo_name>.json`'s
+    `overview` field when that file exists. `bert_scorer` defaults to a real (lazily
+    imported, model-downloading) BERTScore backend -- inject
+    `text_overlap.score_text_overlap`'s `bert_scorer=None` upstream, or your own
+    batched scorer, to skip the model download entirely.
+
+    `enable_quality_judge` runs the G-Eval rubric scorer (quality_judge.py) on every
+    successful summary -- OFF by default because it multiplies judge calls by 5 (one
+    per criterion) on top of the hallucination/coverage judges already running.
+    `quality_judge_host` defaults to OLLAMA_HOST (see quality_judge.py) and is only
+    used when this is enabled."""
     owns_driver = driver is None
     driver = driver or get_driver()
     provider = provider or OllamaProvider()
     judge_model = judge_model or provider.default_model
+    if reference_summaries_dir is not None and bert_scorer is None:
+        from app.evaluation.text_overlap import default_bert_scorer
+
+        bert_scorer = default_bert_scorer
 
     rows: list[EvaluationRow] = []
     try:
@@ -116,12 +161,36 @@ def run_evaluation(
                 continue
 
             diagram = _diagram_score(parsed, annotations_dir)
+            reference_overview = _reference_overview(parsed, reference_summaries_dir)
             for result in results:
-                rows.append(_row_for_result(provider, parsed, result, judge_model, diagram))
+                rows.append(
+                    _row_for_result(
+                        provider,
+                        parsed,
+                        result,
+                        judge_model,
+                        diagram,
+                        reference_overview=reference_overview,
+                        bert_scorer=bert_scorer,
+                        enable_quality_judge=enable_quality_judge,
+                        quality_judge_host=quality_judge_host,
+                    )
+                )
     finally:
         if owns_driver:
             driver.close()
     return rows
+
+
+def _reference_overview(parsed: ParsedRepository, reference_summaries_dir: Optional[str | Path]) -> Optional[str]:
+    if reference_summaries_dir is None:
+        return None
+    ref_path = Path(reference_summaries_dir) / f"{parsed.metadata.name}.json"
+    if not ref_path.exists():
+        return None
+    data = json.loads(ref_path.read_text(encoding="utf-8"))
+    overview = data.get("overview")
+    return overview if isinstance(overview, str) else None
 
 
 def _diagram_score(
@@ -146,8 +215,16 @@ def _row_for_result(
     result: LLMResult,
     judge_model: str,
     diagram: Optional[GraphDiffScore] = None,
+    reference_overview: Optional[str] = None,
+    bert_scorer=None,
+    enable_quality_judge: bool = False,
+    quality_judge_host: Optional[str] = None,
 ) -> EvaluationRow:
     self_judged = result.model == judge_model
+    text_overlap: Optional[TextOverlapResult] = None
+    quality: Optional[QualityJudgeResult] = None
+    unsupported_claims_list: list[str] = []
+    missing_facts_list: list[str] = []
 
     if result.status == RunStatus.SUCCESS:
         scored = score_summary(
@@ -160,7 +237,8 @@ def _row_for_result(
         hallucination_judged = scored.judged
         hallucination_score = scored.hallucination_score
         total_claims = scored.total_claims
-        unsupported = len(scored.unsupported_claims)
+        unsupported_claims_list = scored.unsupported_claims
+        unsupported = len(unsupported_claims_list)
 
         coverage = score_coverage(
             provider,
@@ -172,7 +250,26 @@ def _row_for_result(
         coverage_judged = coverage.judged
         coverage_score = coverage.coverage_score
         total_facts = coverage.total_facts
-        missing = len(coverage.missing_facts)
+        missing_facts_list = coverage.missing_facts
+        missing = len(missing_facts_list)
+
+        if reference_overview is not None and bert_scorer is not None:
+            text_overlap = score_text_overlap(
+                repo_name=parsed.metadata.name,
+                context_variant=result.context_variant,
+                summary_text=result.output.raw_text,
+                reference_overview=reference_overview,
+                bert_scorer=bert_scorer,
+            )
+
+        if enable_quality_judge:
+            quality = score_summary_quality(
+                repo_name=parsed.metadata.name,
+                context_variant=result.context_variant,
+                summary_text=result.output.raw_text,
+                judge_model=judge_model,
+                host=quality_judge_host,
+            )
     else:
         # A failed/empty generation has nothing to judge -- don't spend a judge call.
         hallucination_judged = False
@@ -183,6 +280,20 @@ def _row_for_result(
         coverage_score = 0.0
         total_facts = 0
         missing = 0
+
+    known_terms = [parsed.metadata.detected_framework or "", parsed.metadata.detected_language or ""]
+    generated_overview, _ = extract_overview(result.output.raw_text) if result.status == RunStatus.SUCCESS else ("", False)
+    failure_tags = analyze_failures(
+        repo_name=parsed.metadata.name,
+        model=result.model,
+        context_variant=result.context_variant.value,
+        unsupported_claims=unsupported_claims_list,
+        missing_facts=missing_facts_list,
+        generated_overview=generated_overview,
+        known_terms=known_terms,
+        hallucination_judged=hallucination_judged,
+        coverage_judged=coverage_judged,
+    ).tags
 
     return EvaluationRow(
         repo_name=parsed.metadata.name,
@@ -210,6 +321,19 @@ def _row_for_result(
         diagram_import_f1=diagram.imports.f1 if diagram else None,
         diagram_endpoint_f1=diagram.endpoints.f1 if diagram else None,
         diagram_overall_f1=diagram.overall_f1 if diagram else None,
+        text_overlap_scored=text_overlap is not None,
+        bleu4=text_overlap.bleu4 if text_overlap else None,
+        rouge_l=text_overlap.rouge_l if text_overlap else None,
+        meteor=text_overlap.meteor if text_overlap else None,
+        bertscore_f1=text_overlap.bertscore_f1 if text_overlap else None,
+        quality_judged=quality is not None,
+        quality_mean_score=quality.mean_score if quality else None,
+        quality_completeness=quality.scores["completeness"].score if quality else None,
+        quality_conciseness=quality.scores["conciseness"].score if quality else None,
+        quality_correctness=quality.scores["correctness"].score if quality else None,
+        quality_cohesiveness=quality.scores["cohesiveness"].score if quality else None,
+        quality_domain_specificity=quality.scores["domain_specificity"].score if quality else None,
+        failure_tags=",".join(tag.value for tag in failure_tags),
     )
 
 
@@ -304,17 +428,53 @@ def main() -> None:
         default=None,
         help="Directory of <repo_name>.json expected-structure annotations for diagram scoring",
     )
+    parser.add_argument(
+        "--reference-summaries-dir",
+        default=None,
+        help="Directory of <repo_name>.json reference summaries for text-overlap metrics "
+        "(BLEU-4/ROUGE-L/METEOR/BERTScore) -- see reference_summaries/README.md. Downloads "
+        "a BERTScore model on first use unless --no-bertscore is also given.",
+    )
+    parser.add_argument(
+        "--no-bertscore",
+        action="store_true",
+        help="Skip BERTScore specifically (still computes BLEU-4/ROUGE-L/METEOR) -- use this "
+        "to avoid the model download/load cost if BERTScore isn't needed yet.",
+    )
+    parser.add_argument(
+        "--quality-judge",
+        action="store_true",
+        help="Also run the G-Eval rubric scorer (quality_judge.py) on every successful summary. "
+        "OFF by default: multiplies judge calls by 5 (one per criterion) on top of the "
+        "hallucination/coverage judges that always run.",
+    )
+    parser.add_argument(
+        "--quality-judge-host",
+        default=None,
+        help="Ollama host for the G-Eval judge's raw /api/generate calls (default: $OLLAMA_HOST)",
+    )
     parser.add_argument("--out", default="evaluation_results.csv", help="Output CSV path")
     parser.add_argument(
         "--sqlite", default=None, help="Optional SQLite DB path to also append results to"
     )
     args = parser.parse_args()
 
+    bert_scorer = None
+    if args.reference_summaries_dir and args.no_bertscore:
+        from app.evaluation.text_overlap import _bleu4, _meteor, _rouge_l  # noqa: F401 -- documents what still runs
+
+        def bert_scorer(references: list[str], hypotheses: list[str]) -> list[float]:
+            return [0.0] * len(hypotheses)  # placeholder -- BLEU/ROUGE/METEOR still score normally
+
     rows = run_evaluation(
         args.urls,
         models=args.models,
         judge_model=args.judge_model,
         annotations_dir=args.annotations_dir,
+        reference_summaries_dir=args.reference_summaries_dir,
+        bert_scorer=bert_scorer,
+        enable_quality_judge=args.quality_judge,
+        quality_judge_host=args.quality_judge_host,
     )
     write_csv(rows, args.out)
     if args.sqlite:
