@@ -20,7 +20,22 @@ only (no paid commercial APIs), a 3-way representation ablation (not 5-way).
 
 ## Current status / what to do next
 
-As of this merge (branches `anjali` @ 2026-08-14 and `eval-annotations` @
+**As of 2026-08-24** (dataset + metrics expansion for IEEE-publication readiness):
+the evaluation dataset grew from 6 to **18 repositories** (9 Express, 9 NestJS,
+hand-verified annotations + LLM-drafted reference summaries for all 18 --
+`backend/annotations/README.md`), and five new evaluation modules were added --
+`text_overlap.py` (BLEU-4/ROUGE-L/METEOR/BERTScore), `quality_judge.py` (G-Eval
+rubric scoring), `calibration.py` (logprob-based confidence), `stats.py` (paired
+Wilcoxon significance testing), `failure_analysis.py` (failure taxonomy) -- all
+wired into the harness except `calibration.py` (needs a follow-up to expose the
+generation prompt; runs standalone for now). Two more real Express parser bugs
+were found and fixed while building the new annotations (see the Express parser's
+Known gaps note below). 129 tests passing (16 skipped, live-infra-gated).
+**Nothing in this expansion has been run against live Ollama/Neo4j yet** -- that
+needs to happen on the designated evaluation machine before any new numbers go in
+the paper; see `docs/REPORT.md` Appendix A for the run command.
+
+As of the merge before that (branches `anjali` @ 2026-08-14 and `eval-annotations` @
 2026-08-11 combined), all 8 build phases (Weeks 1-4) are done: both framework
 parsers (Express parser now combines chained-route support from `anjali` with
 mount-prefix resolution from `eval-annotations` -- see the Express parser's Known

@@ -8,6 +8,35 @@ modules, imports, and endpoints.
 One file per evaluation repo, named `<repo_name>.json` (the repo name the parser
 derives from the URL). The harness picks them up with `--annotations-dir ./annotations`.
 
+## The 18 repository URLs
+
+```
+https://github.com/bezkoder/node-express-sequelize-postgresql
+https://github.com/bradtraversy/node_passport_login
+https://github.com/hagopj13/node-express-boilerplate
+https://github.com/kunalkapadia/express-mongoose-es6-rest-api
+https://github.com/danielfsousa/express-rest-boilerplate
+https://github.com/davellanedam/node-express-mongodb-jwt-rest-api-skeleton
+https://github.com/maitraysuthar/rest-api-nodejs-mongodb
+https://github.com/binitghetiya/express-sequelize-api-boilerplate
+https://github.com/FrontendMasters/api-design-node-v3
+https://github.com/lujakob/nestjs-realworld-example-app
+https://github.com/notiz-dev/nestjs-prisma-starter
+https://github.com/brocoders/nestjs-boilerplate
+https://github.com/andrechristikan/ack-nestjs-boilerplate
+https://github.com/NarHakobyan/awesome-nest-boilerplate
+https://github.com/Sairyss/domain-driven-hexagon
+https://github.com/arielweinberger/nestjs-recipe
+https://github.com/monstar-lab-oss/nestjs-starter-rest-api
+https://github.com/royib/clean-architecture-nestJS
+```
+
+(Repo names below match what the parser derives from each URL, which is what the
+`<repo_name>.json` annotation and `reference_summaries/<repo_name>.json` files are
+keyed on -- e.g. `binitghetiya/express-sequelize-api-boilerplate` above becomes
+`express-sequelize-api-boilerplate.json` in both directories, and
+`FrontendMasters/api-design-node-v3` becomes `api-design-node-v3.json`.)
+
 ## Status: 18 files, all hand-corrected against real source (expanded from the original 6)
 
 Each file was seeded from the pipeline's own extracted structure, then corrected by

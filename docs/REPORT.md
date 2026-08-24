@@ -3,15 +3,29 @@
 **AI-Powered Repository Intelligence Platform — Capstone Report (working draft)**
 
 Status: results chapters complete and backed by a real evaluation run; related work
-and final framing still to be written by the team. Last updated 2026-08-11.
+and final framing still to be written by the team. Last updated 2026-08-24.
 
-> **⚠️ Results in §5.1–§5.3 require re-measurement.** They were produced before three
-> parser defects were fixed (see §5.4a). The most consequential of these caused the
-> parser to recover **zero internal import edges**, which left the `dependency_graph`
-> arm — one third of the ablation — almost structurally empty. The primary result
-> (§5.1) compares `knowledge_graph` against `raw` and is less exposed, but the
-> dependency-graph comparisons and all efficiency figures must be regenerated. §5.4
-> already reflects the fixed parser.
+> **⚠️ Results in §5.1–§5.3 require re-measurement**, now for three compounding
+> reasons, not one:
+> 1. They were produced before three parser defects were fixed (see §5.4a). The most
+>    consequential caused the parser to recover **zero internal import edges**, which
+>    left the `dependency_graph` arm — one third of the ablation — almost
+>    structurally empty.
+> 2. The evaluation dataset has since been expanded from 6 to **18 repositories**
+>    (see §4.1a) for statistical power, and two further Express parser bugs were
+>    found and fixed while building the new annotations (§5.4a).
+> 3. The metrics stack has been substantially expanded beyond hallucination/coverage
+>    (see §4.2a): text-overlap metrics (BLEU-4/ROUGE-L/METEOR/BERTScore) against
+>    reference summaries, a G-Eval rubric scorer, calibration, and formal paired
+>    significance testing are all now implemented and tested, but have not yet been
+>    run against live infrastructure -- that requires a running Ollama + Neo4j,
+>    which this working environment does not have.
+>
+> The primary result (§5.1) compares `knowledge_graph` against `raw` and is less
+> exposed to (1), but every number in §5.1–§5.3 must be regenerated under the new
+> 18-repo dataset and new metrics stack before being reported as findings. §5.4
+> reflects the fixed parser as of the original 6-repo set; it too needs re-running
+> against all 18. See Appendix A for the reproduction command.
 
 ---
 
@@ -153,6 +167,81 @@ Diagram generation is **deterministic** — Cypher queries over the graph, forma
 Mermaid, with no model call. Diagram quality is therefore a measure of parser and
 graph-builder fidelity, not of model behaviour, and is evaluated separately (§5.4).
 
+### 3.4 End-to-end pipeline diagram
+
+The diagram below is accurate to the actual code as of this section's last edit, not
+aspirational — it traces the same call path §3.1's ASCII sketch does, extended to
+show the evaluation harness (which the ASCII version predates) and drawn so "model"
+(3 local LLMs) and "method" (3 context representations) are visibly the two
+independent factors of the ablation, not a single collapsed axis.
+
+```mermaid
+flowchart TD
+    A["GitHub URL"] --> B["acquisition/clone.py\nshallow clone, size-limited"]
+    B --> C["parsers/registry.py\nframework detection + dispatch"]
+    C --> D1["express_parser.py\ntree-sitter-javascript"]
+    C --> D2["nestjs_parser.py\ntree-sitter-typescript"]
+    D1 --> E["ParsedRepository\n(the one schema every consumer reads)"]
+    D2 --> E
+    E --> F["graph/builder.py\nMERGE into Neo4j, keyed on (repo_name, id)"]
+    F --> G["context/builder.py"]
+    G --> H1["raw\n(capped source text)"]
+    G --> H2["dependency_graph\n(modules + imports)"]
+    G --> H3["knowledge_graph\n(+ classes, functions,\nendpoints, deps, config)"]
+
+    subgraph FACTOR_METHOD [" Method (representation) -- independent factor "]
+        H1
+        H2
+        H3
+    end
+
+    H1 --> I["providers/ollama_provider.py\n(model = a call argument)"]
+    H2 --> I
+    H3 --> I
+
+    subgraph FACTOR_MODEL [" Model -- independent factor "]
+        M1["qwen2.5-coder:7b"]
+        M2["granite-code:3b-instruct"]
+        M3["deepseek-coder:6.7b-instruct"]
+    end
+    I --- M1
+    I --- M2
+    I --- M3
+
+    I --> J["LLMResult\nsummary text + latency/token metrics"]
+    E --> K["graph/diagram.py\nNeo4j -> Mermaid (deterministic, no LLM)"]
+
+    J --> L["evaluation/harness.py"]
+    K --> L
+    L --> N1["hallucination.py\nLLM-judge precision"]
+    L --> N2["coverage.py\nLLM-judge recall"]
+    L --> N3["text_overlap.py\nBLEU-4/ROUGE-L/METEOR/BERTScore\nvs reference_summaries/"]
+    L --> N4["quality_judge.py\nG-Eval rubric (opt-in)"]
+    L --> N5["diagram_score.py\nF1 vs annotations/"]
+    L --> N6["failure_analysis.py\nfailure taxonomy tags"]
+
+    N1 --> O["EvaluationRow\none flat row per\n(repo, model, representation)"]
+    N2 --> O
+    N3 --> O
+    N4 --> O
+    N5 --> O
+    N6 --> O
+
+    O --> P1["CSV (write_csv)"]
+    O --> P2["SQLite (write_sqlite,\naccumulates across runs)"]
+    P1 --> Q["stats.py\nmean +/- 95% CI,\npaired Wilcoxon\nmodel x representation"]
+    P2 --> Q
+```
+
+Two things this diagram makes explicit that the ASCII sketch in §3.1 didn't need to:
+the judge model (a fourth model, distinct from the three generators -- §4.3) sits
+inside `evaluation/harness.py`, not in the generation path itself; and `calibration.py`
+is deliberately absent from this diagram -- it needs the exact prompt text a
+generation call used to do a matching raw-logprob regeneration, which
+`run_representation_ablation()` doesn't currently expose (only the `LLMResult`), so it
+runs as a separate, smaller procedure rather than as a harness-loop stage (see
+Appendix A).
+
 ---
 
 ## 4. Methodology
@@ -189,6 +278,30 @@ The set spans both supported frameworks and roughly an order of magnitude in siz
 Repositories used during development (`heroku/node-js-getting-started`,
 `nestjs/typescript-starter`) were excluded to avoid selecting repositories the parsers
 had been tuned against.
+
+#### Dataset expansion to 18 repositories (2026-08-24 addendum)
+
+The 6-repository set above is too small to power anything but the largest effects: a
+sign-test power calculation (α=0.05 two-sided, power=0.8) shows n=6 was already
+sufficient for the effect actually found (knowledge_graph vs. raw, 15/17 pairs), but
+underpowered for moderate effects (~65-70% win rate), which need on the order of
+55-85 paired (repository, model) trials. The dataset has therefore been expanded to
+**18 repositories (9 Express, 9 NestJS)** — at 3 models, 18 repos gives 54 paired
+trials per representation comparison, powered for moderate-large effects while
+remaining honestly underpowered for subtle ones (a limitation to state plainly, not
+paper over).
+
+Selection criteria matched the original 6: a public GitHub repo declaring `express` or
+`@nestjs/core` directly in a root-level `package.json`, not archived, REST-style
+routing (not GraphQL-only or a custom routing DSL), and a size/complexity spread from
+small to large. Verified via the GitHub API (size, license, `archived`, last push,
+root `package.json` contents) before cloning. Full selection criteria, exclusions
+(and why each was excluded — a TypeScript-only Express gap, a repo-name collision
+risk, GraphQL/custom-routing repos out of parser scope, a generator-template repo
+with no fixed structure), and the annotation methodology are documented in
+`backend/annotations/README.md`. Two further real Express parser bugs were found and
+fixed while verifying the new annotations against source (a settings-getter
+false-positive, a middleware-mount-corrupts-prefix bug), both regression-tested.
 
 ### 4.2 Faithfulness metric
 
@@ -243,6 +356,61 @@ All runs were executed on a single 16 GB development laptop, one generator at a 
 (never three models resident simultaneously), with models unloaded between arms.
 **Latency figures are therefore not comparable to a controlled measurement** and are
 reported as indicative only; see §6.4.
+
+### 4.6 Extended metrics stack (2026-08-24 addendum)
+
+Hallucination and coverage (§4.2) are LLM-as-judge metrics grounded in parser output,
+not in a human-written or independently-sourced reference — sufficient to answer this
+paper's specific research question, but not directly comparable to the metrics the
+broader code-summarization literature reports. The following were added to close that
+gap and are implemented and unit-tested (`backend/app/evaluation/`), though not yet
+run against live infrastructure (this working environment has neither a running
+Ollama daemon nor Neo4j):
+
+- **Text-overlap metrics** (`text_overlap.py`): BLEU-4, ROUGE-L, METEOR, and
+  BERTScore, scored against each repository's reference summary
+  (`reference_summaries/<repo>.json`, LLM-drafted from the actual README plus
+  parser-extracted facts, flagged for human review before being treated as ground
+  truth — see `reference_summaries/README.md`). BLEURT and SIDE — the other two
+  metrics arXiv:2502.16704 reports — are deliberately out of scope: BLEURT needs a
+  TensorFlow checkpoint that's awkward to maintain locally, and SIDE needs that
+  paper's own released contrastive-learning checkpoint, neither reproducible from a
+  plain pip install the way the other four are.
+- **G-Eval rubric scoring** (`quality_judge.py`): the actual G-Eval protocol (Liu et
+  al., 2023) — criterion-specific chain-of-thought evaluation steps, followed by a
+  probability-weighted score over the judge's own logprobs at the score token,
+  rather than trusting a single sampled digit. Five criteria for summaries
+  (Completeness, Conciseness, Correctness, Cohesiveness, Domain Specificity — the
+  exact rubric arXiv:2501.07857 uses), two for diagrams (Value, Comprehensibility,
+  mirroring CIAO's RQ1/RQ2 Likert wording). CIAO's third dimension, "accuracy," is
+  deliberately not re-judged subjectively — diagram_score.py's F1 against
+  hand-verified annotations already measures that objectively, which a judge
+  self-report cannot improve on.
+- **Calibration** (`calibration.py`): the geometric mean of a generation's own
+  output-token logprobs as a reference-free confidence signal (arXiv:2404.19318's
+  method), Platt-scaled and validated via Brier score and Expected Calibration
+  Error, with "correct" defined as BERTScore-vs-reference clearing a threshold.
+  Scoped to a representative subset of repositories rather than the full battery
+  (it requires a second, logprob-enabled generation call per sample) and not
+  currently wired into the batch harness loop — see §3.4's diagram note.
+- **Formal paired statistics** (`stats.py`): mean ± 95% CI per (model, representation)
+  cell and Wilcoxon signed-rank testing (more powerful than the sign test §4.4 used,
+  since it uses the magnitude of paired differences, not just their sign), with model
+  and representation kept as independent, separately-isolatable factors rather than
+  pooled into one leaderboard column.
+- **Failure taxonomy** (`failure_analysis.py`): every row is tagged from signals the
+  harness already computes — fabricated endpoints/technologies (from hallucination's
+  unsupported claims), missed endpoints/dependencies/framework/classes/database
+  entities (from coverage's missing facts, which are already category-prefixed, so
+  this categorization is exact, not heuristic), over-generic summaries, and malformed
+  judge/generator output — aggregated into a frequency table for the paper's
+  limitations/failure-analysis section.
+
+A **human-validation sample**: since none of the above replaces a real human panel
+(this project substitutes LLM-as-judge throughout, the same substitution CIAO's own
+22-developer study explicitly does not make), the harness should export a sample of
+G-Eval outputs for manual double-scoring before the paper claims judge-human
+agreement — see Appendix A for the planned command shape.
 
 ---
 
@@ -512,6 +680,9 @@ weaknesses that are measured, documented, and directly actionable.
 
 ## Appendix A — Reproduction
 
+**Original 6-repo, hallucination/coverage-only battery** (superseded, kept for
+historical reproducibility of §5's as-reported figures):
+
 ```bash
 python -m app.evaluation.harness \
   https://github.com/bezkoder/node-express-sequelize-postgresql \
@@ -526,9 +697,49 @@ python -m app.evaluation.harness \
   --out clean_qwen.csv --sqlite study_clean.db
 ```
 
-Repeat with `--models llama3.1:8b` and `--models mistral:7b`, appending to the same
-`--sqlite` database. Running one generator per invocation keeps only two models resident,
-which is necessary on a 16 GB machine and materially reduces thermal load.
+**Current 18-repo battery, full metrics stack** — this is what a fresh paper run
+should use. Requires a running Ollama (with the models pulled) and Neo4j; run on the
+designated evaluation machine so latency figures are comparable (§4.5):
+
+```bash
+python -m app.evaluation.harness \
+  $(cat 18_repo_urls.txt) \
+  --models qwen2.5-coder:7b \
+  --judge-model gemma2:9b \
+  --annotations-dir ./annotations \
+  --reference-summaries-dir ./reference_summaries \
+  --quality-judge \
+  --out results_qwen.csv --sqlite study.db
+```
+
+`18_repo_urls.txt` is the 18 URLs listed in `backend/annotations/README.md`'s
+selection section, one per line. Repeat with `--models granite-code:3b-instruct` and
+`--models deepseek-coder:6.7b-instruct`, appending to the same `--sqlite`. Omit
+`--quality-judge` for a faster/cheaper first pass (it multiplies judge calls by 5);
+add `--no-bertscore` to `--reference-summaries-dir` runs to skip the BERTScore model
+download if only BLEU/ROUGE/METEOR are needed yet.
+
+After the battery: `app.evaluation.stats` (mean ± CI, paired Wilcoxon) and
+`app.evaluation.failure_analysis` (frequency table) both operate directly on the
+resulting CSV/SQLite rows — see their module docstrings for the row-dict shape they
+expect.
+
+Running one generator per invocation keeps only two models resident, which is
+necessary on a 16 GB machine and materially reduces thermal load.
+
+**Calibration** (§4.6) is not part of the harness loop above — it needs a second,
+logprob-enabled regeneration of the exact prompt used for a given summary, which the
+harness doesn't currently expose. Run it directly against `calibration.py`'s
+`generate_with_confidence()` for a chosen subset of (repo, model) pairs, reusing the
+prompt built by `providers/prompts.SUMMARY_PROMPT_TEMPLATE.format(context=...)` for
+whichever representation is being tested.
+
+**Human-validation sample**: to check G-Eval against a human baseline (§4.6), export
+a random ~15-20% sample of `EvaluationRow`s with `quality_judged=True`, and have a
+human independently score the same summaries on the same rubric
+(`quality_judge.GEVAL_CRITERIA_SUMMARY`) before comparing agreement (Spearman
+correlation or weighted Cohen's κ) -- a small script over the CSV, not new harness
+code.
 
 ## Appendix B — Artefacts
 
