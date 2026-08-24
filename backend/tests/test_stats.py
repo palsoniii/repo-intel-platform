@@ -11,7 +11,7 @@ def _rows():
     # (lower hallucination_score) than raw for both models.
     rows = []
     reprs = {"raw": [0.6, 0.5, 0.7], "knowledge_graph": [0.2, 0.1, 0.3]}
-    for model in ["qwen2.5-coder:7b", "granite-code:3b-instruct"]:
+    for model in ["qwen2.5-coder:7b", "codellama:7b-instruct"]:
         for context_variant, scores in reprs.items():
             for i, score in enumerate(scores):
                 rows.append({
@@ -86,15 +86,15 @@ def test_paired_test_keeps_model_and_representation_independent():
     result = paired_test(
         _rows(), "hallucination_score", factor="context_variant",
         level_a="raw", level_b="knowledge_graph",
-        held_fixed={"model": "granite-code:3b-instruct"},
+        held_fixed={"model": "codellama:7b-instruct"},
     )
-    assert result.held_fixed == {"model": "granite-code:3b-instruct"}
+    assert result.held_fixed == {"model": "codellama:7b-instruct"}
     assert result.n_pairs == 3
 
 
 def test_compare_all_levels_within_covers_every_model():
     results = compare_all_levels_within(_rows(), "hallucination_score", factor="context_variant", fixed_factor="model")
     models_covered = {r.held_fixed["model"] for r in results}
-    assert models_covered == {"qwen2.5-coder:7b", "granite-code:3b-instruct"}
+    assert models_covered == {"qwen2.5-coder:7b", "codellama:7b-instruct"}
     # 2 representations -> exactly 1 pairwise comparison per model
     assert len(results) == 2

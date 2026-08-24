@@ -69,7 +69,7 @@ def test_falls_back_to_sample_averaging_when_no_logprobs():
         repo_name="sample-repo",
         context_variant=ContextVariant.RAW,
         summary_text='{"overview": "test"}',
-        judge_model="granite-code:3b-instruct",
+        judge_model="codellama:7b-instruct",
         generate_fn=fake_generate,
         sample_count=3,
     )

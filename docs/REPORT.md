@@ -201,7 +201,7 @@ flowchart TD
 
     subgraph FACTOR_MODEL [" Model -- independent factor "]
         M1["qwen2.5-coder:7b"]
-        M2["granite-code:3b-instruct"]
+        M2["codellama:7b-instruct"]
         M3["deepseek-coder:6.7b-instruct"]
     end
     I --- M1
@@ -713,7 +713,7 @@ python -m app.evaluation.harness \
 ```
 
 `18_repo_urls.txt` is the 18 URLs listed in `backend/annotations/README.md`'s
-selection section, one per line. Repeat with `--models granite-code:3b-instruct` and
+selection section, one per line. Repeat with `--models codellama:7b-instruct` and
 `--models deepseek-coder:6.7b-instruct`, appending to the same `--sqlite`. Omit
 `--quality-judge` for a faster/cheaper first pass (it multiplies judge calls by 5);
 add `--no-bertscore` to `--reference-summaries-dir` runs to skip the BERTScore model
