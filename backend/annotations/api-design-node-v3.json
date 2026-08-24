@@ -1,0 +1,55 @@
+{
+  "modules": [
+    ".eslintrc.js",
+    ".prettierrc.js",
+    "src/config/dev.js",
+    "src/config/index.js",
+    "src/config/prod.js",
+    "src/config/testing.js",
+    "src/index.js",
+    "src/resources/item/item.controllers.js",
+    "src/resources/item/item.model.js",
+    "src/resources/item/item.router.js",
+    "src/resources/list/list.controllers.js",
+    "src/resources/list/list.model.js",
+    "src/resources/list/list.router.js",
+    "src/resources/user/user.controllers.js",
+    "src/resources/user/user.model.js",
+    "src/resources/user/user.router.js",
+    "src/server.js",
+    "src/utils/auth.js",
+    "src/utils/crud.js",
+    "src/utils/db.js",
+    "test-db-setup.js"
+  ],
+  "imports": [
+    [
+      "src/config/index.js",
+      "src/config/dev.js"
+    ],
+    [
+      "src/config/index.js",
+      "src/config/dev.js"
+    ],
+    [
+      "src/config/index.js",
+      "src/config/testing.js"
+    ]
+  ],
+  "endpoints": [
+    "DELETE /api/item/:id",
+    "DELETE /api/list/:id",
+    "GET /api/item",
+    "GET /api/item/:id",
+    "GET /api/list",
+    "GET /api/list/:id",
+    "GET /api/user",
+    "POST /api/item",
+    "POST /api/list",
+    "POST /signin",
+    "POST /signup",
+    "PUT /api/item/:id",
+    "PUT /api/list/:id",
+    "PUT /api/user"
+  ]
+}

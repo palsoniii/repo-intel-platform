@@ -1,0 +1,96 @@
+{
+  "modules": [
+    "config/config.js",
+    "config/express.js",
+    "config/param-validation.js",
+    "config/winston.js",
+    "index.js",
+    "index.route.js",
+    "server/auth/auth.controller.js",
+    "server/auth/auth.route.js",
+    "server/helpers/APIError.js",
+    "server/user/user.controller.js",
+    "server/user/user.model.js",
+    "server/user/user.route.js"
+  ],
+  "imports": [
+    [
+      "config/express.js",
+      "config/config.js"
+    ],
+    [
+      "config/express.js",
+      "config/winston.js"
+    ],
+    [
+      "config/express.js",
+      "index.route.js"
+    ],
+    [
+      "config/express.js",
+      "server/helpers/APIError.js"
+    ],
+    [
+      "index.js",
+      "config/config.js"
+    ],
+    [
+      "index.js",
+      "config/express.js"
+    ],
+    [
+      "index.route.js",
+      "server/auth/auth.route.js"
+    ],
+    [
+      "index.route.js",
+      "server/user/user.route.js"
+    ],
+    [
+      "server/auth/auth.controller.js",
+      "config/config.js"
+    ],
+    [
+      "server/auth/auth.controller.js",
+      "server/helpers/APIError.js"
+    ],
+    [
+      "server/auth/auth.route.js",
+      "config/config.js"
+    ],
+    [
+      "server/auth/auth.route.js",
+      "config/param-validation.js"
+    ],
+    [
+      "server/auth/auth.route.js",
+      "server/auth/auth.controller.js"
+    ],
+    [
+      "server/user/user.controller.js",
+      "server/user/user.model.js"
+    ],
+    [
+      "server/user/user.model.js",
+      "server/helpers/APIError.js"
+    ],
+    [
+      "server/user/user.route.js",
+      "config/param-validation.js"
+    ],
+    [
+      "server/user/user.route.js",
+      "server/user/user.controller.js"
+    ]
+  ],
+  "endpoints": [
+    "DELETE /users/:userId",
+    "GET /api/health-check",
+    "GET /auth/random-number",
+    "GET /users",
+    "GET /users/:userId",
+    "POST /auth/login",
+    "POST /users",
+    "PUT /users/:userId"
+  ]
+}

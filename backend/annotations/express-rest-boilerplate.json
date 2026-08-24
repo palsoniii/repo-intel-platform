@@ -1,0 +1,194 @@
+{
+  "modules": [
+    "src/api/controllers/auth.controller.js",
+    "src/api/controllers/user.controller.js",
+    "src/api/errors/api-error.js",
+    "src/api/errors/extandable-error.js",
+    "src/api/middlewares/auth.js",
+    "src/api/middlewares/error.js",
+    "src/api/models/passwordResetToken.model.js",
+    "src/api/models/refreshToken.model.js",
+    "src/api/models/user.model.js",
+    "src/api/routes/v1/auth.route.js",
+    "src/api/routes/v1/index.js",
+    "src/api/routes/v1/user.route.js",
+    "src/api/services/authProviders.js",
+    "src/api/services/emails/emailProvider.js",
+    "src/api/utils/APIError.js",
+    "src/api/validations/auth.validation.js",
+    "src/api/validations/user.validation.js",
+    "src/config/express.js",
+    "src/config/logger.js",
+    "src/config/mongoose.js",
+    "src/config/passport.js",
+    "src/config/vars.js",
+    "src/index.js"
+  ],
+  "imports": [
+    [
+      "src/api/controllers/auth.controller.js",
+      "src/api/errors/api-error.js"
+    ],
+    [
+      "src/api/controllers/auth.controller.js",
+      "src/api/models/passwordResetToken.model.js"
+    ],
+    [
+      "src/api/controllers/auth.controller.js",
+      "src/api/models/refreshToken.model.js"
+    ],
+    [
+      "src/api/controllers/auth.controller.js",
+      "src/api/models/user.model.js"
+    ],
+    [
+      "src/api/controllers/auth.controller.js",
+      "src/api/services/emails/emailProvider.js"
+    ],
+    [
+      "src/api/controllers/auth.controller.js",
+      "src/config/vars.js"
+    ],
+    [
+      "src/api/controllers/user.controller.js",
+      "src/api/models/user.model.js"
+    ],
+    [
+      "src/api/errors/api-error.js",
+      "src/api/errors/extandable-error.js"
+    ],
+    [
+      "src/api/middlewares/auth.js",
+      "src/api/errors/api-error.js"
+    ],
+    [
+      "src/api/middlewares/auth.js",
+      "src/api/models/user.model.js"
+    ],
+    [
+      "src/api/middlewares/error.js",
+      "src/api/errors/api-error.js"
+    ],
+    [
+      "src/api/middlewares/error.js",
+      "src/config/vars.js"
+    ],
+    [
+      "src/api/models/user.model.js",
+      "src/api/errors/api-error.js"
+    ],
+    [
+      "src/api/models/user.model.js",
+      "src/config/vars.js"
+    ],
+    [
+      "src/api/routes/v1/auth.route.js",
+      "src/api/controllers/auth.controller.js"
+    ],
+    [
+      "src/api/routes/v1/auth.route.js",
+      "src/api/middlewares/auth.js"
+    ],
+    [
+      "src/api/routes/v1/auth.route.js",
+      "src/api/validations/auth.validation.js"
+    ],
+    [
+      "src/api/routes/v1/index.js",
+      "src/api/routes/v1/auth.route.js"
+    ],
+    [
+      "src/api/routes/v1/index.js",
+      "src/api/routes/v1/user.route.js"
+    ],
+    [
+      "src/api/routes/v1/user.route.js",
+      "src/api/controllers/user.controller.js"
+    ],
+    [
+      "src/api/routes/v1/user.route.js",
+      "src/api/middlewares/auth.js"
+    ],
+    [
+      "src/api/routes/v1/user.route.js",
+      "src/api/validations/user.validation.js"
+    ],
+    [
+      "src/api/services/emails/emailProvider.js",
+      "src/config/vars.js"
+    ],
+    [
+      "src/api/validations/user.validation.js",
+      "src/api/models/user.model.js"
+    ],
+    [
+      "src/config/express.js",
+      "src/api/middlewares/error.js"
+    ],
+    [
+      "src/config/express.js",
+      "src/api/routes/v1/index.js"
+    ],
+    [
+      "src/config/express.js",
+      "src/config/passport.js"
+    ],
+    [
+      "src/config/express.js",
+      "src/config/vars.js"
+    ],
+    [
+      "src/config/mongoose.js",
+      "src/config/logger.js"
+    ],
+    [
+      "src/config/mongoose.js",
+      "src/config/vars.js"
+    ],
+    [
+      "src/config/passport.js",
+      "src/api/models/user.model.js"
+    ],
+    [
+      "src/config/passport.js",
+      "src/api/services/authProviders.js"
+    ],
+    [
+      "src/config/passport.js",
+      "src/config/vars.js"
+    ],
+    [
+      "src/index.js",
+      "src/config/express.js"
+    ],
+    [
+      "src/index.js",
+      "src/config/logger.js"
+    ],
+    [
+      "src/index.js",
+      "src/config/mongoose.js"
+    ],
+    [
+      "src/index.js",
+      "src/config/vars.js"
+    ]
+  ],
+  "endpoints": [
+    "DELETE /v1/users/:userId",
+    "GET /v1/status",
+    "GET /v1/users",
+    "GET /v1/users/:userId",
+    "GET /v1/users/profile",
+    "PATCH /v1/users/:userId",
+    "POST /v1/auth/facebook",
+    "POST /v1/auth/google",
+    "POST /v1/auth/login",
+    "POST /v1/auth/refresh-token",
+    "POST /v1/auth/register",
+    "POST /v1/auth/reset-password",
+    "POST /v1/auth/send-password-reset",
+    "POST /v1/users",
+    "PUT /v1/users/:userId"
+  ]
+}

@@ -8,29 +8,126 @@ modules, imports, and endpoints.
 One file per evaluation repo, named `<repo_name>.json` (the repo name the parser
 derives from the URL). The harness picks them up with `--annotations-dir ./annotations`.
 
-## Status: all 6 files are hand-corrected against real source
+## Status: 18 files, all hand-corrected against real source (expanded from the original 6)
 
 Each file was seeded from the pipeline's own extracted structure, then corrected by
 reading the actual repository. (Scoring against an *uncorrected* seed would score a
 perfect 1.0 by construction — the pipeline agreeing with itself — which is meaningless.
 That's why every file here has been reconciled to the source.)
 
-Current diagram-scorer results against these annotations:
+**Sample size:** 18 repos (9 Express, 9 NestJS) — expanded from the original 6 for
+statistical power. A sign-test power calculation (α=0.05 two-sided, power=0.8) shows
+the original n=6 was already sufficient to detect the *large* effect found in the
+first battery (knowledge_graph vs. raw, p=0.002, ~85% win rate), but underpowered for
+moderate effects (~65-70% win rate) — those need on the order of 55-85 paired
+(repo, model) trials. At 3 models, 18 repos gives 54 paired trials, which is powered
+for moderate-large effects while staying honest in the paper about being underpowered
+for subtle ones.
 
-| repo | module F1 | import recall | endpoint F1 |
-|------|:---------:|:-------------:|:-----------:|
+**Selection criteria** (inferred from and matching the original 6): public GitHub repo,
+`express` or `@nestjs/core` declared directly in a root-level `package.json` (not a
+monorepo with nested `package.json` files — the pipeline's `detect()` only checks the
+repo root), not archived, REST-style routing (`app.get()`/`router.post()`/`@Get()`/
+`@Post()` — GraphQL-resolver-only and custom routing-table repos were excluded, see
+below), and a size/complexity spread from small (a handful of modules) to large
+(hundreds) matching the original set's range. Verified via the GitHub API before
+cloning (size, license, `archived`, last push, and root `package.json` contents).
+
+**Excluded during selection** (documented so the sampling methodology is reproducible):
+- 3 TypeScript Express candidates (`w3tecch/express-typescript-boilerplate`,
+  `edwinhern/express-typescript`, `watscho/express-mongodb-rest-api-boilerplate`) —
+  `ExpressParser` only reads `.js`/`.mjs`/`.cjs` (TypeScript is the NestJS parser's
+  job), so a TS-Express repo's `detect()` still matches Express but `parse()` finds
+  almost nothing. A real, previously-undocumented parser gap — see below.
+- `Vivify-Ideas/nestjs-boilerplate` — its repo name collides with the already-selected
+  `brocoders/nestjs-boilerplate`. `repo_name` is derived from just the URL's repo
+  segment (`app/acquisition/clone.py`), and Neo4j nodes are partitioned by
+  `(repo_name, id)` (`SCHEMA.md`) — two *different* repos sharing a `repo_name` would
+  silently corrupt each other's graph. Worth a follow-up fix (key on `owner/repo`
+  instead) if the dataset grows again.
+- `fernandohenriques/nestjs-graphql-boilerplate` (0 endpoints — GraphQL resolvers, not
+  `@Get`/`@Post` decorators) and `binitghetiya`'s and `aichbauer`'s Express boilerplates
+  that route via a custom data-driven table (`{'POST /user': 'UserController.register'}`)
+  or the `resource-router-middleware` package (0 endpoints for the same reason: not the
+  vanilla `app.get()`/`router.post()` pattern this parser targets) — legitimately out of
+  scope, not parser bugs.
+- `diegohaz/rest` — turned out to be a Yeoman generator *template* (EJS conditionals
+  control which routes even exist), not a fixed deployable app. Its "true" structure is
+  parameterized by generator options, so it isn't a valid ground-truth-annotation target.
+
+**Two real parser bugs were found and fixed while building these annotations** (both
+regression-tested in `tests/test_express_parser.py`):
+1. `app.get('port')` / `app.get('view engine')` — Express's single-argument
+   app-*settings* getter overload — was being misread as a handler-less GET route
+   registration, since `_extract_routes` never checked that a direct-style call
+   actually had both a path *and* a handler argument.
+2. `_collect_mounts` treated *any* statically-unresolvable `app.use()`/`router.use()`
+   second argument as "a router built in this same file," including plain middleware
+   like `express.static('docs')`. In `express-rest-boilerplate` this corrupted that
+   file's own mount prefix (`/docs` + `/v1` → `/docs/v1` instead of `/v1`), misreporting
+   `GET /status` as `GET /docs/v1/status`. Now restricted to actual identifiers.
+
+Current diagram-scorer results against all 18 annotations:
+
+| repo | module F1 | import F1/recall | endpoint F1 |
+|------|:---------:|:-----------------:|:-----------:|
 | node-express-sequelize-postgresql | 1.00 | 1.00 | 1.00 |
 | node_passport_login | 1.00 | 1.00 | 1.00 |
 | node-express-boilerplate | 0.97 | 1.00 | 0.00 |
 | nestjs-realworld-example-app | 1.00 | 1.00 | 1.00 |
 | nestjs-prisma-starter | 1.00 | 1.00 | 1.00 |
 | nestjs-boilerplate | 1.00 | 1.00 | 1.00 |
+| express-mongoose-es6-rest-api | 1.00 | 1.00 | 1.00 |
+| express-sequelize-api-boilerplate | 1.00 | 1.00 | 1.00 |
+| rest-api-nodejs-mongodb | 1.00 | 1.00 | 1.00 |
+| express-rest-boilerplate | 1.00 | 1.00 | 0.07 |
+| node-express-mongodb-jwt-rest-api-skeleton | 1.00 | 1.00 | 0.40 |
+| api-design-node-v3 | 1.00 | 1.00 | 0.18 |
+| ack-nestjs-boilerplate | 1.00 | recall only | 1.00 |
+| awesome-nest-boilerplate | 1.00 | 1.00 | 1.00 |
+| clean-architecture-nestJS | 1.00 | 1.00 | 1.00 |
+| domain-driven-hexagon | 1.00 | 1.00 | 1.00 |
+| nestjs-recipe | 1.00 | 1.00 | 1.00 |
+| nestjs-starter-rest-api | 1.00 | 1.00 | 1.00 |
 
-The single remaining endpoint failure is `hagopj13/node-express-boilerplate`, which
-registers routes by iterating an array of `{ path, route }` objects
-(`defaultRoutes.forEach(r => router.use(r.path, r.route))`). The mount path is a
-*value*, not a literal, so it cannot be recovered without data-flow analysis. Its
-routes keep their router-relative paths.
+**Four remaining endpoint failures, each a distinct, real, documented limitation** (not
+bugs — verified by hand-composing the true paths from source and comparing to what the
+parser resolved):
+- `hagopj13/node-express-boilerplate` — registers routes by iterating an array of
+  `{ path, route }` objects (`defaultRoutes.forEach(r => router.use(r.path, r.route))`).
+  The mount path is a runtime *value*, not a literal, so it can't be recovered without
+  data-flow analysis.
+- `node-express-mongodb-jwt-rest-api-skeleton` — mounts routes via
+  `fs.readdirSync(routesPath)` looped with a template-literal path
+  (`` router.use(`/${routeFile}`, require(`./${routeFile}`)) ``). Same root cause as
+  above: the mount path isn't a string literal, this time because it's built
+  dynamically from the filesystem rather than from data.
+- `express-rest-boilerplate` — a genuine architectural gap in the mount-prefix
+  resolver: it composes only **one level** of `app.use()`/`router.use()` nesting.
+  `config/express.js` mounts `routes` (= `v1/index.js`) at `/v1`; `v1/index.js` in turn
+  mounts `user.route.js`/`auth.route.js` at `/users`/`/auth`. The resolver correctly
+  prefixes `v1/index.js`'s *own* routes with `/v1`, but doesn't transitively propagate
+  that `/v1` onto the routers `v1/index.js` itself mounts — so `GET /users` is reported
+  instead of the true `GET /v1/users`. Fixing this needs a mount-prefix *graph*
+  (parent-mount lookups resolved transitively) rather than the current flat
+  per-module dict — a real follow-up, out of scope for this pass.
+- `api-design-node-v3` — its routers are wired with ES `import`/`export`, not
+  CommonJS `require()`. `_extract_requires`/`_identifier_require_bindings`/
+  `_require_path` only recognize `require(...)` call expressions; an ES
+  `import userRouter from './routes/user'` is a different AST node type entirely
+  (`import_statement`), so it's invisible to both the internal-import-edge resolver
+  *and* the mount-prefix resolver (`app.use('/api/user', userRouter)` can't resolve
+  `userRouter` to anything). **This is a significant, previously-undocumented gap**:
+  the Express parser is CommonJS-only. Any modern Express repo using ES modules will
+  silently lose both its dependency-graph edges and its mount-prefix composition. Worth
+  a dedicated follow-up (add an ES `import`/`export` extraction path mirroring the
+  existing `require()` one) before drawing conclusions from Express repos generally.
+- `ack-nestjs-boilerplate` — 601 modules but only 2 resolved import edges. Uses
+  TypeScript path aliases (webpack/tsconfig `paths`) almost everywhere instead of
+  relative imports, which the parser has never resolved (documented in the main
+  README's NestJS "Known gaps" since before this dataset expansion). Reported as
+  recall-only for the same reason as the other large repos below, not exhaustively
+  annotated.
 
 ### Why import is reported as recall, not F1
 

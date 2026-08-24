@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 
+// A plain middleware mount (not a same-file router) -- must not be misread as
+// "a router built in this file" and corrupt this module's own mount prefix.
+router.use('/docs', express.static('docs'));
+
 function listUsers(req, res) {
   res.json([]);
 }

@@ -45,13 +45,31 @@ def test_finds_all_routes(parsed):
     """Router-relative paths are composed with the prefix the router is mounted at.
     The fixture does `app.use('/api/users', usersRouter)`, so `router.get('/')` in
     routes/users.js is really GET /api/users -- the path a client actually calls.
-    Routes registered straight on `app` (GET /health) are already absolute."""
+    Routes registered straight on `app` (GET /health) are already absolute. The
+    fixture also has `app.get('port')` (via `app.listen(app.get('port'))`) -- the
+    single-argument app-settings getter, not a route -- which must NOT appear."""
     assert len(parsed.api_endpoints) == 4
     routes = {(ep.method, ep.path) for ep in parsed.api_endpoints}
     assert (HttpMethod.GET, "/health") in routes
     assert (HttpMethod.GET, "/api/users") in routes
     assert (HttpMethod.POST, "/api/users") in routes
     assert (HttpMethod.DELETE, "/api/users/:id") in routes
+
+
+def test_app_get_settings_getter_is_not_a_route(parsed):
+    """app.get('port') -- Express's single-argument app-settings getter overload --
+    must not be misread as a handler-less GET route."""
+    assert all(ep.path != "port" for ep in parsed.api_endpoints)
+
+
+def test_static_middleware_mount_does_not_corrupt_own_prefix(parsed):
+    """routes/users.js does `router.use('/docs', express.static('docs'))` -- a plain
+    middleware mount, not a same-file router. It must not be attributed as this
+    module's own prefix, which would corrupt the real /api/users prefix (mounted by
+    app.js) into something like /docs/api/users."""
+    routes = {(ep.method, ep.path) for ep in parsed.api_endpoints}
+    assert (HttpMethod.GET, "/api/users") in routes
+    assert not any("/docs" in path for _, path in routes)
 
 
 def test_resolves_named_handler_to_function_id(parsed):

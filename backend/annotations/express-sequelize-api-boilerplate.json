@@ -1,0 +1,41 @@
+{
+  "modules": [
+    ".eslintrc.js",
+    "app.js",
+    "jest.config.js",
+    "server.js",
+    "src/config/config.js",
+    "src/config/sequelize.js",
+    "src/controllers/user/user.controller.js",
+    "src/controllers/user/user.validator.js",
+    "src/helpers/index.js",
+    "src/middleware/adminAuth.js",
+    "src/middleware/apiAuth.js",
+    "src/middleware/errorHandler.js",
+    "src/migrations/20190510094758-create-user.js",
+    "src/migrations/20190522113242-UserVerified.js",
+    "src/models/index.js",
+    "src/models/user.js",
+    "src/routes/admin.js",
+    "src/routes/api.js",
+    "src/routes/public.js",
+    "src/seeders/20190521093300-AdminUsers.js"
+  ],
+  "imports": [
+    [
+      "app.js",
+      "src/config/sequelize.js"
+    ],
+    [
+      "server.js",
+      "app.js"
+    ]
+  ],
+  "endpoints": [
+    "GET /allUsers",
+    "GET /me",
+    "POST /changePassword",
+    "POST /login",
+    "POST /register"
+  ]
+}

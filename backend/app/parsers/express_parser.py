@@ -331,7 +331,12 @@ class ExpressParser(BaseParser):
             obj_name = source[obj_node.start_byte:obj_node.end_byte].decode("utf-8", "replace")
 
             if obj_node.type == "identifier" and obj_name in {"app", "router"}:
-                # direct style: app.get('/x', handler) -- path is the first argument
+                # direct style: app.get('/x', handler) -- path is the first argument.
+                # Requires a path AND a handler: app.get('port') / app.set('view engine', ...)
+                # is Express's single-argument app-settings getter/setter overload, not a
+                # route registration, and would otherwise be misread as a handler-less GET.
+                if args_node is None or args_node.named_child_count < 2:
+                    continue
                 route_path = self._first_string_arg(call_node, source)
                 base_name = obj_name
                 handler_node = self._last_handler_arg(args_node, skip_first=True)
@@ -497,11 +502,18 @@ class ExpressParser(BaseParser):
                     mount_prefixes[target_id] = self._join_paths(
                         mount_prefixes.get(target_id, ""), prefix
                     )
-            else:
-                # Router object mounted in the same file it was built in.
+            elif target.type == "identifier":
+                # Router object mounted in the same file it was built in -- e.g.
+                # `const router = express.Router(); app.use('/x', router)`. Restricted
+                # to identifiers: a call expression second argument (`express.static(...)`,
+                # an inline middleware factory, ...) is never a same-file router and must
+                # not be attributed here -- doing so previously corrupted this module's
+                # own mount prefix with the static-mount's unrelated path.
                 mount_prefixes[module_id] = self._join_paths(
                     mount_prefixes.get(module_id, ""), prefix
                 )
+            # else: target is neither a resolvable require()/import nor a plain
+            # identifier (e.g. an inline call expression) -- nothing safe to attribute.
 
     def _identifier_require_bindings(self, root: Node, source: bytes) -> dict[str, str]:
         """Maps `const routes = require('./routes/v1')` -> {'routes': './routes/v1'}."""

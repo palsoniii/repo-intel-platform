@@ -416,7 +416,31 @@ below for how to run them for real.
   bound to a `require()` across files. **Not** resolved: mount paths that are runtime
   values rather than literals, e.g. iterating an array of `{path, route}` objects
   (`defaultRoutes.forEach(r => router.use(r.path, r.route))`), as
-  `hagopj13/node-express-boilerplate` does -- those routes keep router-relative paths.
+  `hagopj13/node-express-boilerplate` does, or built from a template literal via a
+  filesystem loop (`` router.use(`/${routeFile}`, require(`./${routeFile}`)) ``), as
+  `node-express-mongodb-jwt-rest-api-skeleton` does -- those routes keep
+  router-relative paths.
+- Mount-prefix resolution is only **one level deep**: it correctly composes a router's
+  own prefix from whoever mounts it, but doesn't transitively propagate that prefix
+  onto routers *that router itself* further mounts. `express-rest-boilerplate` mounts
+  `v1/index.js` at `/v1`, which in turn mounts `user.route.js` at `/users` -- the
+  result is reported as `GET /users` instead of the true `GET /v1/users`. Needs a
+  mount-prefix graph (transitive parent-mount resolution) instead of the current flat
+  per-module dict; found via `backend/annotations/README.md`'s dataset expansion,
+  2026-08-24.
+- The Express parser only resolves CommonJS `require()` -- ES `import`/`export`
+  (`import userRouter from './routes/user'`) is a different AST node entirely and is
+  invisible to both the internal-import-edge resolver and the mount-prefix resolver.
+  A repo wired entirely with ES modules (e.g. `api-design-node-v3`) silently loses
+  both its dependency-graph edges and its endpoint prefixes. Significant gap for any
+  modern Express+Babel/ts-node repo; found 2026-08-24, not yet fixed.
+- Two false-positive route-detection bugs were found and fixed while expanding the
+  evaluation dataset (2026-08-24), both regression-tested in `test_express_parser.py`:
+  `app.get('port')` (Express's single-argument app-*settings* getter, not a route
+  registration) was misread as a handler-less GET route; and a plain middleware mount
+  (`router.use('/docs', express.static('docs'))`) was misattributed as "a router built
+  in this file," corrupting that file's own mount prefix for any routes registered
+  after it.
 
 ### Known gaps in the Phase 6 NestJS parser (same spirit as Phase 1's, above)
 

@@ -1,0 +1,92 @@
+{
+  "modules": [
+    "app.js",
+    "controllers/AuthController.js",
+    "controllers/BookController.js",
+    "helpers/apiResponse.js",
+    "helpers/constants.js",
+    "helpers/mailer.js",
+    "helpers/utility.js",
+    "middlewares/jwt.js",
+    "models/BookModel.js",
+    "models/UserModel.js",
+    "routes/api.js",
+    "routes/auth.js",
+    "routes/book.js",
+    "routes/index.js"
+  ],
+  "imports": [
+    [
+      "app.js",
+      "helpers/apiResponse.js"
+    ],
+    [
+      "app.js",
+      "routes/api.js"
+    ],
+    [
+      "app.js",
+      "routes/index.js"
+    ],
+    [
+      "controllers/AuthController.js",
+      "helpers/apiResponse.js"
+    ],
+    [
+      "controllers/AuthController.js",
+      "helpers/constants.js"
+    ],
+    [
+      "controllers/AuthController.js",
+      "helpers/mailer.js"
+    ],
+    [
+      "controllers/AuthController.js",
+      "helpers/utility.js"
+    ],
+    [
+      "controllers/AuthController.js",
+      "models/UserModel.js"
+    ],
+    [
+      "controllers/BookController.js",
+      "helpers/apiResponse.js"
+    ],
+    [
+      "controllers/BookController.js",
+      "middlewares/jwt.js"
+    ],
+    [
+      "controllers/BookController.js",
+      "models/BookModel.js"
+    ],
+    [
+      "routes/api.js",
+      "routes/auth.js"
+    ],
+    [
+      "routes/api.js",
+      "routes/book.js"
+    ],
+    [
+      "routes/auth.js",
+      "controllers/AuthController.js"
+    ],
+    [
+      "routes/book.js",
+      "controllers/BookController.js"
+    ]
+  ],
+  "endpoints": [
+    "DELETE /book/:id",
+    "GET /",
+    "GET /book",
+    "GET /book/:id",
+    "POST /auth/login",
+    "POST /auth/register",
+    "POST /auth/resend-verify-otp",
+    "POST /auth/verify-otp",
+    "POST /book",
+    "PUT /book/:id"
+  ]
+}
