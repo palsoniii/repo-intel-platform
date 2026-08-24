@@ -20,7 +20,9 @@ from app.acquisition.clone import AcquiredRepo, CloneFailedError, InvalidRepoUrl
 from app.context.builder import build_context
 from app.db.neo4j_client import get_driver
 from app.evaluation.coverage import CoverageResult, score_coverage
+from app.evaluation.failure_analysis import FailureTag, analyze_failures
 from app.evaluation.hallucination import HallucinationResult, score_summary
+from app.evaluation.text_overlap import TextOverlapResult, extract_overview, score_text_overlap
 from app.graph.builder import ensure_constraints, write_parsed_repository
 from app.graph.diagram import generate_architecture_diagram
 from app.parsers.base import UnsupportedFrameworkError
@@ -297,11 +299,27 @@ def run_representation_ablation(
 class ScoredResult(BaseModel):
     """One ablation result paired with its hallucination (precision-like: are the
     claims it made true) and coverage (recall-like: how much of the ground truth did
-    it mention) scores. Both are None for a run that failed (nothing to grade)."""
+    it mention) scores. Both are None for a run that failed (nothing to grade).
+
+    `text_overlap` is None whenever no reference_summaries/<repo>.json exists for
+    this repo (BLEU/ROUGE/METEOR need a reference text to compare against) -- see
+    reference_summaries/README.md. BERTScore is deliberately left out of the live
+    endpoint (unlike the batch harness, which can enable it via --reference-summaries-dir
+    without --no-bertscore): it downloads and loads a model on first use, which would
+    make an interactive dashboard comparison unpredictably slow. `failure_tags` is
+    always populated when the run succeeded -- it costs no extra judge call, since it's
+    derived entirely from the hallucination/coverage signals already computed above."""
 
     result: LLMResult
     hallucination: HallucinationResult | None = None
     coverage: CoverageResult | None = None
+    text_overlap: TextOverlapResult | None = None
+    failure_tags: list[FailureTag] = []
+
+
+# Relative to the backend's working directory (matches the harness's own
+# --reference-summaries-dir convention and docker-compose.yml's volume mount).
+DEFAULT_REFERENCE_SUMMARIES_DIR = Path("reference_summaries")
 
 
 def run_scored_ablation(
@@ -311,6 +329,7 @@ def run_scored_ablation(
     max_size_mb: int = 200,
     driver: Driver | None = None,
     provider: BaseLLMProvider | None = None,
+    reference_summaries_dir: str | Path | None = DEFAULT_REFERENCE_SUMMARIES_DIR,
 ) -> tuple[ParsedRepository, list[ScoredResult]]:
     """The ablation plus hallucination + coverage scores per successful result --
     what the /compare endpoint and dashboard use, so the comparison shows quality
@@ -331,10 +350,15 @@ def run_scored_ablation(
         if owns_driver:
             driver.close()
 
+    reference_overview = _load_reference_overview(parsed.metadata.name, reference_summaries_dir)
+    known_terms = [parsed.metadata.detected_framework or "", parsed.metadata.detected_language or ""]
+
     scored: list[ScoredResult] = []
     for result in results:
         hallucination = None
         coverage = None
+        text_overlap = None
+        failure_tags: list[FailureTag] = []
         if result.status == RunStatus.SUCCESS:
             hallucination = score_summary(
                 provider,
@@ -350,6 +374,47 @@ def run_scored_ablation(
                 result.context_variant,
                 judge_model=judge_model,
             )
-        scored.append(ScoredResult(result=result, hallucination=hallucination, coverage=coverage))
+            if reference_overview is not None:
+                text_overlap = score_text_overlap(
+                    repo_name=parsed.metadata.name,
+                    context_variant=result.context_variant,
+                    summary_text=result.output.raw_text,
+                    reference_overview=reference_overview,
+                )
+            generated_overview, _ = extract_overview(result.output.raw_text)
+            failure_tags = analyze_failures(
+                repo_name=parsed.metadata.name,
+                model=result.model,
+                context_variant=result.context_variant.value,
+                unsupported_claims=hallucination.unsupported_claims,
+                missing_facts=coverage.missing_facts,
+                generated_overview=generated_overview,
+                known_terms=known_terms,
+                hallucination_judged=hallucination.judged,
+                coverage_judged=coverage.judged,
+            ).tags
+        scored.append(
+            ScoredResult(
+                result=result,
+                hallucination=hallucination,
+                coverage=coverage,
+                text_overlap=text_overlap,
+                failure_tags=failure_tags,
+            )
+        )
 
     return parsed, scored
+
+
+def _load_reference_overview(repo_name: str, reference_summaries_dir: str | Path | None) -> str | None:
+    if reference_summaries_dir is None:
+        return None
+    ref_path = Path(reference_summaries_dir) / f"{repo_name}.json"
+    if not ref_path.exists():
+        return None
+    try:
+        data = json.loads(ref_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return None
+    overview = data.get("overview")
+    return overview if isinstance(overview, str) else None

@@ -144,6 +144,17 @@ class ComparisonRun(BaseModel):
     missing_facts: int = 0
     judge_model: str | None = None
     self_judged: bool = False  # generator == judge (exclude when analysing)
+    # Text-overlap against reference_summaries/<repo>.json's overview -- null when no
+    # reference file exists for this repo. BERTScore is intentionally excluded from
+    # the live endpoint (see pipeline.ScoredResult's docstring); only the batch
+    # harness computes it, since it costs a model download/load on first use.
+    text_overlap_scored: bool = False
+    bleu4: float | None = None
+    rouge_l: float | None = None
+    meteor: float | None = None
+    # Failure taxonomy tags (see evaluation/failure_analysis.py) -- always populated
+    # for a successful run, no extra judge call needed.
+    failure_tags: list[str] = []
 
 
 class CompareResponse(BaseModel):
@@ -241,6 +252,7 @@ def _comparison_run(scored) -> "ComparisonRun":
     r = scored.result
     h = scored.hallucination
     c = scored.coverage
+    t = scored.text_overlap
     judge_model = h.judge_model if h else (c.judge_model if c else None)
     return ComparisonRun(
         model=r.model,
@@ -261,6 +273,11 @@ def _comparison_run(scored) -> "ComparisonRun":
         missing_facts=(len(c.missing_facts) if c else 0),
         judge_model=judge_model,
         self_judged=(bool(judge_model and judge_model == r.model)),
+        text_overlap_scored=(t is not None),
+        bleu4=(t.bleu4 if t else None),
+        rouge_l=(t.rouge_l if t else None),
+        meteor=(t.meteor if t else None),
+        failure_tags=[tag.value for tag in scored.failure_tags],
     )
 
 

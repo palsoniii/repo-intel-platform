@@ -115,6 +115,16 @@ export interface ComparisonRunResponse {
   missingFacts: number;
   judgeModel: string | null;
   selfJudged: boolean;
+  // Text-overlap against this repo's reference summary -- null when no
+  // reference_summaries/<repo>.json exists for it. BERTScore isn't computed live
+  // (see backend ScoredResult docstring); only BLEU/ROUGE/METEOR are cheap enough
+  // for an interactive comparison.
+  textOverlapScored: boolean;
+  bleu4: number | null;
+  rougeL: number | null;
+  meteor: number | null;
+  // Failure taxonomy tags (fabricated_endpoint, missed_dependency, over_generic, ...)
+  failureTags: string[];
 }
 
 export interface CompareResponse {
@@ -148,6 +158,11 @@ export async function compareModels(url: string, models?: string[]): Promise<Com
       missing_facts: number;
       judge_model: string | null;
       self_judged: boolean;
+      text_overlap_scored: boolean;
+      bleu4: number | null;
+      rouge_l: number | null;
+      meteor: number | null;
+      failure_tags: string[];
     }[];
   }>("/compare", { url, models });
 
@@ -174,6 +189,11 @@ export async function compareModels(url: string, models?: string[]): Promise<Com
       missingFacts: r.missing_facts,
       judgeModel: r.judge_model,
       selfJudged: r.self_judged,
+      textOverlapScored: r.text_overlap_scored,
+      bleu4: r.bleu4,
+      rougeL: r.rouge_l,
+      meteor: r.meteor,
+      failureTags: r.failure_tags,
     })),
   };
 }

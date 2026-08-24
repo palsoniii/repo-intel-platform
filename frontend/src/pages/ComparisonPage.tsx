@@ -16,6 +16,12 @@ interface NormalizedRun {
   hallucinationScore: number | null;
   coverageScore: number | null;
   status?: string;
+  // Text-overlap against the repo's reference summary -- null on mock data and on
+  // real runs where no reference_summaries/<repo>.json exists yet.
+  bleu4: number | null;
+  rougeL: number | null;
+  meteor: number | null;
+  failureTags: string[];
 }
 
 export default function ComparisonPage() {
@@ -55,6 +61,10 @@ export default function ComparisonPage() {
     hallucinationScore: r.hallucinationScore ?? null,
     coverageScore: "coverageScore" in r ? r.coverageScore : null,
     status: "status" in r ? r.status : undefined,
+    bleu4: "bleu4" in r ? r.bleu4 : null,
+    rougeL: "rougeL" in r ? r.rougeL : null,
+    meteor: "meteor" in r ? r.meteor : null,
+    failureTags: "failureTags" in r ? r.failureTags : [],
   }));
 
   const hallucinationAverages = representationAverages(runs, "hallucinationScore", "min");
@@ -66,12 +76,17 @@ export default function ComparisonPage() {
       <h2 className="mb-2 text-2xl font-semibold">{displayName} -- model comparison</h2>
       <p className="mb-4 text-sm text-slate-600 dark:text-slate-400">
         All 3 models x 3 representations -- the ablation this project's research
-        question is about. Each summary is graded two ways: hallucination (0 = fully
-        grounded -- lower is better) and coverage (1.0 = mentions every fact the
-        parser found -- higher is better). A summary can hit 0 hallucination by
-        saying almost nothing, which low coverage would reveal -- neither metric
-        alone is "quality." That's 9 generations plus two judge calls each, so expect
-        several minutes, not seconds.
+        question is about. Each summary is graded on several axes: hallucination
+        (0 = fully grounded -- lower is better) and coverage (1.0 = mentions every
+        fact the parser found -- higher is better) are grounded LLM-as-judge scores
+        against the parser's own static-analysis output; BLEU-4/ROUGE-L/METEOR (when
+        a reference summary exists for the repo) measure text overlap against a
+        human-reviewable reference; and failure tags flag the specific way a summary
+        went wrong (fabricated claim, missed fact, over-generic phrasing) when it did.
+        A summary can hit 0 hallucination by saying almost nothing, which low
+        coverage would reveal -- no single metric alone is "quality." That's 9
+        generations plus two judge calls each, so expect several minutes, not
+        seconds.
       </p>
 
       <form onSubmit={handleSubmit} className="mb-4 flex gap-2">
@@ -134,6 +149,11 @@ export default function ComparisonPage() {
               </th>
               <th className="px-4 py-2 font-medium">Hallucination</th>
               <th className="px-4 py-2 font-medium">Coverage</th>
+              <th className="px-4 py-2 font-medium">
+                Text overlap
+                <span className="block text-[10px] font-normal text-slate-400">BLEU / ROUGE / METEOR</span>
+              </th>
+              <th className="px-4 py-2 font-medium">Failure tags</th>
             </tr>
           </thead>
           <tbody>
@@ -163,6 +183,8 @@ export default function ComparisonPage() {
                     )}
                   </td>
                   <td className="px-4 py-2">{renderScore(run.coverageScore, run.status)}</td>
+                  <td className="px-4 py-2 font-mono text-xs">{renderTextOverlap(run)}</td>
+                  <td className="px-4 py-2">{renderFailureTags(run.failureTags)}</td>
                 </tr>
               );
             })}
@@ -227,6 +249,33 @@ function renderScore(score: number | null, status?: string): string {
   if (typeof score === "number") return score.toFixed(2);
   if (status === "failed") return "failed";
   return "—"; // em dash: no score (run failed, or the judge's own output didn't parse)
+}
+
+// "0.12 / 0.34 / 0.28" or an em dash when no reference summary exists yet for this
+// repo (reference_summaries/<repo>.json) -- BLEU/ROUGE/METEOR need one to compare
+// against, unlike hallucination/coverage which are scored against parser output.
+function renderTextOverlap(run: NormalizedRun): string {
+  if (run.bleu4 === null && run.rougeL === null && run.meteor === null) return "—";
+  const fmt = (v: number | null) => (v === null ? "—" : v.toFixed(2));
+  return `${fmt(run.bleu4)} / ${fmt(run.rougeL)} / ${fmt(run.meteor)}`;
+}
+
+function renderFailureTags(tags: string[]) {
+  if (!tags.length) {
+    return <span className="text-xs text-slate-400">—</span>;
+  }
+  return (
+    <div className="flex flex-wrap gap-1">
+      {tags.map((tag) => (
+        <span
+          key={tag}
+          className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+        >
+          {tag.replace(/_/g, " ")}
+        </span>
+      ))}
+    </div>
+  );
 }
 
 // Output tokens produced per input token consumed -- how much summary you get back
