@@ -91,3 +91,28 @@ def test_call_model_wraps_errors_as_provider_call_error(provider):
 
     with pytest.raises(ProviderCallError):
         provider._call_model("qwen2.5-coder:7b", "system", "user")
+
+
+def test_decoding_is_deterministic_by_default(provider):
+    """temperature=0 and a fixed seed, so results are reproducible run-to-run and
+    cross-model comparisons aren't carrying an extra, undisclosed source of
+    sampling variance beyond the models themselves."""
+    provider._client.chat.return_value = _fake_response()
+
+    provider._call_model("qwen2.5-coder:7b", "system", "user")
+
+    _, kwargs = provider._client.chat.call_args
+    assert kwargs["options"]["temperature"] == 0.0
+    assert kwargs["options"]["seed"] == 42
+
+
+def test_custom_temperature_and_seed_are_respected():
+    p = OllamaProvider(host="http://fake-host:11434", temperature=0.7, seed=123)
+    p._client = MagicMock()
+    p._client.chat.return_value = _fake_response()
+
+    p._call_model("qwen2.5-coder:7b", "system", "user")
+
+    _, kwargs = p._client.chat.call_args
+    assert kwargs["options"]["temperature"] == 0.7
+    assert kwargs["options"]["seed"] == 123

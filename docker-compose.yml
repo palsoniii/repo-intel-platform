@@ -1,0 +1,78 @@
+# Full stack: Neo4j + Ollama + backend + frontend, so the whole pipeline (including
+# the evaluation harness) runs the same way on any machine, not just the original
+# dev laptop's manually-installed Neo4j/Ollama. Named volumes persist the Neo4j
+# database and downloaded Ollama models across `docker compose down`/`up` cycles --
+# the model pulls alone are ~11GB and shouldn't need repeating.
+#
+# RAM discipline still matters even in Docker: this project's own convention is to
+# run one generator model at a time on a 16GB machine (see README's "Setup" and
+# harness.py's docstring) -- `docker compose up` does NOT load any Ollama model by
+# itself (Ollama loads a model into memory lazily, on first request, and unloads
+# idle ones), so this holds automatically as long as the harness is invoked with
+# --models one model per run, exactly as documented.
+
+services:
+  neo4j:
+    image: neo4j:5.26
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-devpassword123}
+    ports:
+      - "7474:7474" # browser UI
+      - "7687:7687" # bolt
+    volumes:
+      - neo4j_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  backend:
+    build: ./backend
+    environment:
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-devpassword123}
+      OLLAMA_HOST: http://ollama:11434
+      OLLAMA_MODEL_PRIMARY: qwen2.5-coder:7b
+      OLLAMA_MODEL_FALLBACK: granite-code:3b-instruct
+      OLLAMA_MODEL_DIVERSITY: deepseek-coder:6.7b-instruct
+      OLLAMA_NUM_CTX: "8192"
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount evaluation_results/annotations/reference_summaries read-write so
+      # battery output lands on the host, not just inside the ephemeral container.
+      - ./backend/evaluation_results:/app/evaluation_results
+      - ./backend/annotations:/app/annotations
+      - ./backend/reference_summaries:/app/reference_summaries
+    depends_on:
+      neo4j:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5180:5180"
+    depends_on:
+      - backend
+
+volumes:
+  neo4j_data:
+  ollama_models:
