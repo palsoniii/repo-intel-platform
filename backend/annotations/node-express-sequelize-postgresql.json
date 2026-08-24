@@ -1,0 +1,28 @@
+{
+  "modules": [
+    "app/config/db.config.js",
+    "app/controllers/tutorial.controller.js",
+    "app/models/index.js",
+    "app/models/tutorial.model.js",
+    "app/routes/turorial.routes.js",
+    "server.js"
+  ],
+  "imports": [
+    ["server.js", "app/models/index.js"],
+    ["server.js", "app/routes/turorial.routes.js"],
+    ["app/routes/turorial.routes.js", "app/controllers/tutorial.controller.js"],
+    ["app/controllers/tutorial.controller.js", "app/models/index.js"],
+    ["app/models/index.js", "app/config/db.config.js"],
+    ["app/models/index.js", "app/models/tutorial.model.js"]
+  ],
+  "endpoints": [
+    "GET /",
+    "POST /api/tutorials",
+    "GET /api/tutorials",
+    "GET /api/tutorials/published",
+    "GET /api/tutorials/:id",
+    "PUT /api/tutorials/:id",
+    "DELETE /api/tutorials/:id",
+    "DELETE /api/tutorials"
+  ]
+}

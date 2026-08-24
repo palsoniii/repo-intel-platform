@@ -47,6 +47,7 @@ def test_finds_all_modules(parsed):
         "src/users/users.module.ts",
         "src/users/users.service.ts",
         "src/users/users.controller.ts",
+        "src/files/files.controller.ts",
     }
 
 
@@ -93,7 +94,19 @@ def test_finds_all_routes_with_correct_controller_prefix(parsed):
         (HttpMethod.GET, "/users"),
         (HttpMethod.GET, "/users/:id"),
         (HttpMethod.POST, "/users"),
+        (HttpMethod.POST, "/files/upload"),
+        (HttpMethod.GET, "/files/:path"),
     }
+
+
+def test_object_form_controller_prefix_is_resolved(parsed):
+    """@Controller({ path: 'files', version: '1' }) must yield the same prefix as
+    @Controller('files'). Only the string form was handled previously, so every
+    controller in an options-object codebase silently lost its prefix and its routes
+    collapsed to bare method paths (/upload instead of /files/upload)."""
+    paths = {e.path for e in parsed.api_endpoints}
+    assert "/files/upload" in paths
+    assert "/upload" not in paths
 
 
 def test_routes_resolve_to_handler_function_id(parsed):

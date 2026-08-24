@@ -1,0 +1,87 @@
+{
+  "modules": [
+    "src/app.controller.ts",
+    "src/app.module.ts",
+    "src/article/article.controller.ts",
+    "src/article/article.entity.ts",
+    "src/article/article.interface.ts",
+    "src/article/article.module.ts",
+    "src/article/article.service.ts",
+    "src/article/comment.entity.ts",
+    "src/article/dto/create-article.dto.ts",
+    "src/article/dto/create-comment.ts",
+    "src/article/dto/index.ts",
+    "src/main.ts",
+    "src/profile/follows.entity.ts",
+    "src/profile/profile.controller.ts",
+    "src/profile/profile.interface.ts",
+    "src/profile/profile.module.ts",
+    "src/profile/profile.service.ts",
+    "src/shared/base.controller.ts",
+    "src/shared/pipes/validation.pipe.ts",
+    "src/tag/tag.controller.ts",
+    "src/tag/tag.entity.ts",
+    "src/tag/tag.module.ts",
+    "src/tag/tag.service.ts",
+    "src/user/auth.middleware.ts",
+    "src/user/dto/create-user.dto.ts",
+    "src/user/dto/index.ts",
+    "src/user/dto/login-user.dto.ts",
+    "src/user/dto/update-user.dto.ts",
+    "src/user/user.controller.ts",
+    "src/user/user.decorator.ts",
+    "src/user/user.entity.ts",
+    "src/user/user.interface.ts",
+    "src/user/user.module.ts",
+    "src/user/user.service.ts"
+  ],
+  "imports": [
+    [
+      "src/user/user.controller.ts",
+      "src/user/user.service.ts"
+    ],
+    [
+      "src/user/user.controller.ts",
+      "src/shared/pipes/validation.pipe.ts"
+    ],
+    [
+      "src/article/article.controller.ts",
+      "src/article/article.service.ts"
+    ],
+    [
+      "src/article/article.controller.ts",
+      "src/user/user.decorator.ts"
+    ],
+    [
+      "src/article/article.module.ts",
+      "src/article/article.controller.ts"
+    ],
+    [
+      "src/article/article.module.ts",
+      "src/article/article.entity.ts"
+    ]
+  ],
+  "endpoints": [
+    "GET /",
+    "GET /user",
+    "PUT /user",
+    "POST /users",
+    "DELETE /users/:slug",
+    "POST /users/login",
+    "GET /articles",
+    "GET /articles/feed",
+    "GET /articles/:slug",
+    "GET /articles/:slug/comments",
+    "POST /articles",
+    "PUT /articles/:slug",
+    "DELETE /articles/:slug",
+    "POST /articles/:slug/comments",
+    "DELETE /articles/:slug/comments/:id",
+    "POST /articles/:slug/favorite",
+    "DELETE /articles/:slug/favorite",
+    "GET /tags",
+    "GET /profiles/:username",
+    "POST /profiles/:username/follow",
+    "DELETE /profiles/:username/follow"
+  ]
+}

@@ -193,7 +193,7 @@ tests/test_main.py:: (5 tests, CORS-header-on-error + diagram/compare mapping) P
 tests/test_hallucination.py:: (8 tests, mocked judge) PASSED
 tests/test_harness.py:: (5 tests, mocked ablation + scorer) PASSED
 tests/test_diagram_score.py:: (9 tests, pure logic) PASSED
-======= 86 passed total (offline + neo4j-gated, with Neo4j up) =======
+======= 89 passed total (offline + neo4j-gated + integration, with Neo4j up) =======
 
 # plus real, manual, no-mocks runs against the running backend + browser:
 POST /summarize {"url": "https://github.com/heroku/node-js-getting-started"}
@@ -406,20 +406,30 @@ below for how to run them for real.
 - `.ts` files are now handled by the NestJS parser (Phase 6, below); `.tsx` is still
   skipped everywhere (logged to `files_skipped`) -- NestJS backends don't use JSX,
   so there was never a reason to add it.
-- Import resolution only handles relative `require()` paths, not ES module `import`
-  syntax or path aliases (e.g. webpack/tsconfig `paths`).
-- No handling yet for Express apps split across many nested routers
-  (`router.use('/sub', subRouter)`) -- route ownership across mounted sub-routers
-  isn't traced yet.
+- Import resolution handles relative `require()` paths but not path aliases (e.g.
+  webpack/tsconfig `paths`). **Fixed 2026-08-11:** resolution used to produce *zero*
+  edges on every repo -- candidates were `.resolve()`d while the lookup table was
+  keyed on unresolved paths, so on macOS (`/var/folders` -> `/private/var/folders`)
+  every lookup missed silently. Regression-tested in `test_express_parser.py`.
+- Router mounting is resolved for literal mount paths -- `app.use('/api', router)` in
+  the same file, and `app.use('/users', require('./routes/users'))` or an identifier
+  bound to a `require()` across files. **Not** resolved: mount paths that are runtime
+  values rather than literals, e.g. iterating an array of `{path, route}` objects
+  (`defaultRoutes.forEach(r => router.use(r.path, r.route))`), as
+  `hagopj13/node-express-boilerplate` does -- those routes keep router-relative paths.
 
 ### Known gaps in the Phase 6 NestJS parser (same spirit as Phase 1's, above)
 
 - `@Module()` metadata (`controllers`/`providers`/`imports` arrays) isn't parsed --
   module-to-controller/service wiring isn't in the graph, only the plain `IMPORTS`
   edges from each file's own `import` statements.
-- Decorator arguments beyond a single string literal aren't resolved -- `@Controller({
-  path: 'users', version: '1' })` or `@Controller(['v1/users', 'v2/users'])`
-  resolve to an empty-string prefix rather than being parsed further.
+- Decorator arguments are resolved in all three real-world forms as of 2026-08-11:
+  `@Controller('users')`, the options form `@Controller({ path: 'users', version:
+  '1' })`, and the array form `@Controller(['v1/users', 'v2/users'])` (first entry
+  only -- `ApiEndpoint` carries one path). Previously only the string form worked, so
+  every controller in an options-object codebase silently lost its prefix; that's the
+  whole of `brocoders/nestjs-boilerplate`. URI versioning (`version: '1'`) is read but
+  not prepended to paths -- it's applied at app bootstrap, outside parser scope.
 - No ORM entity extraction (e.g. TypeORM `@Entity()` classes) -- `database_entities`
   is always empty for NestJS repos, same as Express.
 - Barrel-file re-exports (`export { X } from './y'`, `export * from './y'`) aren't

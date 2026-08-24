@@ -1,0 +1,30 @@
+{
+  "modules": [
+    "app.js",
+    "config/auth.js",
+    "config/keys.js",
+    "config/passport.js",
+    "models/User.js",
+    "routes/index.js",
+    "routes/users.js"
+  ],
+  "imports": [
+    ["app.js", "config/passport.js"],
+    ["app.js", "config/keys.js"],
+    ["app.js", "routes/index.js"],
+    ["app.js", "routes/users.js"],
+    ["routes/index.js", "config/auth.js"],
+    ["routes/users.js", "models/User.js"],
+    ["routes/users.js", "config/auth.js"],
+    ["config/passport.js", "models/User.js"]
+  ],
+  "endpoints": [
+    "GET /",
+    "GET /dashboard",
+    "GET /users/login",
+    "GET /users/register",
+    "POST /users/register",
+    "POST /users/login",
+    "GET /users/logout"
+  ]
+}

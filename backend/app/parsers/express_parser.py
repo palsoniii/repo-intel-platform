@@ -2,7 +2,9 @@
 Express.js parser: walks a repo's .js/.ts files, uses tree-sitter to extract
 functions, imports, and Express route definitions -- both the direct style
 (app.get/post/... and router.get/post/...) and the chained style
-(app.route('/x').get(...).post(...)) -- plus package.json for external dependencies.
+(app.route('/x').get(...).post(...)) -- resolves router mount prefixes so
+router-relative paths become real external paths, plus package.json for
+external dependencies.
 
 This is the first parser implementation and establishes the pattern that the
 NestJS parser (Phase 6) will follow.
@@ -36,6 +38,13 @@ from app.schemas.parser_schema import (
 JS_LANGUAGE = Language(tsjs.language())
 
 SKIP_DIRS = {"node_modules", ".git", "dist", "build", "coverage", ".next"}
+# Test trees are not application architecture -- counting them as modules inflates the
+# module set with files that don't describe the running service. Unlike SKIP_DIRS these
+# are *recorded* in files_skipped rather than dropped silently, so the exclusion stays
+# auditable (SKIP_DIRS would drown that list in node_modules noise).
+TEST_DIRS = {"test", "tests", "__tests__", "__mocks__", "spec", "e2e", "cypress"}
+# Test files living beside source (user.test.js, user.spec.js) -- same rationale.
+TEST_FILE_SUFFIXES = (".test.js", ".spec.js", ".test.mjs", ".spec.mjs", ".test.cjs", ".spec.cjs")
 SOURCE_EXTENSIONS = {".js", ".mjs", ".cjs"}  # .ts handled by NestJS parser later
 MAX_FILES = 3000
 
@@ -102,13 +111,18 @@ class ExpressParser(BaseParser):
 
         parser = Parser(JS_LANGUAGE)
         path_to_module_id: dict[Path, str] = {}
+        routes_by_module: dict[str, list[ApiEndpoint]] = {}
+        mount_prefixes: dict[str, str] = {}  # module_id -> prefix its router is mounted at
 
+        # Keyed on the RESOLVED path: _resolve_imports() resolves its candidates, and on
+        # macOS a clone under /var/folders resolves to /private/var/folders, so keying on
+        # the unresolved path made every internal-import lookup miss silently.
         for i, file_path in enumerate(source_files):
             module_id = f"mod_{i}"
-            path_to_module_id[file_path] = module_id
+            path_to_module_id[file_path.resolve()] = module_id
 
         for file_path in source_files:
-            module_id = path_to_module_id[file_path]
+            module_id = path_to_module_id[file_path.resolve()]
             rel_path = str(file_path.relative_to(repo_path))
             try:
                 source_bytes = file_path.read_bytes()
@@ -144,8 +158,24 @@ class ExpressParser(BaseParser):
             functions.extend(file_functions)
             func_name_to_id = {f.name: f.id for f in file_functions}
 
-            file_routes = self._extract_routes(root, source_bytes, module_id, func_name_to_id)
-            api_endpoints.extend(file_routes)
+            # Routes are held back rather than appended immediately: a router's mount
+            # prefix (app.use('/api/tutorials', router)) may be declared in a *different*
+            # file than the routes themselves, so prefixes can only be applied once every
+            # file has been scanned. See _apply_mount_prefixes below.
+            routes_by_module[module_id] = self._extract_routes(
+                root, source_bytes, module_id, func_name_to_id
+            )
+            self._collect_mounts(
+                root,
+                source_bytes,
+                module_id,
+                file_path,
+                repo_path,
+                path_to_module_id,
+                mount_prefixes,
+            )
+
+        api_endpoints = self._apply_mount_prefixes(routes_by_module, mount_prefixes)
 
         external_deps = [
             ExternalDependency(name=name, version=version, dep_type=DependencyType.RUNTIME)
@@ -186,9 +216,21 @@ class ExpressParser(BaseParser):
         for f in repo_path.rglob("*"):
             if not f.is_file():
                 continue
-            if any(part in SKIP_DIRS for part in f.parts):
+            rel_parts = f.relative_to(repo_path).parts
+            if any(part in SKIP_DIRS for part in rel_parts):
+                continue
+            # Hidden directories (.husky, .install-scripts, .github, ...) hold tooling
+            # and scaffolding, not the service being described.
+            if any(part.startswith(".") for part in rel_parts[:-1]):
                 continue
             if f.suffix in SOURCE_EXTENSIONS:
+                if f.name.endswith(TEST_FILE_SUFFIXES) or any(
+                    part in TEST_DIRS for part in rel_parts
+                ):
+                    files_skipped.append(
+                        str(f.relative_to(repo_path)) + " (test file, skipped)"
+                    )
+                    continue
                 results.append(f)
             elif f.suffix in {".ts", ".tsx", ".jsx"}:
                 files_skipped.append(str(f.relative_to(repo_path)) + " (non-.js source, skipped)")
@@ -393,6 +435,152 @@ class ExpressParser(BaseParser):
             return None
         name = source[handler_node.start_byte:handler_node.end_byte].decode("utf-8", "replace")
         return func_name_to_id.get(name)
+
+    def _collect_mounts(
+        self,
+        root: Node,
+        source: bytes,
+        module_id: str,
+        current_file: Path,
+        repo_path: Path,
+        path_to_module_id: dict[Path, str],
+        mount_prefixes: dict[str, str],
+    ) -> None:
+        """Records where routers get mounted, so router-relative paths can be resolved
+        into the real external paths. Two forms are handled, both common in real apps:
+
+            app.use('/api/tutorials', router)        -- router declared in THIS file
+            app.use('/users', require('./routes/users'))  -- router lives in ANOTHER file
+
+        The second argument may also be an identifier bound earlier to a require()
+        (`const routes = require('./routes/v1'); app.use('/v1', routes)`), which is
+        resolved via the file's identifier -> require-path bindings.
+
+        Not handled: mounts whose path comes from data rather than a literal, e.g.
+        iterating an array of {path, route} objects and calling router.use(r.path,
+        r.route). Those routes keep their router-relative paths."""
+        local_requires = self._identifier_require_bindings(root, source)
+
+        for call_node in QueryCursor(CALL_QUERY).captures(root).get("call", []):
+            func_node = call_node.child_by_field_name("function")
+            if func_node is None or func_node.type != "member_expression":
+                continue
+            obj_node = func_node.child_by_field_name("object")
+            prop_node = func_node.child_by_field_name("property")
+            if obj_node is None or prop_node is None:
+                continue
+            if source[prop_node.start_byte:prop_node.end_byte] != b"use":
+                continue
+            obj_name = source[obj_node.start_byte:obj_node.end_byte].decode("utf-8", "replace")
+            if obj_name not in {"app", "router"}:
+                continue
+
+            args = call_node.child_by_field_name("arguments")
+            if args is None or args.named_child_count < 2:
+                continue  # app.use(middleware) with no path mounts nothing routable
+
+            prefix = self._string_literal(args.named_children[0], source)
+            if prefix is None:
+                continue  # non-literal mount path -- can't resolve statically
+
+            target = args.named_children[1]
+            required_path = self._require_path(target, source)
+            if required_path is None and target.type == "identifier":
+                name = source[target.start_byte:target.end_byte].decode("utf-8", "replace")
+                required_path = local_requires.get(name)
+
+            if required_path is not None:
+                target_id = self._resolve_single_import(
+                    required_path, current_file, path_to_module_id
+                )
+                if target_id is not None:
+                    mount_prefixes[target_id] = self._join_paths(
+                        mount_prefixes.get(target_id, ""), prefix
+                    )
+            else:
+                # Router object mounted in the same file it was built in.
+                mount_prefixes[module_id] = self._join_paths(
+                    mount_prefixes.get(module_id, ""), prefix
+                )
+
+    def _identifier_require_bindings(self, root: Node, source: bytes) -> dict[str, str]:
+        """Maps `const routes = require('./routes/v1')` -> {'routes': './routes/v1'}."""
+        bindings: dict[str, str] = {}
+        for declarator in self._find_all(root, "variable_declarator"):
+            name_node = declarator.child_by_field_name("name")
+            value_node = declarator.child_by_field_name("value")
+            if name_node is None or value_node is None or name_node.type != "identifier":
+                continue
+            required = self._require_path(value_node, source)
+            if required is not None:
+                name = source[name_node.start_byte:name_node.end_byte].decode("utf-8", "replace")
+                bindings[name] = required
+        return bindings
+
+    def _find_all(self, node: Node, type_: str):
+        if node.type == type_:
+            yield node
+        for child in node.children:
+            yield from self._find_all(child, type_)
+
+    @staticmethod
+    def _string_literal(node: Node, source: bytes) -> str | None:
+        if node.type != "string":
+            return None
+        fragment = next((c for c in node.named_children if c.type == "string_fragment"), None)
+        if fragment is None:
+            return ""
+        return source[fragment.start_byte:fragment.end_byte].decode("utf-8", "replace")
+
+    def _require_path(self, node: Node, source: bytes) -> str | None:
+        """Returns the path string of a `require('...')` call node, else None. Also
+        unwraps the immediately-invoked form `require('./routes')(app)`."""
+        if node.type != "call_expression":
+            return None
+        func = node.child_by_field_name("function")
+        if func is None:
+            return None
+        if func.type == "call_expression":  # require('./routes')(app)
+            return self._require_path(func, source)
+        if source[func.start_byte:func.end_byte] != b"require":
+            return None
+        args = node.child_by_field_name("arguments")
+        if args is None or args.named_child_count == 0:
+            return None
+        return self._string_literal(args.named_children[0], source)
+
+    @staticmethod
+    def _resolve_single_import(
+        import_path: str, current_file: Path, path_to_module_id: dict[Path, str]
+    ) -> str | None:
+        if not import_path.startswith("."):
+            return None
+        candidate = (current_file.parent / import_path).resolve()
+        for suffix in ("", ".js", "/index.js", ".mjs", ".cjs"):
+            probe = Path(str(candidate) + suffix)
+            if probe in path_to_module_id:
+                return path_to_module_id[probe]
+        return None
+
+    @staticmethod
+    def _join_paths(*parts: str) -> str:
+        joined = "/".join(p.strip("/") for p in parts if p and p.strip("/"))
+        return "/" + joined if joined else "/"
+
+    def _apply_mount_prefixes(
+        self, routes_by_module: dict[str, list[ApiEndpoint]], mount_prefixes: dict[str, str]
+    ) -> list[ApiEndpoint]:
+        """Rewrites router-relative paths into external paths using the mount prefixes
+        gathered across every file. Routes registered directly on `app` are already
+        absolute and are left alone."""
+        endpoints: list[ApiEndpoint] = []
+        for module_id, routes in routes_by_module.items():
+            prefix = mount_prefixes.get(module_id, "")
+            for route in routes:
+                if prefix and (route.framework_annotation or "").startswith("router."):
+                    route.path = self._join_paths(prefix, route.path)
+                endpoints.append(route)
+        return endpoints
 
     def _find_config_files(self, repo_path: Path) -> list[ConfigFile]:
         configs = []

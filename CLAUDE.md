@@ -20,40 +20,62 @@ only (no paid commercial APIs), a 3-way representation ablation (not 5-way).
 
 ## Current status / what to do next
 
-As of 2026-08-14, all 8 build phases (Weeks 1-4) are done: both framework parsers,
-the Neo4j graph builder, the context builder, the Ollama orchestration layer,
-Mermaid diagram generation (rendered visually via mermaid.js, not raw text), the
-3-way representation ablation, the LLM-as-judge hallucination scorer plus its
-companion coverage/recall scorer (`app/evaluation/coverage.py` -- how much of the
-parser's ground truth a summary actually mentions, not just whether its claims are
-true), the diagram graph-diff scorer, the batch evaluation harness, and all 4
-dashboard pages wired to real backend endpoints -- all validated against live
-infrastructure (not just mocks), not just unit tests, 94+ tests passing.
+As of this merge (branches `anjali` @ 2026-08-14 and `eval-annotations` @
+2026-08-11 combined), all 8 build phases (Weeks 1-4) are done: both framework
+parsers (Express parser now combines chained-route support from `anjali` with
+mount-prefix resolution from `eval-annotations` -- see the Express parser's Known
+gaps note below), the Neo4j graph builder, the context builder, the Ollama
+orchestration layer, Mermaid diagram generation (rendered visually via mermaid.js,
+not raw text), the 3-way representation ablation, the LLM-as-judge hallucination
+scorer plus its companion coverage/recall scorer (`app/evaluation/coverage.py` --
+how much of the parser's ground truth a summary actually mentions, not just
+whether its claims are true), the diagram graph-diff scorer, the batch evaluation
+harness, and all 4 dashboard pages wired to real backend endpoints -- all
+validated against live infrastructure (not just mocks), not just unit tests.
 `README.md`'s "What exists right now" section has the detailed, phase-by-phase log
 of what was built, what broke, and what got fixed -- read that before assuming
-something isn't implemented. (This section previously said the Phase 7 evaluation
-work below was "not yet built" -- that was stale; it's built and tested.)
+something isn't implemented.
 
-**Built, but not yet producing real results** (blocked on the team decisions below,
-not code):
-- Batch evaluation harness (`app/evaluation/harness.py`; run via
-  `python -m app.evaluation.harness <url> ... --out results.csv --sqlite results.db`)
-  runs the full battery (models x representations x repos) and logs CSV/SQLite
-  results -- ready the moment the team's repo list exists.
-- Diagram graph-diff scorer (`app/evaluation/diagram_score.py`) can't produce real
-  numbers until the team writes expected-structure annotations for the chosen repos.
+**The first full evaluation battery has been run** (54 rows: 3 models x 3
+representations x 6 repos, zero failures) using `gemma2:9b` as an independent 4th
+judge so no arm is self-judged. Results, methodology, and threats to validity are
+in `backend/evaluation_results/RESULTS.md`; the report draft is `docs/REPORT.md`.
+
+**Highest-priority task: re-run the battery.** That run predates the three parser
+defect fixes merged from `eval-annotations` (see `docs/REPORT.md` §5.4a) --
+most importantly a path-normalisation bug that silently dropped **every** internal
+import edge, leaving the `dependency_graph` arm nearly empty -- *and* predates
+`anjali`'s chained-route (`app.route(...).get(...)`) support being merged in, which
+changes what the Express arm extracts too. The reported numbers are stale on both
+counts. Both RESULTS.md and REPORT.md carry staleness banners; don't quote those
+figures until the battery is regenerated.
+
+Run one generator at a time -- this is a 16GB laptop that throttles under sustained
+multi-model load:
+
+```bash
+python -m app.evaluation.harness <6 repo urls> --models qwen2.5-coder:7b \
+  --judge-model gemma2:9b --annotations-dir ./annotations \
+  --out clean_qwen.csv --sqlite study_clean.db
+```
 
 **Blocked on team decisions, not code:**
-- The fixed 6-repo evaluation set + 2 "held-back" repos (untouched by anyone until
-  demo day, to prove genuine generalization) haven't been chosen yet. Don't pick
-  these yourself -- it's an explicit team task (roadmap Week 4), and the repos used
-  for development/testing so far (`heroku/node-js-getting-started`,
+- The 6-repo evaluation set is a *candidate* set (vetted and annotated in
+  `backend/annotations/`), not yet ratified by the team. The 2 "held-back" repos
+  (untouched by anyone until demo day, to prove genuine generalization) still
+  haven't been chosen -- don't pick these yourself, and note the repos used for
+  development/testing so far (`heroku/node-js-getting-started`,
   `nestjs/typescript-starter`, `lujakob/nestjs-realworld-example-app`,
   `osandadeshan/expressjs-restful-apis-demo`) are disqualified from the held-back
   set since they've already been extensively exercised.
 - The "designated evaluation machine" (roadmap Section 1's Day-0 step, for
-  response-time comparisons to be meaningful) hasn't been formally chosen across the
-  team -- don't assume whichever machine you're running on is it.
+  response-time comparisons to be meaningful) -- the user designated this machine
+  on 2026-08-11, which also makes the Mistral-for-gpt-oss:20b substitution final,
+  but confirm that still holds across the team before reporting latency figures.
+  Latency figures still need re-measuring under controlled conditions -- the
+  existing ones come from chunked runs with varying thermal state.
+- Related work (`docs/REPORT.md` §2) is deliberately an empty scaffold: it needs a
+  genuine literature review. Do not populate it with unverified citations.
 - Report drafting (methodology/related-work were supposed to start in Week 3;
   results/discussion needs the evaluation battery above), slides, and demo
   rehearsal haven't started.
