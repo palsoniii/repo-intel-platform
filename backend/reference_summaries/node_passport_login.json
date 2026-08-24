@@ -1,0 +1,26 @@
+{
+  "overview": "A minimal authentication starter demonstrating local username/password login with Passport.js, session-based auth, and a MongoDB/Mongoose user store. It provides registration, login, a password-protected dashboard route, and flash-message feedback, rendered through server-side EJS views with Bootstrap styling.",
+  "tech_stack": [
+    "JavaScript",
+    "Express",
+    "Passport",
+    "MongoDB",
+    "Mongoose",
+    "EJS"
+  ],
+  "services": [
+    "HTTP server with server-rendered auth views (login/register/dashboard)"
+  ],
+  "dependencies": [
+    "bcryptjs",
+    "connect-flash",
+    "ejs",
+    "express",
+    "express-ejs-layouts",
+    "express-session",
+    "mongoose",
+    "nodemon",
+    "passport",
+    "passport-local"
+  ]
+}

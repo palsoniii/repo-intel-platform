@@ -1,0 +1,46 @@
+{
+  "overview": "A NestJS reference implementation of Clean Architecture (layered architecture and SOLID principles) using MongoDB via Mongoose, written to accompany an article demonstrating how to structure a NestJS API into decoupled domain, application, and infrastructure layers.",
+  "tech_stack": [
+    "TypeScript",
+    "NestJS",
+    "MongoDB",
+    "Mongoose"
+  ],
+  "services": [
+    "HTTP REST API server"
+  ],
+  "dependencies": [
+    "@nestjs/cli",
+    "@nestjs/common",
+    "@nestjs/core",
+    "@nestjs/mapped-types",
+    "@nestjs/mongoose",
+    "@nestjs/platform-express",
+    "@nestjs/schematics",
+    "@nestjs/testing",
+    "@types/express",
+    "@types/jest",
+    "@types/node",
+    "@types/supertest",
+    "@typescript-eslint/eslint-plugin",
+    "@typescript-eslint/parser",
+    "class-validator",
+    "eslint",
+    "eslint-config-prettier",
+    "eslint-plugin-prettier",
+    "jest",
+    "mongoose",
+    "mongoose-autopopulate",
+    "prettier",
+    "reflect-metadata",
+    "rimraf",
+    "rxjs",
+    "source-map-support",
+    "supertest",
+    "ts-jest",
+    "ts-loader",
+    "ts-node",
+    "tsconfig-paths",
+    "typescript"
+  ]
+}

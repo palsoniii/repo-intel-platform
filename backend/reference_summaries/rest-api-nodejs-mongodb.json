@@ -1,0 +1,35 @@
+{
+  "overview": "A ready-to-use Express and MongoDB REST API project structure demonstrating JWT authentication (register, login, OTP verification) alongside a simple \"book\" CRUD resource, intended as a starting layout for new Node.js API projects.",
+  "tech_stack": [
+    "JavaScript",
+    "Express",
+    "MongoDB",
+    "JWT"
+  ],
+  "services": [
+    "HTTP REST API server for auth and a sample book resource"
+  ],
+  "dependencies": [
+    "bcrypt",
+    "chai",
+    "chai-http",
+    "codacy-coverage",
+    "cookie-parser",
+    "cors",
+    "debug",
+    "dotenv",
+    "eslint",
+    "express",
+    "express-jwt",
+    "express-validator",
+    "jsonwebtoken",
+    "mocha",
+    "mocha-lcov-reporter",
+    "moment",
+    "mongoose",
+    "morgan",
+    "nodemailer",
+    "nodemon",
+    "nyc"
+  ]
+}

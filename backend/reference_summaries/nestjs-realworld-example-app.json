@@ -1,0 +1,47 @@
+{
+  "overview": "A NestJS implementation of the RealWorld/Conduit API specification -- a Medium-style blogging platform with articles, comments, tags, user profiles, and JWT authentication. It supports two interchangeable persistence layers (TypeORM/MySQL on the main branch, Prisma on a separate branch) and is meant as a reference example of CRUD, auth, and NestJS architectural patterns.",
+  "tech_stack": [
+    "TypeScript",
+    "NestJS",
+    "TypeORM",
+    "MySQL",
+    "JWT"
+  ],
+  "services": [
+    "HTTP REST API server for articles, comments, and user profiles"
+  ],
+  "dependencies": [
+    "@nestjs/common",
+    "@nestjs/core",
+    "@nestjs/microservices",
+    "@nestjs/platform-express",
+    "@nestjs/swagger",
+    "@nestjs/testing",
+    "@nestjs/typeorm",
+    "@nestjs/websockets",
+    "@types/jest",
+    "@types/node",
+    "argon2",
+    "atob",
+    "class-transformer",
+    "class-validator",
+    "crypto",
+    "crypto-js",
+    "deep-extend",
+    "extend",
+    "jest",
+    "jsonwebtoken",
+    "mysql",
+    "nodemon",
+    "passport-jwt",
+    "reflect-metadata",
+    "rxjs",
+    "slug",
+    "supertest",
+    "swagger-ui-express",
+    "ts-jest",
+    "ts-node",
+    "typeorm",
+    "typescript"
+  ]
+}

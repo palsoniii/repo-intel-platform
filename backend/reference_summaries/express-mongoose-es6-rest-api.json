@@ -1,0 +1,49 @@
+{
+  "overview": "An ES6 Express and Mongoose REST API boilerplate demonstrating user CRUD and JWT-protected auth endpoints (login, a protected route) under an /api prefix, with code coverage and CI wired in as a reference starter pattern.",
+  "tech_stack": [
+    "JavaScript",
+    "Express",
+    "Mongoose",
+    "MongoDB",
+    "JWT"
+  ],
+  "services": [
+    "HTTP REST API server for users and auth"
+  ],
+  "dependencies": [
+    "bluebird",
+    "body-parser",
+    "chai",
+    "commitizen",
+    "compression",
+    "cookie-parser",
+    "cors",
+    "coveralls",
+    "cross-env",
+    "cz-conventional-changelog",
+    "debug",
+    "dotenv",
+    "eslint",
+    "eslint-config-airbnb-base",
+    "eslint-plugin-import",
+    "eslint-watch",
+    "express",
+    "express-jwt",
+    "express-validation",
+    "express-winston",
+    "helmet",
+    "http-status",
+    "husky",
+    "istanbul",
+    "joi",
+    "jsonwebtoken",
+    "method-override",
+    "mocha",
+    "mongoose",
+    "morgan",
+    "supertest",
+    "supertest-as-promised",
+    "validate-commit-msg",
+    "winston"
+  ]
+}

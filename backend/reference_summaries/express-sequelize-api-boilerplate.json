@@ -1,0 +1,44 @@
+{
+  "overview": "A small Express and Sequelize API boilerplate centered on JWT-based authentication, with separate public routes (login/register), authenticated user routes (profile, change password), and an admin-only route (list all users) gated by middleware, plus cluster-mode deployment support.",
+  "tech_stack": [
+    "JavaScript",
+    "Express",
+    "Sequelize",
+    "JWT"
+  ],
+  "services": [
+    "HTTP REST API server for auth, user profile, and admin"
+  ],
+  "dependencies": [
+    "@babel/core",
+    "@babel/plugin-proposal-object-rest-spread",
+    "@babel/plugin-transform-runtime",
+    "@babel/preset-env",
+    "@babel/register",
+    "@babel/runtime",
+    "axios",
+    "babel-jest",
+    "babel-loader",
+    "body-parser",
+    "cluster",
+    "cors",
+    "crypto",
+    "dotenv",
+    "eslint",
+    "eslint-config-airbnb-base",
+    "eslint-plugin-import",
+    "express",
+    "express-joi-validator",
+    "express-validation",
+    "http",
+    "jest",
+    "joi",
+    "jsonwebtoken",
+    "mock-express-response",
+    "mysql2",
+    "nodemon",
+    "os",
+    "sequelize",
+    "sequelize-cli"
+  ]
+}

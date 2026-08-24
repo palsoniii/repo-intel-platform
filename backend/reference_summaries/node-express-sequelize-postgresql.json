@@ -1,0 +1,19 @@
+{
+  "overview": "A CRUD REST API for managing \"Tutorials\" (title, description, published status), built with Express and Sequelize against a PostgreSQL database. It exposes create, read, update, delete, and search-by-title endpoints, plus a filter for published items. It is a companion backend to the author's Angular/Axios frontend tutorials rather than a production service.",
+  "tech_stack": [
+    "JavaScript",
+    "Express",
+    "Sequelize",
+    "PostgreSQL"
+  ],
+  "services": [
+    "HTTP REST API server for tutorial CRUD"
+  ],
+  "dependencies": [
+    "cors",
+    "express",
+    "pg",
+    "pg-hstore",
+    "sequelize"
+  ]
+}
