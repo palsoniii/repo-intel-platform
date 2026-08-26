@@ -1,0 +1,10 @@
+{
+  // NestJS's own CLI scaffolds tsconfig.json with comments and this exact
+  // baseUrl/paths shape -- JSONC, not plain JSON.
+  "compilerOptions": {
+    "baseUrl": "./src",
+    "paths": {
+      "@app/*": ["*"],
+    },
+  },
+}

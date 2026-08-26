@@ -99,6 +99,14 @@ class EvaluationRow(BaseModel):
     # Failure taxonomy tags (see failure_analysis.py), comma-joined for a flat CSV
     # cell -- empty string when nothing was tagged.
     failure_tags: str = ""
+    # The generated summary's raw text -- previously computed and judged but never
+    # persisted, so re-scoring an existing battery with a different judge model (or
+    # exporting a human-validation sample) required regenerating every summary from
+    # scratch. Storing it here means a judge swap only needs fresh judge calls, not
+    # fresh generator calls, roughly a 3x reduction for that specific case (one
+    # generation vs. generation+hallucination-judge+coverage-judge). Empty for a
+    # failed/empty run -- nothing was generated to store.
+    summary_text: str = ""
     error: Optional[str] = None
 
 
@@ -334,6 +342,7 @@ def _row_for_result(
         quality_cohesiveness=quality.scores["cohesiveness"].score if quality else None,
         quality_domain_specificity=quality.scores["domain_specificity"].score if quality else None,
         failure_tags=",".join(tag.value for tag in failure_tags),
+        summary_text=result.output.raw_text if result.status == RunStatus.SUCCESS else "",
     )
 
 
