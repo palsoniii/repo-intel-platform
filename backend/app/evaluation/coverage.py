@@ -100,6 +100,20 @@ def build_coverable_facts(parsed: ParsedRepository, max_items: int = 40) -> list
     return facts
 
 
+def categorize_facts(facts: list[str]) -> dict[str, int]:
+    """Buckets a fact list (as returned by build_coverable_facts) by its category
+    prefix -- the text before the first ': ', e.g. 'Dependency: express' ->
+    'Dependency'. Used to report coverage broken out by fact type (dependencies,
+    endpoints, classes, database entities) rather than only as one aggregate
+    number, which hides whether structured context's advantage is spread evenly
+    or concentrated in a specific category."""
+    counts: dict[str, int] = {}
+    for fact in facts:
+        category = fact.split(":", 1)[0]
+        counts[category] = counts.get(category, 0) + 1
+    return counts
+
+
 def score_coverage(
     provider: BaseLLMProvider,
     parsed: ParsedRepository,
