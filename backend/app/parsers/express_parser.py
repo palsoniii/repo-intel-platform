@@ -112,7 +112,13 @@ class ExpressParser(BaseParser):
         parser = Parser(JS_LANGUAGE)
         path_to_module_id: dict[Path, str] = {}
         routes_by_module: dict[str, list[ApiEndpoint]] = {}
-        mount_prefixes: dict[str, str] = {}  # module_id -> prefix its router is mounted at
+        # Same-file router.use('/x', <local router>) prefixes -- local to one module.
+        own_prefixes: dict[str, str] = {}
+        # Cross-file mounts as graph edges (target_module_id -> (source_module_id,
+        # local_prefix)) rather than composed immediately, so a router mounted
+        # through another router's own mount point resolves to the full chained
+        # prefix. See _resolve_mount_chain.
+        mount_edges: dict[str, tuple[str, str]] = {}
 
         # Keyed on the RESOLVED path: _resolve_imports() resolves its candidates, and on
         # macOS a clone under /var/folders resolves to /private/var/folders, so keying on
@@ -138,9 +144,10 @@ class ExpressParser(BaseParser):
 
             root = tree.root_node
 
-            imports, import_warnings = self._extract_requires(root, source_bytes)
+            cjs_imports, import_warnings = self._extract_requires(root, source_bytes)
+            es_imports = self._extract_es_imports(root, source_bytes)
             resolved_import_ids = self._resolve_imports(
-                imports, file_path, repo_path, path_to_module_id
+                cjs_imports + es_imports, file_path, repo_path, path_to_module_id
             )
             for target_id in resolved_import_ids:
                 internal_deps.append(
@@ -172,9 +179,11 @@ class ExpressParser(BaseParser):
                 file_path,
                 repo_path,
                 path_to_module_id,
-                mount_prefixes,
+                own_prefixes,
+                mount_edges,
             )
 
+        mount_prefixes = self._resolve_mount_chain(own_prefixes, mount_edges)
         api_endpoints = self._apply_mount_prefixes(routes_by_module, mount_prefixes)
 
         external_deps = [
@@ -255,6 +264,30 @@ class ExpressParser(BaseParser):
                 if call_node and call_node.start_byte <= path_node.start_byte <= call_node.end_byte:
                     requires.append(source[path_node.start_byte:path_node.end_byte].decode("utf-8", "replace"))
         return requires, warnings
+
+    def _extract_es_imports(self, root: Node, source: bytes) -> list[str]:
+        """Returns the string source of every `import ... from '<source>'` -- ES
+        module syntax, which real Express repos increasingly use even in .js/.mjs
+        files (via a bundler or Node's native ESM support). Complements
+        _extract_requires rather than replacing it, since a repo (or a single file
+        mid-migration) may mix both styles; previously a file written this way had
+        an entirely empty imports list regardless of what it actually imported,
+        which meant its whole subtree was invisible to dependency_graph. Re-exports
+        (`export ... from`) are not handled, matching the same disclosed gap the
+        NestJS parser's equivalent method already documents."""
+        imports = []
+        for node in self._find_all(root, "import_statement"):
+            source_node = node.child_by_field_name("source")
+            if source_node is None:
+                continue
+            fragment = next(
+                (c for c in source_node.named_children if c.type == "string_fragment"), None
+            )
+            if fragment is not None:
+                imports.append(
+                    source[fragment.start_byte:fragment.end_byte].decode("utf-8", "replace")
+                )
+        return imports
 
     def _resolve_imports(
         self,
@@ -449,7 +482,8 @@ class ExpressParser(BaseParser):
         current_file: Path,
         repo_path: Path,
         path_to_module_id: dict[Path, str],
-        mount_prefixes: dict[str, str],
+        own_prefixes: dict[str, str],
+        mount_edges: dict[str, tuple[str, str]],
     ) -> None:
         """Records where routers get mounted, so router-relative paths can be resolved
         into the real external paths. Two forms are handled, both common in real apps:
@@ -460,6 +494,16 @@ class ExpressParser(BaseParser):
         The second argument may also be an identifier bound earlier to a require()
         (`const routes = require('./routes/v1'); app.use('/v1', routes)`), which is
         resolved via the file's identifier -> require-path bindings.
+
+        Cross-file mounts are recorded as graph edges (mount_edges) rather than
+        composed immediately: if app.js mounts routes/api.js at /api, and
+        routes/api.js itself mounts routes/v1/users.js at /v1, a single flat
+        module_id -> prefix map can only ever record the innermost /v1, since it
+        has no way to know routes/api.js was itself mounted anywhere. Recording
+        the edge and letting _resolve_mount_chain walk it after every file has
+        been scanned resolves the full /api/v1 chain instead. Same-file mounts
+        (own_prefixes) are local to one module and compose with whatever chain
+        that module is itself eventually mounted through.
 
         Not handled: mounts whose path comes from data rather than a literal, e.g.
         iterating an array of {path, route} objects and calling router.use(r.path,
@@ -499,8 +543,9 @@ class ExpressParser(BaseParser):
                     required_path, current_file, path_to_module_id
                 )
                 if target_id is not None:
-                    mount_prefixes[target_id] = self._join_paths(
-                        mount_prefixes.get(target_id, ""), prefix
+                    _, existing_prefix = mount_edges.get(target_id, (module_id, ""))
+                    mount_edges[target_id] = (
+                        module_id, self._join_paths(existing_prefix, prefix)
                     )
             elif target.type == "identifier":
                 # Router object mounted in the same file it was built in -- e.g.
@@ -509,11 +554,46 @@ class ExpressParser(BaseParser):
                 # an inline middleware factory, ...) is never a same-file router and must
                 # not be attributed here -- doing so previously corrupted this module's
                 # own mount prefix with the static-mount's unrelated path.
-                mount_prefixes[module_id] = self._join_paths(
-                    mount_prefixes.get(module_id, ""), prefix
+                own_prefixes[module_id] = self._join_paths(
+                    own_prefixes.get(module_id, ""), prefix
                 )
             # else: target is neither a resolvable require()/import nor a plain
             # identifier (e.g. an inline call expression) -- nothing safe to attribute.
+
+    def _resolve_mount_chain(
+        self, own_prefixes: dict[str, str], mount_edges: dict[str, tuple[str, str]]
+    ) -> dict[str, str]:
+        """Composes own_prefixes and mount_edges into one effective external prefix
+        per module, walking mount_edges transitively so a router mounted through
+        another router's own mount point gets the full composed prefix rather than
+        just the innermost hop (the single-level limitation this replaces). A
+        module with no incoming mount_edges entry is either mounted directly on
+        `app` (the implicit root, external prefix '') or never externally mounted
+        at all; either way the recursion terminates there. `seen` guards against a
+        cyclic require() graph (A requires and mounts B, B requires and mounts A)
+        turning into infinite recursion -- resolves to '' for whichever module
+        closes the cycle, the same "give up cleanly on unresolvable input" stance
+        the rest of this parser already takes elsewhere."""
+        resolved: dict[str, str] = {}
+
+        def effective(mid: str, seen: frozenset[str]) -> str:
+            if mid in resolved:
+                return resolved[mid]
+            if mid in seen:
+                return ""
+            seen = seen | {mid}
+            if mid in mount_edges:
+                source_id, local_prefix = mount_edges[mid]
+                external = self._join_paths(effective(source_id, seen), local_prefix)
+            else:
+                external = ""
+            result = self._join_paths(external, own_prefixes.get(mid, ""))
+            resolved[mid] = result
+            return result
+
+        for mid in set(own_prefixes) | set(mount_edges):
+            effective(mid, frozenset())
+        return resolved
 
     def _identifier_require_bindings(self, root: Node, source: bytes) -> dict[str, str]:
         """Maps `const routes = require('./routes/v1')` -> {'routes': './routes/v1'}."""

@@ -136,3 +136,40 @@ def test_external_dependencies_from_package_json(parsed):
 def test_config_files_detected(parsed):
     paths = {c.path for c in parsed.config_files}
     assert "package.json" in paths
+
+
+TSCONFIG_FIXTURE_PATH = Path(__file__).parent / "fixtures" / "nestjs-app-tsconfig"
+
+
+@pytest.fixture
+def parsed_tsconfig():
+    parser = NestJSParser()
+    assert parser.detect(TSCONFIG_FIXTURE_PATH) is True
+    return parser.parse(TSCONFIG_FIXTURE_PATH)
+
+
+def test_tsconfig_path_alias_is_resolved(parsed_tsconfig):
+    """notifications.service.ts imports UsersService via the '@app/*' tsconfig
+    alias ('@app/users/users.service') rather than a relative path. Before this
+    fix, any non-relative import was assumed to be an external package and
+    never resolved to an internal module id -- this edge would have been
+    silently dropped even though the target file is right there in the repo."""
+    module_by_path = {m.path: m for m in parsed_tsconfig.modules}
+    notifications = module_by_path["src/notifications/notifications.service.ts"]
+    users_service = module_by_path["src/users/users.service.ts"]
+    assert users_service.id in notifications.imports
+    edges = {
+        (e.from_module_id, e.to_module_id) for e in parsed_tsconfig.dependencies.internal
+    }
+    assert (notifications.id, users_service.id) in edges
+
+
+def test_tsconfig_jsonc_comments_and_trailing_commas_do_not_break_parsing(parsed_tsconfig):
+    """The fixture's tsconfig.json has a comment and a trailing comma after the
+    'paths' object -- both of which the Nest CLI's own scaffolded tsconfig.json
+    routinely includes, and which plain json.loads rejects on its own. This just
+    re-asserts the alias resolved at all, i.e. that _read_jsonc's fallback
+    stripping actually ran rather than silently returning no aliases."""
+    module_by_path = {m.path: m for m in parsed_tsconfig.modules}
+    notifications = module_by_path["src/notifications/notifications.service.ts"]
+    assert len(notifications.imports) == 1
