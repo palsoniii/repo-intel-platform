@@ -574,13 +574,42 @@ remains pinned to `temperature=0` with a fixed seed.
 | Rows | 108, **zero failures** |
 
 **Deviation from the planned design.** The battery was specified for three
-generators. `deepseek-coder:6.7b-instruct` is **excluded**: two independent attempts
-both hung deterministically on the large NestJS repositories (repo 12–13 of 18,
-`ack-nestjs-boilerplate`, 601 modules), producing no Ollama requests and negligible
-CPU for hours before being aborted. The same repositories completed normally under
-both other models, so this is a model-specific failure, not a harness or dataset
-defect. It is unresolved and should be reported as such rather than silently
-dropped — the cross-model claims below rest on two models, not three.
+generators. `deepseek-coder:6.7b-instruct` is **excluded**, for a reason that is
+itself a measurement worth recording.
+
+Three independent attempts each stalled part-way and had to be aborted, at a
+*different* repository each time and progressively earlier — repo 13
+(`ack-nestjs-boilerplate`), then 12 (`nestjs-boilerplate`), then 11
+(`nestjs-prisma-starter`). Every stall was preceded by a steady decline in
+completed Ollama calls per unit time, then silence: no requests and negligible CPU.
+GPU thermal and power throttling were ruled out directly (53 °C, all
+`nvidia-smi` slowdown flags inactive), as was host memory exhaustion.
+
+The cause is resident memory footprint. At the study's fixed `num_ctx=8192`,
+Ollama reports the three models as:
+
+| Model | Resident | CPU/GPU split |
+|---|---|---|
+| qwen2.5-coder:7b | 5.4 GB | 58%/42% |
+| gemma2:9b (judge) | 6.4 GB | 69%/31% |
+| deepseek-coder:6.7b-instruct | **8.3 GB** | 73%/27% |
+
+deepseek requires 54% more resident memory than qwen despite having *fewer*
+parameters — its KV cache at 8192 tokens dominates. Against a 9.7 GB container
+memory budget, and with `OLLAMA_MAX_LOADED_MODELS=1` forcing a full evict-and-reload
+on every generator↔judge transition, each swap moves ~15 GB of weights through a
+9.7 GB space. Host swap was in active use during the runs. The loads eventually
+wedge; the progressively earlier failures are consistent with cache state degrading
+across runs.
+
+This is therefore a **hardware limitation of the evaluation machine, not a defect in
+the model, harness, or dataset** — the same repositories completed cleanly under both
+other generators. It could be resolved by lowering `num_ctx` for deepseek, but
+`num_ctx` is held constant across models by design (§4.5), so results obtained that
+way would not be comparable to the two models reported here. Re-running deepseek
+requires a machine with more RAM, per §7.2.
+
+The cross-model claims below therefore rest on two generators, not three.
 
 ### 5.5.2 Primary result: coverage, not faithfulness
 
