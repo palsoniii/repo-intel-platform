@@ -3,7 +3,16 @@ Unit tests for the statistics module: mean/CI aggregation and paired significanc
 testing. Pure computation, no mocks needed.
 """
 
-from app.evaluation.stats import compare_all_levels_within, paired_test, summarize_by_cell
+import json
+
+from app.evaluation.stats import (
+    add_coverage_efficiency,
+    category_coverage_breakdown,
+    compare_all_levels_within,
+    diagram_f1_report,
+    paired_test,
+    summarize_by_cell,
+)
 
 
 def _rows():
@@ -98,3 +107,87 @@ def test_compare_all_levels_within_covers_every_model():
     assert models_covered == {"qwen2.5-coder:7b", "codellama:7b-instruct"}
     # 2 representations -> exactly 1 pairwise comparison per model
     assert len(results) == 2
+
+
+def test_add_coverage_efficiency_computes_ratio():
+    rows = [{"coverage_score": 0.8, "input_tokens": 2000}]
+    result = add_coverage_efficiency(rows)
+    # 0.8 coverage per 2000 tokens -> 0.4 per 1000 tokens
+    assert abs(result[0]["coverage_per_1k_input_tokens"] - 0.4) < 1e-6
+    # original row is untouched (a new dict is returned)
+    assert "coverage_per_1k_input_tokens" not in rows[0]
+
+
+def test_add_coverage_efficiency_skips_rows_with_zero_or_missing_tokens():
+    rows = [
+        {"coverage_score": 0.8, "input_tokens": 0},
+        {"coverage_score": 0.8},
+        {"coverage_score": None, "input_tokens": 1000},
+    ]
+    result = add_coverage_efficiency(rows)
+    assert all("coverage_per_1k_input_tokens" not in r for r in result)
+
+
+def test_add_coverage_efficiency_custom_field_names():
+    rows = [{"my_coverage": 1.0, "my_tokens": 500}]
+    result = add_coverage_efficiency(
+        rows, coverage_field="my_coverage", token_field="my_tokens", out_field="ratio", per_tokens=500
+    )
+    assert result[0]["ratio"] == 1.0
+
+
+def _category_rows():
+    # 1 row: raw has 2 facts total in "Dependency", 1 missing; 1 fact in
+    # "Endpoint", 0 missing. Mirrors what harness.py now actually persists.
+    return [
+        {
+            "model": "qwen2.5-coder:7b",
+            "context_variant": "raw",
+            "facts_by_category": json.dumps({"Dependency": 2, "Endpoint": 1}),
+            "missing_facts_list": json.dumps(["Dependency: cors"]),
+        },
+    ]
+
+
+def test_category_coverage_breakdown_computes_per_category_coverage():
+    summaries = category_coverage_breakdown(_category_rows())
+    by_category = {s.category: s for s in summaries}
+    assert by_category["Dependency"].total_facts == 2
+    assert by_category["Dependency"].missing_facts == 1
+    assert abs(by_category["Dependency"].coverage - 0.5) < 1e-6
+    assert by_category["Endpoint"].total_facts == 1
+    assert by_category["Endpoint"].missing_facts == 0
+    assert by_category["Endpoint"].coverage == 1.0
+
+
+def test_category_coverage_breakdown_skips_unparseable_rows():
+    rows = [{"model": "m", "context_variant": "raw", "facts_by_category": "not json", "missing_facts_list": "[]"}]
+    summaries = category_coverage_breakdown(rows)
+    assert summaries == []
+
+
+def test_category_coverage_breakdown_zero_total_facts_is_vacuously_full_coverage():
+    rows = [
+        {
+            "model": "m", "context_variant": "raw",
+            "facts_by_category": json.dumps({"Database entity": 0}),
+            "missing_facts_list": json.dumps([]),
+        },
+    ]
+    summaries = category_coverage_breakdown(rows)
+    assert summaries[0].coverage == 1.0
+
+
+def test_diagram_f1_report_groups_by_framework_and_covers_all_four_fields():
+    rows = [
+        {"framework": "express", "diagram_module_f1": 1.0, "diagram_import_f1": 0.5,
+         "diagram_endpoint_f1": 0.8, "diagram_overall_f1": 0.7},
+        {"framework": "nestjs", "diagram_module_f1": 0.6, "diagram_import_f1": 0.9,
+         "diagram_endpoint_f1": 1.0, "diagram_overall_f1": 0.85},
+    ]
+    report = diagram_f1_report(rows)
+    assert set(report.keys()) == {
+        "diagram_module_f1", "diagram_import_f1", "diagram_endpoint_f1", "diagram_overall_f1",
+    }
+    module_f1_express = next(s for s in report["diagram_module_f1"] if s.group_key == ("express",))
+    assert module_f1_express.mean == 1.0

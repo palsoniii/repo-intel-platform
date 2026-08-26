@@ -29,7 +29,7 @@ from neo4j import Driver
 from pydantic import BaseModel
 
 from app.db.neo4j_client import get_driver
-from app.evaluation.coverage import score_coverage
+from app.evaluation.coverage import build_coverable_facts, categorize_facts, score_coverage
 from app.evaluation.hallucination import score_summary
 from app.evaluation.diagram_score import (
     GraphDiffScore,
@@ -107,6 +107,21 @@ class EvaluationRow(BaseModel):
     # generation vs. generation+hallucination-judge+coverage-judge). Empty for a
     # failed/empty run -- nothing was generated to store.
     summary_text: str = ""
+    # Missing/unsupported fact and claim lists, JSON-encoded -- like summary_text,
+    # previously computed and used for judging (and for the failure-tag analysis
+    # just below) but never persisted, so a human-validation export or a category
+    # breakdown of coverage (dependencies vs. endpoints vs. classes vs. database
+    # entities) required re-deriving them from scratch. "[]" rather than "" when
+    # judged-but-nothing-was-missing/unsupported, so a downstream reader can always
+    # json.loads() this column without a special case for the empty state.
+    missing_facts_list: str = "[]"
+    unsupported_claims_list: str = "[]"
+    # Total coverage-checkable facts, broken out by category (Dependency/Endpoint/
+    # Class-Service/Database entity/Framework/Language) -- JSON-encoded dict, e.g.
+    # '{"Dependency": 12, "Endpoint": 8}'. The per-category MISSING count is
+    # derivable from missing_facts_list above; this is the per-category
+    # denominator, which isn't otherwise recoverable after the fact.
+    facts_by_category: str = "{}"
     error: Optional[str] = None
 
 
@@ -233,6 +248,7 @@ def _row_for_result(
     quality: Optional[QualityJudgeResult] = None
     unsupported_claims_list: list[str] = []
     missing_facts_list: list[str] = []
+    facts_by_category: dict[str, int] = {}
 
     if result.status == RunStatus.SUCCESS:
         scored = score_summary(
@@ -260,6 +276,11 @@ def _row_for_result(
         total_facts = coverage.total_facts
         missing_facts_list = coverage.missing_facts
         missing = len(missing_facts_list)
+        # Recomputes the same deterministic fact list score_coverage() builds
+        # internally, purely to get per-category totals -- cheap (a list
+        # comprehension over already-in-memory parser output), not a second judge
+        # call, so this doesn't add to the run's LLM-call count.
+        facts_by_category = categorize_facts(build_coverable_facts(parsed))
 
         if reference_overview is not None and bert_scorer is not None:
             text_overlap = score_text_overlap(
@@ -343,6 +364,9 @@ def _row_for_result(
         quality_domain_specificity=quality.scores["domain_specificity"].score if quality else None,
         failure_tags=",".join(tag.value for tag in failure_tags),
         summary_text=result.output.raw_text if result.status == RunStatus.SUCCESS else "",
+        missing_facts_list=json.dumps(missing_facts_list),
+        unsupported_claims_list=json.dumps(unsupported_claims_list),
+        facts_by_category=json.dumps(facts_by_category),
     )
 
 
