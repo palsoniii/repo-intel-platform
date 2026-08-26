@@ -551,6 +551,102 @@ not, because the suite asserted the buggy behaviour as expected output.
 
 ---
 
+## 5.5 Full-scale evaluation (2026-08-26)
+
+This section reports the post-fix battery re-run called for in §7.3. It supersedes
+§5's pilot figures for the questions it addresses; the pilot numbers are retained
+above for comparison, not because they remain current.
+
+### 5.5.1 Execution and dataset
+
+Run on an NVIDIA RTX 3050 Laptop GPU (4GB VRAM) via Docker Engine inside WSL2, with
+GPU passthrough through the NVIDIA Container Toolkit. Because every candidate model
+exceeds the 4GB VRAM budget, Ollama ran each in partial CPU offload (roughly 58%/42%
+CPU/GPU for the 7B generators). This affects latency only, not output: decoding
+remains pinned to `temperature=0` with a fixed seed.
+
+| | |
+|---|---|
+| Repositories | 18 (9 Express, 9 NestJS) |
+| Representations | raw / dependency_graph / knowledge_graph |
+| Generator models | 2 (qwen2.5-coder:7b, codellama:7b-instruct) |
+| Judge | gemma2:9b (independent; never a generator) |
+| Rows | 108, **zero failures** |
+
+**Deviation from the planned design.** The battery was specified for three
+generators. `deepseek-coder:6.7b-instruct` is **excluded**: two independent attempts
+both hung deterministically on the large NestJS repositories (repo 12–13 of 18,
+`ack-nestjs-boilerplate`, 601 modules), producing no Ollama requests and negligible
+CPU for hours before being aborted. The same repositories completed normally under
+both other models, so this is a model-specific failure, not a harness or dataset
+defect. It is unresolved and should be reported as such rather than silently
+dropped — the cross-model claims below rest on two models, not three.
+
+### 5.5.2 Primary result: coverage, not faithfulness
+
+**Structured representations substantially and significantly improve coverage**
+(how much of the parser's ground truth a summary actually mentions), consistently
+across both models:
+
+| Model | Comparison | mean diff | p (paired Wilcoxon, n=18) |
+|---|---|---|---|
+| codellama | dependency_graph vs raw | **+0.560** | **0.0003** |
+| codellama | knowledge_graph vs raw | **+0.418** | **0.0008** |
+| qwen | dependency_graph vs raw | **+0.331** | **0.0023** |
+| qwen | knowledge_graph vs raw | **+0.152** | **0.0245** |
+| qwen | dependency_graph vs knowledge_graph | +0.179 | 0.0209 |
+| codellama | dependency_graph vs knowledge_graph | +0.143 | 0.155 (n.s.) |
+
+Raw source scores 0.171 (codellama) and 0.334 (qwen) against 0.731 and 0.665 for
+dependency_graph — a three- to fourfold improvement. Every structured-vs-raw
+comparison is significant in both models, in the same direction. This is the
+strongest and most robust finding in the study.
+
+Note that **dependency_graph, not knowledge_graph, is the best-performing arm** in
+both models. This inverts the pilot's ordering and is consistent with §5.4a: the
+pilot's dependency_graph arm was structurally near-empty due to the
+path-normalisation defect, so its underperformance there measured a bug, not a
+representation.
+
+### 5.5.3 The pilot's faithfulness claim does not replicate
+
+**No hallucination_score comparison reached significance in either model** (minimum
+p = 0.102), and the direction is *contradictory across models*:
+
+| Representation | codellama mean | qwen mean |
+|---|---|---|
+| raw | 0.377 | **0.283** |
+| knowledge_graph | 0.316 | 0.313 |
+| dependency_graph | **0.221** | 0.358 |
+
+codellama favours dependency_graph; qwen favours raw. A representation effect that
+reverses sign between two models of comparable size is not evidence of a
+representation effect. §5.1's headline — "knowledge graph beats raw source" on
+faithfulness — **does not survive the larger sample and the parser fixes**, and
+should be withdrawn rather than restated.
+
+The honest reading of §5.5.2 and §5.5.3 together: structured context makes summaries
+*more complete*, with no measurable effect on whether their claims are *true*. Those
+are different properties, and only the first is supported.
+
+### 5.5.4 Text-overlap metrics
+
+BLEU-4, ROUGE-L, and METEOR show small, inconsistent differences (BLEU-4 means all
+fall between 0.013 and 0.019). A handful of comparisons cross p < 0.05, but with 30
+tests across five metrics and no direction holding across both models, these are
+best treated as noise rather than findings; no multiple-comparison correction was
+applied. Reference-summary overlap appears to have little discriminative power for
+this task at this scale. BERTScore was disabled (`--no-bertscore`).
+
+### 5.5.5 Artefacts
+
+`backend/evaluation_results/battery.db` (108 rows, both models),
+`battery_qwen2_5-coder_7b.csv`, `battery_codellama_7b-instruct.csv`. Statistics
+reproduce via `app.evaluation.stats.summarize_by_cell` and
+`compare_all_levels_within`, as in Appendix A.
+
+---
+
 ## 6. Threats to validity
 
 ### 6.1 The metric is judge-sensitive (most serious)
