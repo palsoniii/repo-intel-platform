@@ -1,0 +1,6 @@
+repo_name,source_url,framework,model,context_variant,run_status,latency_ms,input_tokens,output_tokens,estimated_cost_usd,judge_model,self_judged,hallucination_judged,hallucination_score,total_claims,unsupported_claims,coverage_judged,coverage_score,total_facts,missing_facts,diagram_scored,diagram_module_f1,diagram_import_f1,diagram_endpoint_f1,diagram_overall_f1,text_overlap_scored,bleu4,rouge_l,meteor,bertscore_f1,quality_judged,quality_mean_score,quality_completeness,quality_conciseness,quality_correctness,quality_cohesiveness,quality_domain_specificity,failure_tags,summary_text,missing_facts_list,unsupported_claims_list,facts_by_category,error
+https://github.com/NarHakobyan/awesome-nest-boilerplate,https://github.com/NarHakobyan/awesome-nest-boilerplate,,,,failed,0,0,0,0.0,mistral:7b-instruct,False,False,0.0,0,0,False,0.0,0,0,False,,,,,False,,,,,False,,,,,,,,,[],[],{},"Failed to clone https://github.com/NarHakobyan/awesome-nest-boilerplate: Cmd('git') failed due to: exit code(128)
+  cmdline: git clone -v --depth=1 --single-branch -- https://github.com/NarHakobyan/awesome-nest-boilerplate /tmp/repo-intel-s43lld0o/awesome-nest-boilerplate
+  stderr: 'Cloning into '/tmp/repo-intel-s43lld0o/awesome-nest-boilerplate'...
+fatal: unable to access 'https://github.com/NarHakobyan/awesome-nest-boilerplate/': Could not resolve host: github.com
+'"

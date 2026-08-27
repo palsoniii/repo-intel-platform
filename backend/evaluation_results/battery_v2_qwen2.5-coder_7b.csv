@@ -1,0 +1,236 @@
+repo_name,source_url,framework,model,context_variant,run_status,latency_ms,input_tokens,output_tokens,estimated_cost_usd,judge_model,self_judged,hallucination_judged,hallucination_score,total_claims,unsupported_claims,coverage_judged,coverage_score,total_facts,missing_facts,diagram_scored,diagram_module_f1,diagram_import_f1,diagram_endpoint_f1,diagram_overall_f1,text_overlap_scored,bleu4,rouge_l,meteor,bertscore_f1,quality_judged,quality_mean_score,quality_completeness,quality_conciseness,quality_correctness,quality_cohesiveness,quality_domain_specificity,failure_tags,summary_text,missing_facts_list,unsupported_claims_list,facts_by_category,error
+node-express-sequelize-postgresql,https://github.com/bezkoder/node-express-sequelize-postgresql,express,qwen2.5-coder:7b,raw,success,78745,1934,101,0.0,mistral:7b-instruct,False,True,0.25,4,1,True,0.6,15,6,True,1.0,1.0,1.0,1.0,True,0.0783,0.2737,0.2355,0.0,False,,,,,,,"fabricated_technology,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint","{
+  ""overview"": ""This repository is a Node.js application using Express.js as the framework and Sequelize.js as the ORM for interacting with a PostgreSQL database. It provides a RESTful API for managing tutorials, including creating, reading, updating, and deleting tutorials."",
+  ""tech_stack"": [""JavaScript"", ""Express.js"", ""Sequelize.js"", ""PostgreSQL""],
+  ""services"": [""HTTP server""],
+  ""dependencies"": [""express"", ""cors"", ""sequelize"", ""pg""]
+}","[""Endpoint: GET /"", ""Endpoint: GET /api/tutorials/published"", ""Endpoint: GET /api/tutorials/:id"", ""Endpoint: PUT /api/tutorials/:id"", ""Endpoint: DELETE /api/tutorials/:id"", ""Endpoint: DELETE /api/tutorials""]","[""Sequelize.js as the ORM for interacting with a PostgreSQL database.""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 5, ""Endpoint"": 8}",
+node-express-sequelize-postgresql,https://github.com/bezkoder/node-express-sequelize-postgresql,express,qwen2.5-coder:7b,dependency_graph,success,9981,447,96,0.0,mistral:7b-instruct,False,True,0.25,4,1,True,0.7333,15,4,True,1.0,1.0,1.0,1.0,True,0.0622,0.2609,0.1901,0.0,False,,,,,,,"fabricated_technology,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint","{
+  ""overview"": ""This repository appears to be a Node.js application using Express as the framework and Sequelize as the ORM for interacting with a PostgreSQL database. It includes a single service for handling HTTP requests related to tutorials."",
+  ""tech_stack"": [""JavaScript"", ""Express"", ""Sequelize"", ""PostgreSQL""],
+  ""services"": [""HTTP server""],
+  ""dependencies"": [""cors"", ""express"", ""pg"", ""pg-hstore"", ""sequelize""]
+}","[""Endpoint: POST /api/tutorials"", ""Endpoint: GET /api/tutorials/published"", ""Endpoint: GET /"", ""Endpoint: DELETE /api/tutorials""]","[""Sequelize as the ORM for interacting with a PostgreSQL database""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 5, ""Endpoint"": 8}",
+node-express-sequelize-postgresql,https://github.com/bezkoder/node-express-sequelize-postgresql,express,qwen2.5-coder:7b,knowledge_graph,success,10582,567,107,0.0,mistral:7b-instruct,False,True,0.25,4,1,True,1.0,15,0,True,1.0,1.0,1.0,1.0,True,0.0378,0.2553,0.254,0.0,False,,,,,,,fabricated_technology,"{
+  ""overview"": ""This repository is a Node.js application using the Express framework to create a RESTful API for managing tutorials. It includes endpoints for creating, reading, updating, and deleting tutorials, as well as retrieving tutorials based on their publication status."",
+  ""tech_stack"": [""JavaScript"", ""Express"", ""Sequelize"", ""pg"", ""pg-hstore""],
+  ""services"": [""HTTP server""],
+  ""dependencies"": [""cors"", ""express"", ""pg"", ""pg-hstore"", ""sequelize""]
+}",[],"[""Sequelize""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 5, ""Endpoint"": 8}",
+node_passport_login,https://github.com/bradtraversy/node_passport_login,express,qwen2.5-coder:7b,raw,success,52073,1775,105,0.0,mistral:7b-instruct,False,True,0.25,4,1,True,1.0,19,0,True,1.0,1.0,1.0,1.0,True,0.028,0.2192,0.212,0.0,False,,,,,,,fabricated_technology,"{
+  ""overview"": ""This repository is a Node.js application using Express.js as the framework, MongoDB for the database, and Passport.js for authentication. It provides user registration, login, and dashboard functionalities."",
+  ""tech_stack"": [""JavaScript"", ""Express.js"", ""MongoDB"", ""Passport.js""],
+  ""services"": [""HTTP server""],
+  ""dependencies"": [""express"", ""express-ejs-layouts"", ""mongoose"", ""passport"", ""bcryptjs"", ""connect-flash"", ""express-session""]
+}",[],"[""MongoDB""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 10, ""Endpoint"": 7}",
+node_passport_login,https://github.com/bradtraversy/node_passport_login,express,qwen2.5-coder:7b,dependency_graph,success,12401,463,122,0.0,mistral:7b-instruct,False,True,0.2,5,1,True,1.0,19,0,True,1.0,1.0,1.0,1.0,True,0.0133,0.1842,0.1408,0.0,False,,,,,,,fabricated_technology,"{
+  ""overview"": ""This repository appears to be a Node.js application using Express as the framework, with MongoDB through Mongoose for database operations. It includes user authentication with Passport.js and uses EJS for templating."",
+  ""tech_stack"": [""JavaScript"", ""Express"", ""Mongoose"", ""Passport.js"", ""EJS""],
+  ""services"": [""HTTP server""],
+  ""dependencies"": [""bcryptjs"", ""connect-flash"", ""ejs"", ""express"", ""express-ejs-layouts"", ""express-session"", ""mongoose"", ""nodemon"", ""passport"", ""passport-local""]
+}",[],"[""MongoDB""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 10, ""Endpoint"": 7}",
+node_passport_login,https://github.com/bradtraversy/node_passport_login,express,qwen2.5-coder:7b,knowledge_graph,success,11556,549,119,0.0,mistral:7b-instruct,False,True,0.25,4,1,True,1.0,19,0,True,1.0,1.0,1.0,1.0,True,0.0143,0.2338,0.1681,0.0,False,,,,,,,fabricated_technology,"{
+  ""overview"": ""This repository appears to be a web application built with Express.js, featuring user authentication and registration, as well as a dashboard. It uses MongoDB through Mongoose for data storage and EJS for templating."",
+  ""tech_stack"": [""JavaScript"", ""Express"", ""Mongoose"", ""EJS""],
+  ""services"": [""HTTP server""],
+  ""dependencies"": [""bcryptjs"", ""connect-flash"", ""ejs"", ""express"", ""express-ejs-layouts"", ""express-session"", ""mongoose"", ""nodemon"", ""passport"", ""passport-local""]
+}",[],"[""This repository appears to be a web application built with Express.js, featuring user authentication and registration, as well as a dashboard. It uses MongoDB through Mongoose for data storage and EJS for templating.""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 10, ""Endpoint"": 7}",
+node-express-boilerplate,https://github.com/hagopj13/node-express-boilerplate,express,qwen2.5-coder:7b,raw,success,76316,6013,196,0.0,mistral:7b-instruct,False,True,0.8333,6,5,True,1.0,57,0,True,0.9744,0.125,0.0,0.3665,True,0.0076,0.1707,0.0746,0.0,False,,,,,,,"fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology","{
+  ""overview"": ""This repository is a Node.js application template using Express.js, featuring authentication, authorization, and other common features. It includes a CLI for creating new projects based on this template."",
+  ""tech_stack"": [""JavaScript"", ""Express.js"", ""MongoDB"", ""JWT"", ""Passport.js"", ""Mongoose"", ""Jest"", ""Swagger""],
+  ""services"": [""HTTP server""],
+  ""dependencies"": [
+    ""bcryptjs"",
+    ""cors"",
+    ""dotenv"",
+    ""express"",
+    ""express-mongo-sanitize"",
+    ""helmet"",
+    ""http-status"",
+    ""joi"",
+    ""jsonwebtoken"",
+    ""jwks-rsa"",
+    ""mongoose"",
+    ""morgan"",
+    ""nodemailer"",
+    ""passport"",
+    ""passport-jwt"",
+    ""rate-limit"",
+    ""swagger-jsdoc"",
+    ""swagger-ui-express"",
+    ""uuid"",
+    ""xss-clean""
+  ]
+}",[],"[""MongoDB"", ""JWT"", ""Passport.js"", ""jwks-rsa"", ""rate-limit""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 15}",
+node-express-boilerplate,https://github.com/hagopj13/node-express-boilerplate,express,qwen2.5-coder:7b,dependency_graph,success,35451,1329,306,0.0,mistral:7b-instruct,False,True,0.1429,7,1,True,1.0,57,0,True,0.9744,0.125,0.0,0.3665,True,0.0222,0.1935,0.155,0.0,False,,,,,,,fabricated_technology,"{
+  ""overview"": ""This repository appears to be a Node.js application with an Express.js framework, utilizing MongoDB for data storage via Mongoose. It includes authentication, user management, and email services. The application also has middleware for rate limiting, error handling, and validation."",
+  ""tech_stack"": [""JavaScript"", ""Express.js"", ""Mongoose"", ""MongoDB"", ""bcryptjs"", ""jsonwebtoken"", ""passport"", ""passport-jwt"", ""nodemailer"", ""swagger-jsdoc"", ""swagger-ui-express""],
+  ""services"": [""HTTP server"", ""Authentication service"", ""User management service"", ""Email service""],
+  ""dependencies"": [""bcryptjs"", ""compression"", ""cors"", ""coveralls"", ""cross-env"", ""dotenv"", ""eslint"", ""eslint-config-airbnb-base"", ""eslint-config-prettier"", ""eslint-plugin-import"", ""eslint-plugin-jest"", ""eslint-plugin-prettier"", ""eslint-plugin-security"", ""express"", ""express-mongo-sanitize"", ""express-rate-limit"", ""faker"", ""helmet"", ""http-status"", ""husky"", ""jest"", ""joi"", ""jsonwebtoken"", ""lint-staged"", ""moment"", ""mongoose"", ""morgan"", ""node-mocks-http"", ""nodemailer"", ""nodemon"", ""passport"", ""passport-jwt"", ""pm2"", ""prettier"", ""supertest"", ""swagger-jsdoc"", ""swagger-ui-express"", ""validator"", ""winston"", ""xss-clean""]
+}",[],"[""MongoDB""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 15}",
+node-express-boilerplate,https://github.com/hagopj13/node-express-boilerplate,express,qwen2.5-coder:7b,knowledge_graph,success,27337,1031,249,0.0,mistral:7b-instruct,False,True,0.0,5,0,True,1.0,57,0,True,0.9744,0.125,0.0,0.3665,True,0.0067,0.1538,0.0751,0.0,False,,,,,,,,"{
+  ""overview"": ""This repository appears to be a Node.js application using the Express framework for building a RESTful API. It includes authentication, user management, and email services."",
+  ""tech_stack"": [""JavaScript"", ""Express"", ""bcryptjs"", ""jsonwebtoken"", ""mongoose"", ""nodemailer""],
+  ""services"": [""HTTP server""],
+  ""dependencies"": [""bcryptjs"", ""compression"", ""cors"", ""coveralls"", ""cross-env"", ""dotenv"", ""eslint"", ""eslint-config-airbnb-base"", ""eslint-config-prettier"", ""eslint-plugin-import"", ""eslint-plugin-jest"", ""eslint-plugin-prettier"", ""eslint-plugin-security"", ""express"", ""express-mongo-sanitize"", ""express-rate-limit"", ""faker"", ""helmet"", ""http-status"", ""husky"", ""jest"", ""joi"", ""jsonwebtoken"", ""lint-staged"", ""moment"", ""mongoose"", ""morgan"", ""node-mocks-http"", ""nodemailer"", ""nodemon"", ""passport"", ""passport-jwt"", ""pm2"", ""prettier"", ""supertest"", ""swagger-jsdoc"", ""swagger-ui-express"", ""validator"", ""winston"", ""xss-clean""]
+}",[],[],"{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 15}",
+express-mongoose-es6-rest-api,https://github.com/kunalkapadia/express-mongoose-es6-rest-api,express,qwen2.5-coder:7b,raw,success,86854,3790,128,0.0,mistral:7b-instruct,False,True,0.25,4,1,True,1.0,44,0,True,1.0,1.0,0.125,0.7083,True,0.0113,0.1538,0.0877,0.0,False,,,,,,,fabricated_technology,"{
+  ""overview"": ""This repository is a Node.js application using Express.js as the framework, MongoDB as the database, and JWT for authentication. It includes routes for user management and authentication."",
+  ""tech_stack"": [""JavaScript"", ""Express.js"", ""MongoDB"", ""JWT""],
+  ""services"": [""HTTP server""],
+  ""dependencies"": [""express"", ""mongoose"", ""joi"", ""dotenv"", ""morgan"", ""body-parser"", ""cookie-parser"", ""compression"", ""method-override"", ""cors"", ""http-status"", ""express-winston"", ""express-validation"", ""helmet"", ""winston""]
+}",[],"[""MongoDB""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 34, ""Endpoint"": 8}",
+express-mongoose-es6-rest-api,https://github.com/kunalkapadia/express-mongoose-es6-rest-api,express,qwen2.5-coder:7b,dependency_graph,success,31367,644,288,0.0,mistral:7b-instruct,False,True,0.4,5,2,True,1.0,44,0,True,1.0,1.0,0.125,0.7083,True,0.0114,0.1587,0.0882,0.0,False,,,,,,,"fabricated_technology,fabricated_technology","{
+  ""overview"": ""This repository appears to be a Node.js application using Express.js as the framework. It includes user management and authentication services, with logging and validation utilities."",
+  ""tech_stack"": [""JavaScript"", ""Express.js"", ""Mongoose"", ""Joi"", ""bcrypt"", ""jsonwebtoken"", ""express-jwt"", ""express-validation"", ""express-winston"", ""winston"", ""helmet"", ""cors"", ""body-parser"", ""method-override"", ""compression"", ""debug"", ""dotenv"", ""bluebird"", ""mongoose"", ""http-status"", ""supertest"", ""supertest-as-promised""],
+  ""services"": [""HTTP server"", ""User management"", ""Authentication""],
+  ""dependencies"": [""bluebird"", ""body-parser"", ""chai"", ""commitizen"", ""compression"", ""cookie-parser"", ""cors"", ""coveralls"", ""cross-env"", ""cz-conventional-changelog"", ""debug"", ""dotenv"", ""eslint"", ""eslint-config-airbnb-base"", ""eslint-plugin-import"", ""eslint-watch"", ""express"", ""express-jwt"", ""express-validation"", ""express-winston"", ""helmet"", ""http-status"", ""husky"", ""istanbul"", ""joi"", ""jsonwebtoken"", ""method-override"", ""mocha"", ""mongoose"", ""morgan"", ""supertest"", ""supertest-as-promised"", ""validate-commit-msg"", ""winston""]
+}",[],"[""Mongoose"", ""bcrypt""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 34, ""Endpoint"": 8}",
+express-mongoose-es6-rest-api,https://github.com/kunalkapadia/express-mongoose-es6-rest-api,express,qwen2.5-coder:7b,knowledge_graph,success,29400,708,276,0.0,mistral:7b-instruct,False,True,0.4,5,2,True,1.0,44,0,True,1.0,1.0,0.125,0.7083,True,0.0201,0.1951,0.1622,0.0,False,,,,,,,"fabricated_technology,fabricated_technology","{
+  ""overview"": ""This repository is a Node.js application using the Express framework to create a RESTful API. It includes user management and authentication endpoints, as well as a health check endpoint. The application uses MongoDB for data storage and includes middleware for logging, validation, and error handling."",
+  ""tech_stack"": [""JavaScript"", ""Express"", ""Mongoose"", ""Joi"", ""bcrypt"", ""jsonwebtoken"", ""express-jwt"", ""express-validation"", ""express-winston"", ""helmet"", ""compression"", ""cors"", ""body-parser"", ""debug"", ""dotenv"", ""winston""],
+  ""services"": [""HTTP server""],
+  ""dependencies"": [""bluebird"", ""body-parser"", ""chai"", ""commitizen"", ""compression"", ""cookie-parser"", ""cors"", ""coveralls"", ""cross-env"", ""cz-conventional-changelog"", ""debug"", ""dotenv"", ""eslint"", ""eslint-config-airbnb-base"", ""eslint-plugin-import"", ""eslint-watch"", ""express"", ""express-jwt"", ""express-validation"", ""express-winston"", ""helmet"", ""http-status"", ""husky"", ""istanbul"", ""joi"", ""jsonwebtoken"", ""method-override"", ""mocha"", ""mongoose"", ""morgan"", ""supertest"", ""supertest-as-promised"", ""validate-commit-msg"", ""winston""]
+}",[],"[""Mongoose"", ""bcrypt""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 34, ""Endpoint"": 8}",
+express-rest-boilerplate,https://github.com/danielfsousa/express-rest-boilerplate,express,qwen2.5-coder:7b,raw,success,75150,6238,109,0.0,mistral:7b-instruct,False,True,0.25,4,1,True,1.0,57,0,True,1.0,1.0,1.0,1.0,True,0.0219,0.169,0.147,0.0,False,,,,,,,fabricated_technology,"{
+  ""overview"": ""This repository contains a Node.js application with an authentication system and a user management system. It uses Express.js as the framework, MongoDB as the database, and JWT for authentication."",
+  ""tech_stack"": [""JavaScript"", ""Express.js"", ""MongoDB"", ""JWT""],
+  ""services"": [""HTTP server""],
+  ""dependencies"": [""bcryptjs"", ""crypto"", ""express-validation"", ""http-status"", ""jsonwebtoken"", ""lodash"", ""mongoose"", ""moment-timezone"", ""passport"", ""uuid""]
+}",[],"[""MongoDB""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 15}",
+express-rest-boilerplate,https://github.com/danielfsousa/express-rest-boilerplate,express,qwen2.5-coder:7b,dependency_graph,success,28340,984,261,0.0,mistral:7b-instruct,False,True,0.5,4,2,True,1.0,57,0,True,1.0,1.0,1.0,1.0,True,0.0099,0.1739,0.0694,0.0,False,,,,,,,"fabricated_technology,fabricated_technology","{
+  ""overview"": ""This repository appears to be a Node.js application with an Express.js framework, utilizing MongoDB through Mongoose for data modeling. It includes authentication, user management, and email services."",
+  ""tech_stack"": [""JavaScript"", ""Express.js"", ""Mongoose"", ""bcryptjs"", ""jsonwebtoken"", ""passport"", ""nodemailer""],
+  ""services"": [""HTTP server""],
+  ""dependencies"": [""apidoc"", ""axios"", ""bcryptjs"", ""bluebird"", ""body-parser"", ""chai"", ""chai-as-promised"", ""compression"", ""cors"", ""coveralls"", ""cross-env"", ""dotenv-safe"", ""email-templates"", ""eslint"", ""eslint-config-airbnb-base"", ""eslint-plugin-import"", ""express"", ""express-validation"", ""helmet"", ""http-status"", ""husky"", ""joi"", ""jwt-simple"", ""lodash"", ""method-override"", ""mocha"", ""moment-timezone"", ""mongoose"", ""morgan"", ""nodemailer"", ""nodemon"", ""nyc"", ""opn-cli"", ""passport"", ""passport-http-bearer"", ""passport-jwt"", ""pm2"", ""pug"", ""sinon"", ""sinon-chai"", ""supertest"", ""uuid"", ""winston""]
+}",[],"[""Mongoose"", ""MongoDB""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 15}",
+express-rest-boilerplate,https://github.com/danielfsousa/express-rest-boilerplate,express,qwen2.5-coder:7b,knowledge_graph,success,29607,982,264,0.0,mistral:7b-instruct,False,True,0.2,5,1,True,1.0,57,0,True,1.0,1.0,1.0,1.0,True,0.0123,0.1892,0.0959,0.0,False,,,,,,,fabricated_technology,"{
+  ""overview"": ""This repository is a Node.js application built with Express.js, handling user authentication, user management, and password reset functionalities. It uses MongoDB for data storage and includes various middleware for security and validation."",
+  ""tech_stack"": [""JavaScript"", ""Express"", ""Mongoose"", ""bcryptjs"", ""jsonwebtoken"", ""passport"", ""nodemailer""],
+  ""services"": [""HTTP server""],
+  ""dependencies"": [""apidoc"", ""axios"", ""bcryptjs"", ""bluebird"", ""body-parser"", ""chai"", ""chai-as-promised"", ""compression"", ""cors"", ""coveralls"", ""cross-env"", ""dotenv-safe"", ""email-templates"", ""eslint"", ""eslint-config-airbnb-base"", ""eslint-plugin-import"", ""express"", ""express-validation"", ""helmet"", ""http-status"", ""husky"", ""joi"", ""jwt-simple"", ""lodash"", ""method-override"", ""mocha"", ""moment-timezone"", ""mongoose"", ""morgan"", ""nodemailer"", ""nodemon"", ""nyc"", ""opn-cli"", ""passport"", ""passport-http-bearer"", ""passport-jwt"", ""pm2"", ""pug"", ""sinon"", ""sinon-chai"", ""supertest"", ""uuid"", ""winston""]
+}",[],"[""MongoDB""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 15}",
+node-express-mongodb-jwt-rest-api-skeleton,https://github.com/davellanedam/node-express-mongodb-jwt-rest-api-skeleton,express,qwen2.5-coder:7b,raw,success,70976,5908,99,0.0,mistral:7b-instruct,False,True,0.2,5,1,True,1.0,63,0,True,1.0,1.0,0.4,0.8,True,0.0095,0.2034,0.1017,0.0,False,,,,,,,"fabricated_technology,over_generic","{
+  ""overview"": ""This repository contains a Node.js application with an authentication system, including user registration, login, password reset, and role-based access control."",
+  ""tech_stack"": [""JavaScript"", ""Express.js"", ""MongoDB"", ""JWT"", ""bcrypt""],
+  ""services"": [""HTTP server""],
+  ""dependencies"": [
+    ""express-validator"",
+    ""express"",
+    ""mongoose"",
+    ""jsonwebtoken"",
+    ""bcrypt"",
+    ""date-fns""
+  ]
+}",[],"[""MongoDB""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 21}",
+node-express-mongodb-jwt-rest-api-skeleton,https://github.com/davellanedam/node-express-mongodb-jwt-rest-api-skeleton,express,qwen2.5-coder:7b,dependency_graph,success,43342,3971,287,0.0,mistral:7b-instruct,False,True,0.1667,6,1,True,1.0,63,0,True,1.0,1.0,0.4,0.8,True,0.0209,0.2462,0.1218,0.0,False,,,,,,,fabricated_technology,"{
+  ""overview"": ""This repository appears to be a Node.js application with an Express.js framework, utilizing MongoDB for database operations. It includes authentication, user management, and city management functionalities."",
+  ""tech_stack"": [""JavaScript"", ""Express.js"", ""MongoDB"", ""bcrypt"", ""mongoose"", ""express-validator"", ""nodemailer"", ""passport"", ""jsonwebtoken""],
+  ""services"": [""HTTP server""],
+  ""dependencies"": [""babel-eslint"", ""bcrypt"", ""body-parser"", ""chai"", ""chai-http"", ""compression"", ""cors"", ""cross-env"", ""date-fns"", ""dotenv-safe"", ""ejs"", ""eslint"", ""eslint-config-formidable"", ""eslint-config-prettier"", ""eslint-plugin-prettier"", ""expeditious-engine-redis"", ""express"", ""express-expeditious"", ""express-validator"", ""faker"", ""helmet"", ""husky"", ""i18n"", ""istanbul-merge"", ""jest"", ""jsonwebtoken"", ""lint-staged"", ""mocha"", ""mongo-seeding"", ""mongoose"", ""mongoose-paginate-v2"", ""morgan"", ""nodemailer"", ""nodemailer-mailgun-transport"", ""nodemon"", ""nyc"", ""passport"", ""passport-jwt"", ""prettier"", ""prettier-eslint"", ""remark-cli"", ""request-ip"", ""trim-request"", ""uuid"", ""validator""]
+}",[],"[""MongoDB""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 21}",
+node-express-mongodb-jwt-rest-api-skeleton,https://github.com/davellanedam/node-express-mongodb-jwt-rest-api-skeleton,express,qwen2.5-coder:7b,knowledge_graph,success,36475,1954,300,0.0,mistral:7b-instruct,False,True,0.8333,6,5,True,1.0,63,0,True,1.0,1.0,0.4,0.8,True,0.0369,0.1951,0.1446,0.0,False,,,,,,,"fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology","{
+  ""overview"": ""This repository appears to be a Node.js application using the Express framework for handling HTTP requests. It includes various controllers, middleware, and routes for user authentication, profile management, and city management. The application also uses several external libraries for security, validation, and database operations."",
+  ""tech_stack"": [""JavaScript"", ""Express"", ""bcrypt"", ""mongoose"", ""express-validator"", ""nodemailer"", ""jsonwebtoken""],
+  ""services"": [""HTTP server""],
+  ""dependencies"": [""babel-eslint"", ""bcrypt"", ""body-parser"", ""chai"", ""chai-http"", ""compression"", ""cors"", ""cross-env"", ""date-fns"", ""dotenv-safe"", ""ejs"", ""eslint"", ""eslint-config-formidable"", ""eslint-config-prettier"", ""eslint-plugin-prettier"", ""expeditious-engine-redis"", ""express"", ""express-expeditious"", ""express-validator"", ""faker"", ""helmet"", ""husky"", ""i18n"", ""istanbul-merge"", ""jest"", ""jsonwebtoken"", ""lint-staged"", ""mocha"", ""mongo-seeding"", ""mongoose"", ""mongoose-paginate-v2"", ""morgan"", ""nodemailer"", ""nodemailer-mailgun-transport"", ""nodemon"", ""nyc"", ""passport"", ""passport-jwt"", ""prettier"", ""prettier-eslint"", ""remark-cli"", ""request-ip"", ""trim-request"", ""uuid"", ""validator""]
+}",[],"[""expeditious-engine-redis"", ""nodemon"", ""nyc"", ""prettier-eslint"", ""remark-cli""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 21}",
+rest-api-nodejs-mongodb,https://github.com/maitraysuthar/rest-api-nodejs-mongodb,express,qwen2.5-coder:7b,raw,success,86049,5636,120,0.0,mistral:7b-instruct,False,True,0.2,5,1,True,1.0,33,0,True,1.0,1.0,0.1,0.7,True,0.0485,0.2597,0.2709,0.0,False,,,,,,,fabricated_technology,"{
+  ""overview"": ""This repository is a Node.js application using Express.js as the framework. It includes user authentication (registration, login, OTP verification) and book management (CRUD operations) functionalities. The application uses MongoDB for database operations and includes middleware for JWT authentication and validation."",
+  ""tech_stack"": [""JavaScript"", ""Express.js"", ""Mongoose"", ""bcrypt"", ""jsonwebtoken"", ""nodemailer""],
+  ""services"": [""HTTP server""],
+  ""dependencies"": [""express"", ""mongoose"", ""bcrypt"", ""jsonwebtoken"", ""nodemailer"", ""dotenv"", ""cors""]
+}",[],"[""Mongoose""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 21, ""Endpoint"": 10}",
+rest-api-nodejs-mongodb,https://github.com/maitraysuthar/rest-api-nodejs-mongodb,express,qwen2.5-coder:7b,dependency_graph,success,19104,597,171,0.0,mistral:7b-instruct,False,True,0.2,5,1,True,1.0,33,0,True,1.0,1.0,0.1,0.7,True,0.0263,0.1739,0.1503,0.0,False,,,,,,,fabricated_technology,"{
+  ""overview"": ""This repository appears to be a Node.js application with an Express.js framework, handling authentication and book-related operations. It uses MongoDB for data storage and includes middleware for JWT authentication and validation."",
+  ""tech_stack"": [""JavaScript"", ""Express.js"", ""Mongoose"", ""bcrypt"", ""jsonwebtoken"", ""express-jwt"", ""express-validator"", ""mongoose""],
+  ""services"": [""HTTP server""],
+  ""dependencies"": [""bcrypt"", ""chai"", ""chai-http"", ""codacy-coverage"", ""cookie-parser"", ""cors"", ""debug"", ""dotenv"", ""eslint"", ""express"", ""express-jwt"", ""express-validator"", ""jsonwebtoken"", ""mocha"", ""mocha-lcov-reporter"", ""moment"", ""mongoose"", ""morgan"", ""nodemailer"", ""nodemon"", ""nyc""]
+}",[],"[""Mongoose""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 21, ""Endpoint"": 10}",
+rest-api-nodejs-mongodb,https://github.com/maitraysuthar/rest-api-nodejs-mongodb,express,qwen2.5-coder:7b,knowledge_graph,success,15185,694,151,0.0,mistral:7b-instruct,False,True,0.0,5,0,True,1.0,33,0,True,1.0,1.0,0.1,0.7,True,0.0108,0.1724,0.0645,0.0,False,,,,,,,,"{
+  ""overview"": ""This repository is a Node.js application using the Express framework to handle HTTP requests. It includes authentication, book management, and email functionalities."",
+  ""tech_stack"": [""JavaScript"", ""Express"", ""bcrypt"", ""jsonwebtoken"", ""mongoose"", ""nodemailer""],
+  ""services"": [""HTTP server""],
+  ""dependencies"": [""bcrypt"", ""chai"", ""chai-http"", ""codacy-coverage"", ""cookie-parser"", ""cors"", ""debug"", ""dotenv"", ""eslint"", ""express"", ""express-jwt"", ""express-validator"", ""jsonwebtoken"", ""mocha"", ""mocha-lcov-reporter"", ""moment"", ""mongoose"", ""morgan"", ""nodemailer"", ""nodemon"", ""nyc""]
+}",[],[],"{""Framework"": 1, ""Language"": 1, ""Dependency"": 21, ""Endpoint"": 10}",
+express-sequelize-api-boilerplate,https://github.com/binitghetiya/express-sequelize-api-boilerplate,express,qwen2.5-coder:7b,raw,success,81859,5019,142,0.0,mistral:7b-instruct,False,True,0.5,6,3,True,1.0,37,0,True,1.0,0.1905,1.0,0.7302,True,0.0114,0.186,0.1359,0.0,False,,,,,,,"fabricated_technology,fabricated_technology,fabricated_technology","{
+  ""overview"": ""This repository is a Node.js application using Express.js as the framework. It includes routes for public and API endpoints, middleware for authentication and error handling, and a Sequelize ORM for database interactions. The application supports user registration, login, profile management, and password change functionalities."",
+  ""tech_stack"": [""JavaScript"", ""Express.js"", ""Sequelize"", ""JWT"", ""bcrypt"", ""dotenv"", ""Joi"", ""axios""],
+  ""services"": [""HTTP server""],
+  ""dependencies"": [""express"", ""dotenv"", ""body-parser"", ""cors"", ""sequelize"", ""bcrypt"", ""jsonwebtoken"", ""joi"", ""axios"", ""cluster"", ""chalk""]
+}",[],"[""Sequelize ORM for database interactions"", ""bcrypt"", ""chalk""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 30, ""Endpoint"": 5}",
+express-sequelize-api-boilerplate,https://github.com/binitghetiya/express-sequelize-api-boilerplate,express,qwen2.5-coder:7b,dependency_graph,success,22664,796,214,0.0,mistral:7b-instruct,False,True,0.25,4,1,True,1.0,37,0,True,1.0,0.1905,1.0,0.7302,True,0.0122,0.1519,0.097,0.0,False,,,,,,,fabricated_technology,"{
+  ""overview"": ""This repository appears to be a Node.js application using Express.js as the framework. It includes routes for public and admin access, user management, and error handling. The application uses Sequelize for ORM and MySQL2 for database interactions."",
+  ""tech_stack"": [""JavaScript"", ""Express.js"", ""Sequelize"", ""MySQL2""],
+  ""services"": [""HTTP server""],
+  ""dependencies"": [""@babel/core"", ""@babel/plugin-proposal-object-rest-spread"", ""@babel/plugin-transform-runtime"", ""@babel/preset-env"", ""@babel/register"", ""@babel/runtime"", ""axios"", ""babel-jest"", ""babel-loader"", ""body-parser"", ""cluster"", ""cors"", ""crypto"", ""dotenv"", ""eslint"", ""eslint-config-airbnb-base"", ""eslint-plugin-import"", ""express"", ""express-joi-validator"", ""express-validation"", ""http"", ""jest"", ""joi"", ""jsonwebtoken"", ""mock-express-response"", ""mysql2"", ""nodemon"", ""os"", ""sequelize"", ""sequelize-cli""]
+}",[],"[""This repository appears to be a Node.js application using Sequelize for ORM and MySQL2 for database interactions.""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 30, ""Endpoint"": 5}",
+express-sequelize-api-boilerplate,https://github.com/binitghetiya/express-sequelize-api-boilerplate,express,qwen2.5-coder:7b,knowledge_graph,success,20672,741,205,0.0,mistral:7b-instruct,False,True,0.4,5,2,True,1.0,37,0,True,1.0,0.1905,1.0,0.7302,True,0.0096,0.1846,0.0718,0.0,False,,,,,,,"fabricated_technology,fabricated_technology","{
+  ""overview"": ""This repository appears to be a Node.js application using Express as the framework. It includes user authentication, registration, password change, and user management functionalities."",
+  ""tech_stack"": [""JavaScript"", ""Express"", ""Sequelize"", ""MySQL2"", ""Joi"", ""jsonwebtoken""],
+  ""services"": [""HTTP server""],
+  ""dependencies"": [""@babel/core"", ""@babel/plugin-proposal-object-rest-spread"", ""@babel/plugin-transform-runtime"", ""@babel/preset-env"", ""@babel/register"", ""@babel/runtime"", ""axios"", ""babel-jest"", ""babel-loader"", ""body-parser"", ""cluster"", ""cors"", ""crypto"", ""dotenv"", ""eslint"", ""eslint-config-airbnb-base"", ""eslint-plugin-import"", ""express"", ""express-joi-validator"", ""express-validation"", ""http"", ""jest"", ""joi"", ""jsonwebtoken"", ""mock-express-response"", ""mysql2"", ""nodemon"", ""os"", ""sequelize"", ""sequelize-cli""]
+}",[],"[""Sequelize"", ""MySQL2""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 30, ""Endpoint"": 5}",
+api-design-node-v3,https://github.com/FrontendMasters/api-design-node-v3,express,qwen2.5-coder:7b,raw,success,85959,3608,124,0.0,mistral:7b-instruct,False,True,0.5,4,2,True,1.0,52,0,True,1.0,0.16,0.1818,0.4473,True,0.0131,0.2716,0.168,0.0,False,,,,,,,"fabricated_technology,fabricated_technology","{
+  ""overview"": ""This repository is a Node.js application using Express.js as the framework, MongoDB for the database, and Mongoose for ORM. It provides RESTful APIs for managing users, items, and lists, with authentication and authorization implemented using JWT."",
+  ""tech_stack"": [""JavaScript"", ""Express.js"", ""Mongoose"", ""MongoDB"", ""JWT""],
+  ""services"": [""HTTP server""],
+  ""dependencies"": [""babel-eslint"", ""cors"", ""express"", ""jest"", ""lodash"", ""mongoose"", ""bcrypt"", ""cuid"", ""prettier"", ""standard""]
+}",[],"[""MongoDB"", ""JWT""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 36, ""Endpoint"": 14}",
+api-design-node-v3,https://github.com/FrontendMasters/api-design-node-v3,express,qwen2.5-coder:7b,dependency_graph,success,24330,819,223,0.0,mistral:7b-instruct,False,True,0.25,4,1,True,1.0,52,0,True,1.0,0.16,0.1818,0.4473,True,0.0102,0.2222,0.0926,0.0,False,,,,,,,fabricated_technology,"{
+  ""overview"": ""This repository appears to be a Node.js application using Express.js as the framework. It includes routes for items and lists, user authentication, and database operations using Mongoose."",
+  ""tech_stack"": [""JavaScript"", ""Express.js"", ""Mongoose""],
+  ""services"": [""HTTP server""],
+  ""dependencies"": [""@babel/cli"", ""@babel/core"", ""@babel/plugin-proposal-class-properties"", ""@babel/plugin-proposal-object-rest-spread"", ""@babel/preset-env"", ""bcrypt"", ""body-parser"", ""cors"", ""cuid"", ""dotenv"", ""eslint"", ""eslint-config-prettier"", ""eslint-config-standard"", ""eslint-friendly-formatter"", ""eslint-loader"", ""eslint-plugin-import"", ""eslint-plugin-jest"", ""eslint-plugin-node"", ""eslint-plugin-prettier"", ""eslint-plugin-promise"", ""eslint-plugin-standard"", ""express"", ""jest"", ""jsonwebtoken"", ""lodash"", ""mock-req-res"", ""mongoose"", ""morgan"", ""nodemon"", ""prettier"", ""rimraf"", ""supertest"", ""validator""]
+}",[],"[""Mongoose""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 36, ""Endpoint"": 14}",
+api-design-node-v3,https://github.com/FrontendMasters/api-design-node-v3,express,qwen2.5-coder:7b,knowledge_graph,success,25984,777,239,0.0,mistral:7b-instruct,False,True,0.5,4,2,True,1.0,52,0,True,1.0,0.16,0.1818,0.4473,True,0.0102,0.2817,0.0926,0.0,False,,,,,,,"fabricated_technology,fabricated_technology","{
+  ""overview"": ""This repository appears to be a Node.js application using the Express framework for building a RESTful API. It includes user authentication, item management, and list management functionalities."",
+  ""tech_stack"": [""JavaScript"", ""Express"", ""bcrypt"", ""jsonwebtoken"", ""mongoose""],
+  ""services"": [""HTTP server""],
+  ""dependencies"": [""@babel/cli"", ""@babel/core"", ""@babel/plugin-proposal-class-properties"", ""@babel/plugin-proposal-object-rest-spread"", ""@babel/preset-env"", ""babel-core"", ""babel-eslint"", ""babel-jest"", ""bcrypt"", ""body-parser"", ""cors"", ""cuid"", ""dotenv"", ""eslint"", ""eslint-config-prettier"", ""eslint-config-standard"", ""eslint-friendly-formatter"", ""eslint-loader"", ""eslint-plugin-import"", ""eslint-plugin-jest"", ""eslint-plugin-node"", ""eslint-plugin-prettier"", ""eslint-plugin-promise"", ""eslint-plugin-standard"", ""express"", ""jest"", ""jsonwebtoken"", ""lodash"", ""mock-req-res"", ""mongoose"", ""morgan"", ""nodemon"", ""prettier"", ""rimraf"", ""supertest"", ""validator""]
+}",[],"[""item management"", ""list management""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 36, ""Endpoint"": 14}",
+https://github.com/lujakob/nestjs-realworld-example-app,https://github.com/lujakob/nestjs-realworld-example-app,,,,failed,0,0,0,0.0,mistral:7b-instruct,False,False,0.0,0,0,False,0.0,0,0,False,,,,,False,,,,,False,,,,,,,,,[],[],{},"Failed to clone https://github.com/lujakob/nestjs-realworld-example-app: Cmd('git') failed due to: exit code(128)
+  cmdline: git clone -v --depth=1 --single-branch -- https://github.com/lujakob/nestjs-realworld-example-app /tmp/repo-intel-khrvsi1o/nestjs-realworld-example-app
+  stderr: 'Cloning into '/tmp/repo-intel-khrvsi1o/nestjs-realworld-example-app'...
+fatal: unable to access 'https://github.com/lujakob/nestjs-realworld-example-app/': Could not resolve host: github.com
+'"
+https://github.com/notiz-dev/nestjs-prisma-starter,https://github.com/notiz-dev/nestjs-prisma-starter,,,,failed,0,0,0,0.0,mistral:7b-instruct,False,False,0.0,0,0,False,0.0,0,0,False,,,,,False,,,,,False,,,,,,,,,[],[],{},"Failed to clone https://github.com/notiz-dev/nestjs-prisma-starter: Cmd('git') failed due to: exit code(128)
+  cmdline: git clone -v --depth=1 --single-branch -- https://github.com/notiz-dev/nestjs-prisma-starter /tmp/repo-intel-mm6k9ct9/nestjs-prisma-starter
+  stderr: 'Cloning into '/tmp/repo-intel-mm6k9ct9/nestjs-prisma-starter'...
+fatal: unable to access 'https://github.com/notiz-dev/nestjs-prisma-starter/': Could not resolve host: github.com
+'"
+https://github.com/brocoders/nestjs-boilerplate,https://github.com/brocoders/nestjs-boilerplate,,,,failed,0,0,0,0.0,mistral:7b-instruct,False,False,0.0,0,0,False,0.0,0,0,False,,,,,False,,,,,False,,,,,,,,,[],[],{},"Failed to clone https://github.com/brocoders/nestjs-boilerplate: Cmd('git') failed due to: exit code(128)
+  cmdline: git clone -v --depth=1 --single-branch -- https://github.com/brocoders/nestjs-boilerplate /tmp/repo-intel-gpxt5mkj/nestjs-boilerplate
+  stderr: 'Cloning into '/tmp/repo-intel-gpxt5mkj/nestjs-boilerplate'...
+fatal: unable to access 'https://github.com/brocoders/nestjs-boilerplate/': Could not resolve host: github.com
+'"
+https://github.com/andrechristikan/ack-nestjs-boilerplate,https://github.com/andrechristikan/ack-nestjs-boilerplate,,,,failed,0,0,0,0.0,mistral:7b-instruct,False,False,0.0,0,0,False,0.0,0,0,False,,,,,False,,,,,False,,,,,,,,,[],[],{},"Failed to clone https://github.com/andrechristikan/ack-nestjs-boilerplate: Cmd('git') failed due to: exit code(128)
+  cmdline: git clone -v --depth=1 --single-branch -- https://github.com/andrechristikan/ack-nestjs-boilerplate /tmp/repo-intel-9svo1uk7/ack-nestjs-boilerplate
+  stderr: 'Cloning into '/tmp/repo-intel-9svo1uk7/ack-nestjs-boilerplate'...
+fatal: unable to access 'https://github.com/andrechristikan/ack-nestjs-boilerplate/': Could not resolve host: github.com
+'"
+https://github.com/NarHakobyan/awesome-nest-boilerplate,https://github.com/NarHakobyan/awesome-nest-boilerplate,,,,failed,0,0,0,0.0,mistral:7b-instruct,False,False,0.0,0,0,False,0.0,0,0,False,,,,,False,,,,,False,,,,,,,,,[],[],{},"Failed to clone https://github.com/NarHakobyan/awesome-nest-boilerplate: Cmd('git') failed due to: exit code(128)
+  cmdline: git clone -v --depth=1 --single-branch -- https://github.com/NarHakobyan/awesome-nest-boilerplate /tmp/repo-intel-92je1r_w/awesome-nest-boilerplate
+  stderr: 'Cloning into '/tmp/repo-intel-92je1r_w/awesome-nest-boilerplate'...
+fatal: unable to access 'https://github.com/NarHakobyan/awesome-nest-boilerplate/': Could not resolve host: github.com
+'"
+https://github.com/Sairyss/domain-driven-hexagon,https://github.com/Sairyss/domain-driven-hexagon,,,,failed,0,0,0,0.0,mistral:7b-instruct,False,False,0.0,0,0,False,0.0,0,0,False,,,,,False,,,,,False,,,,,,,,,[],[],{},"Failed to clone https://github.com/Sairyss/domain-driven-hexagon: Cmd('git') failed due to: exit code(128)
+  cmdline: git clone -v --depth=1 --single-branch -- https://github.com/Sairyss/domain-driven-hexagon /tmp/repo-intel-7lt3h540/domain-driven-hexagon
+  stderr: 'Cloning into '/tmp/repo-intel-7lt3h540/domain-driven-hexagon'...
+fatal: unable to access 'https://github.com/Sairyss/domain-driven-hexagon/': Could not resolve host: github.com
+'"
+https://github.com/arielweinberger/nestjs-recipe,https://github.com/arielweinberger/nestjs-recipe,,,,failed,0,0,0,0.0,mistral:7b-instruct,False,False,0.0,0,0,False,0.0,0,0,False,,,,,False,,,,,False,,,,,,,,,[],[],{},"Failed to clone https://github.com/arielweinberger/nestjs-recipe: Cmd('git') failed due to: exit code(128)
+  cmdline: git clone -v --depth=1 --single-branch -- https://github.com/arielweinberger/nestjs-recipe /tmp/repo-intel-wgf82udf/nestjs-recipe
+  stderr: 'Cloning into '/tmp/repo-intel-wgf82udf/nestjs-recipe'...
+fatal: unable to access 'https://github.com/arielweinberger/nestjs-recipe/': Could not resolve host: github.com
+'"
+https://github.com/monstar-lab-oss/nestjs-starter-rest-api,https://github.com/monstar-lab-oss/nestjs-starter-rest-api,,,,failed,0,0,0,0.0,mistral:7b-instruct,False,False,0.0,0,0,False,0.0,0,0,False,,,,,False,,,,,False,,,,,,,,,[],[],{},"Failed to clone https://github.com/monstar-lab-oss/nestjs-starter-rest-api: Cmd('git') failed due to: exit code(128)
+  cmdline: git clone -v --depth=1 --single-branch -- https://github.com/monstar-lab-oss/nestjs-starter-rest-api /tmp/repo-intel-pmpf0j_u/nestjs-starter-rest-api
+  stderr: 'Cloning into '/tmp/repo-intel-pmpf0j_u/nestjs-starter-rest-api'...
+fatal: unable to access 'https://github.com/monstar-lab-oss/nestjs-starter-rest-api/': Could not resolve host: github.com
+'"
+https://github.com/royib/clean-architecture-nestJS,https://github.com/royib/clean-architecture-nestJS,,,,failed,0,0,0,0.0,mistral:7b-instruct,False,False,0.0,0,0,False,0.0,0,0,False,,,,,False,,,,,False,,,,,,,,,[],[],{},"Failed to clone https://github.com/royib/clean-architecture-nestJS: Cmd('git') failed due to: exit code(128)
+  cmdline: git clone -v --depth=1 --single-branch -- https://github.com/royib/clean-architecture-nestJS /tmp/repo-intel-tcla2hu2/clean-architecture-nestJS
+  stderr: 'Cloning into '/tmp/repo-intel-tcla2hu2/clean-architecture-nestJS'...
+fatal: unable to access 'https://github.com/royib/clean-architecture-nestJS/': Could not resolve host: github.com
+'"
