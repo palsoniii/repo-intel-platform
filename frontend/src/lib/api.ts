@@ -134,7 +134,17 @@ export interface CompareResponse {
   runs: ComparisonRunResponse[];
 }
 
-export async function compareModels(url: string, models?: string[]): Promise<CompareResponse> {
+// The judge must not be one of the generators. Left unset, the backend falls back to
+// the provider default (qwen2.5-coder:7b), which IS a generator -- so the qwen arm
+// would grade its own summaries. REPORT.md 6.1 documents that self-judging reverses
+// the ranking of representations, so it is a correctness issue, not a preference.
+export const DEFAULT_JUDGE_MODEL = "mistral:7b-instruct";
+
+export async function compareModels(
+  url: string,
+  models?: string[],
+  judgeModel: string = DEFAULT_JUDGE_MODEL,
+): Promise<CompareResponse> {
   const data = await postJson<{
     repo_name: string;
     source_url: string;
@@ -164,7 +174,7 @@ export async function compareModels(url: string, models?: string[]): Promise<Com
       meteor: number | null;
       failure_tags: string[];
     }[];
-  }>("/compare", { url, models });
+  }>("/compare", { url, models, judge_model: judgeModel });
 
   return {
     repoName: data.repo_name,

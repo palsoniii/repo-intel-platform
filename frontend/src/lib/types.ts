@@ -10,7 +10,7 @@ export const CONTEXT_VARIANTS: { value: ContextVariant; label: string }[] = [
   { value: "knowledge_graph", label: "Full Neo4j context" },
 ];
 
-export const MODELS = ["qwen2.5-coder:7b", "codellama:7b-instruct", "deepseek-coder:6.7b-instruct"] as const;
+export const MODELS = ["qwen2.5-coder:7b", "codellama:7b-instruct", "gemma2:9b"] as const;
 export type ModelName = (typeof MODELS)[number];
 
 export interface RepoSummary {
