@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { mockAnalysis } from "../lib/mockData";
 import { CONTEXT_VARIANTS, type ContextVariant } from "../lib/types";
 import { compareModels, ApiError, type CompareResponse } from "../lib/api";
 
@@ -51,7 +50,7 @@ export default function ComparisonPage() {
   }
 
   const displayName = real?.repoName ?? repoName;
-  const rawRuns = real?.runs ?? mockAnalysis.comparisonRuns;
+  const rawRuns = real?.runs ?? [];
   const runs: NormalizedRun[] = rawRuns.map((r) => ({
     model: r.model,
     contextVariant: r.contextVariant,
@@ -112,17 +111,15 @@ export default function ComparisonPage() {
           {error}
         </p>
       )}
-      {!real && (
-        <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">
-          Showing placeholder data for {mockAnalysis.repoName} -- submit a URL above for the
-          real thing (real runs include live hallucination + coverage scores).
-        </p>
-      )}
 
       {/* Per-representation aggregates -- directly answer "which representation wins?"
           on each axis. Hallucination's best is the lowest average; coverage's best is
           the highest -- kept as two separate panels rather than one combined "winner"
           because the two metrics can (and do) disagree on which representation is best. */}
+      {runs.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <>
       <AggregatePanel
         title="Average hallucination by representation"
         hint="(mean across models, lower = better)"
@@ -191,6 +188,8 @@ export default function ComparisonPage() {
           </tbody>
         </table>
       </div>
+        </>
+      )}
     </div>
   );
 }
@@ -329,4 +328,25 @@ function bestRunKey(runs: NormalizedRun[]): string | null {
     (r.hallucinationScore as number) < (b.hallucinationScore as number) ? r : b,
   );
   return `${best.model}-${best.contextVariant}`;
+}
+
+// Shown until a real comparison has been run. This page previously fell back to
+// generated placeholder numbers whose hallucination scores decreased monotonically with
+// representation richness -- i.e. they encoded the hypothesis under test, complete with
+// "BEST" badges. The real measurements show no significant hallucination effect, so that
+// fallback displayed a result the data does not support. No fabricated numbers now.
+function EmptyState() {
+  return (
+    <div className="rounded-lg border border-dashed border-slate-300 p-8 text-center dark:border-slate-700">
+      <h3 className="mb-2 text-base font-medium text-slate-700 dark:text-slate-300">
+        No comparison run yet
+      </h3>
+      <p className="mx-auto max-w-lg text-sm text-slate-500 dark:text-slate-400">
+        Submit a repository URL above to run all 3 models across all 3 representations.
+        Nothing is shown until real measurements exist -- this page deliberately has no
+        sample data, because placeholder numbers on a metrics dashboard are
+        indistinguishable from findings.
+      </p>
+    </div>
+  );
 }
