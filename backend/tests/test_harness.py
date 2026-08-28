@@ -24,7 +24,15 @@ from app.schemas.llm_result import (
     ProviderName,
     RunStatus,
 )
-from app.schemas.parser_schema import ModuleNode, ParsedRepository, RepoMetadata
+from app.schemas.parser_schema import (
+    ApiEndpoint,
+    Dependencies,
+    ExternalDependency,
+    HttpMethod,
+    ModuleNode,
+    ParsedRepository,
+    RepoMetadata,
+)
 
 
 def _parsed(name="repo-a") -> ParsedRepository:
@@ -36,6 +44,20 @@ def _parsed(name="repo-a") -> ParsedRepository:
             detected_framework="express",
         )
     )
+
+
+def _parsed_with_facts(name="repo-a") -> ParsedRepository:
+    """Like _parsed(), but with real dependency/endpoint facts to check for a
+    non-empty facts_by_category (bare _parsed() has none, so category-breakdown
+    behavior can't be observed against it)."""
+    parsed = _parsed(name)
+    parsed.dependencies = Dependencies(
+        external=[ExternalDependency(name="express"), ExternalDependency(name="cors")]
+    )
+    parsed.api_endpoints = [
+        ApiEndpoint(id="ep_0", method=HttpMethod.GET, path="/users"),
+    ]
+    return parsed
 
 
 def _result(model: str, variant: ContextVariant, status=RunStatus.SUCCESS) -> LLMResult:
@@ -397,3 +419,78 @@ def test_diagram_not_scored_when_no_annotation(tmp_path):
 
     assert rows[0].diagram_scored is False
     assert rows[0].diagram_overall_f1 is None
+
+
+def test_summary_text_persisted_on_success():
+    result = _result("mistral:7b", ContextVariant.RAW)
+    result.output.raw_text = '{"overview": "a test summary"}'
+    with patch(
+        "app.evaluation.harness.run_representation_ablation",
+        return_value=(_parsed(), [result]),
+    ), patch(
+        "app.evaluation.harness.score_summary", side_effect=lambda p, pr, txt, v, judge_model: _scored(v)
+    ), patch(
+        "app.evaluation.harness.score_coverage",
+        side_effect=lambda p, pr, txt, v, judge_model: _scored_coverage(v),
+    ):
+        rows = run_evaluation(
+            ["https://github.com/test/repo-a"], judge_model="llama3.1:8b",
+            driver=MagicMock(), provider=MagicMock(),
+        )
+    assert rows[0].summary_text == '{"overview": "a test summary"}'
+
+
+def test_summary_text_empty_on_failed_generation():
+    results = [_result("mistral:7b", ContextVariant.RAW, status=RunStatus.FAILED)]
+    with patch(
+        "app.evaluation.harness.run_representation_ablation", return_value=(_parsed(), results)
+    ), patch("app.evaluation.harness.score_summary") as score_mock, patch(
+        "app.evaluation.harness.score_coverage"
+    ) as coverage_mock:
+        rows = run_evaluation(["u"], judge_model="llama3.1:8b", driver=MagicMock(), provider=MagicMock())
+    score_mock.assert_not_called()
+    coverage_mock.assert_not_called()
+    assert rows[0].summary_text == ""
+    assert rows[0].missing_facts_list == "[]"
+    assert rows[0].unsupported_claims_list == "[]"
+    assert rows[0].facts_by_category == "{}"
+
+
+def test_missing_and_unsupported_lists_are_json_encoded():
+    with patch(
+        "app.evaluation.harness.run_representation_ablation",
+        return_value=(_parsed(), [_result("mistral:7b", ContextVariant.RAW)]),
+    ), patch(
+        "app.evaluation.harness.score_summary", side_effect=lambda p, pr, txt, v, judge_model: _scored(v)
+    ), patch(
+        "app.evaluation.harness.score_coverage",
+        side_effect=lambda p, pr, txt, v, judge_model: _scored_coverage(v),
+    ):
+        rows = run_evaluation(
+            ["https://github.com/test/repo-a"], judge_model="llama3.1:8b",
+            driver=MagicMock(), provider=MagicMock(),
+        )
+    # _scored()/_scored_coverage() fixtures (see top of file) carry a MongoDB
+    # claim and a missed GET /users endpoint respectively.
+    assert json.loads(rows[0].unsupported_claims_list) == ["uses MongoDB"]
+    assert json.loads(rows[0].missing_facts_list) == ["Endpoint: GET /users"]
+
+
+def test_facts_by_category_reflects_parsed_repository():
+    with patch(
+        "app.evaluation.harness.run_representation_ablation",
+        return_value=(_parsed_with_facts(), [_result("mistral:7b", ContextVariant.RAW)]),
+    ), patch(
+        "app.evaluation.harness.score_summary", side_effect=lambda p, pr, txt, v, judge_model: _scored(v)
+    ), patch(
+        "app.evaluation.harness.score_coverage",
+        side_effect=lambda p, pr, txt, v, judge_model: _scored_coverage(v),
+    ):
+        rows = run_evaluation(
+            ["https://github.com/test/repo-a"], judge_model="llama3.1:8b",
+            driver=MagicMock(), provider=MagicMock(),
+        )
+    # _parsed_with_facts() has 2 external deps (express, cors), 1 endpoint, plus
+    # the detected framework/language _parsed() already sets (express/javascript).
+    by_category = json.loads(rows[0].facts_by_category)
+    assert by_category == {"Framework": 1, "Language": 1, "Dependency": 2, "Endpoint": 1}

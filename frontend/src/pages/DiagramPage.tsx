@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { mockAnalysis } from "../lib/mockData";
 import { getArchitectureDiagram, ApiError, type DiagramResponse } from "../lib/api";
 import MermaidDiagram from "../components/MermaidDiagram";
 
@@ -31,7 +30,7 @@ export default function DiagramPage() {
   }
 
   const displayName = real?.repoName ?? repoName;
-  const diagramMermaid = real?.diagramMermaid ?? mockAnalysis.diagramMermaid;
+  const diagramMermaid = real?.diagramMermaid ?? null;
 
   return (
     <div>
@@ -64,14 +63,29 @@ export default function DiagramPage() {
           {error}
         </p>
       )}
-      {!real && (
-        <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">
-          Showing placeholder data for {mockAnalysis.repoName} -- submit a URL above for the
-          real thing.
-        </p>
-      )}
 
-      <MermaidDiagram chart={diagramMermaid} />
+      {diagramMermaid ? (
+        <MermaidDiagram chart={diagramMermaid} />
+      ) : (
+        <EmptyDiagram />
+      )}
+    </div>
+  );
+}
+
+// Shown until a real diagram exists. This page previously fell back to a hand-written
+// Mermaid graph for a repo the user never submitted; it fabricated no metrics, but it
+// did present invented structure as though the parser had extracted it.
+function EmptyDiagram() {
+  return (
+    <div className="rounded-lg border border-dashed border-slate-300 p-8 text-center dark:border-slate-700">
+      <h3 className="mb-2 text-base font-medium text-slate-700 dark:text-slate-300">
+        No diagram yet
+      </h3>
+      <p className="mx-auto max-w-lg text-sm text-slate-500 dark:text-slate-400">
+        Submit a repository URL above. The diagram is generated deterministically from the
+        parser's output, so there is no meaningful sample to show without a real parse.
+      </p>
     </div>
   );
 }

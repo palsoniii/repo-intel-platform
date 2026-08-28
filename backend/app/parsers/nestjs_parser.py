@@ -18,6 +18,7 @@ arrays), or decorator factories beyond a single string-literal argument.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import tree_sitter_typescript as tsts
@@ -114,6 +115,7 @@ class NestJSParser(BaseParser):
             source_files = source_files[:MAX_FILES]
 
         parser = Parser(TS_LANGUAGE)
+        tsconfig_aliases = self._load_tsconfig_aliases(repo_path)
         # Keyed on the RESOLVED path: _resolve_imports() resolves its candidates, and on
         # macOS a clone under /var/folders resolves to /private/var/folders, so keying on
         # the unresolved path made every internal-import lookup miss silently.
@@ -140,7 +142,7 @@ class NestJSParser(BaseParser):
 
             imports = self._extract_imports(root, source_bytes)
             resolved_import_ids = self._resolve_imports(
-                imports, file_path, repo_path, path_to_module_id
+                imports, file_path, repo_path, path_to_module_id, tsconfig_aliases
             )
             for target_id in resolved_import_ids:
                 internal_deps.append(
@@ -243,21 +245,146 @@ class NestJSParser(BaseParser):
         current_file: Path,
         repo_path: Path,
         path_to_module_id: dict[Path, str],
+        tsconfig_aliases: "dict[str, list[str]] | None" = None,
     ) -> list[str]:
-        """Resolves relative import paths ('./users.service') to module ids.
-        Package imports ('@nestjs/common') are not resolved to module ids -- they
-        show up in `dependencies.external` via package.json instead."""
+        """Resolves relative import paths ('./users.service') to module ids, and
+        non-relative imports against tsconfig.json path aliases when one matches
+        (e.g. '@app/users' -> 'src/users' per compilerOptions.paths) -- common in
+        projects generated via the Nest CLI or laid out with a '@app/*'-style
+        alias instead of long relative chains. A non-relative import that matches
+        no alias is a real external package ('@nestjs/common') and is not
+        resolved to a module id -- it shows up in `dependencies.external` via
+        package.json instead."""
         resolved = []
+        tsconfig_aliases = tsconfig_aliases or {}
         for imp in raw_imports:
-            if not imp.startswith("."):
+            if imp.startswith("."):
+                candidate = (current_file.parent / imp).resolve()
+                for suffix in ("", ".ts", "/index.ts"):
+                    probe = Path(str(candidate) + suffix)
+                    if probe in path_to_module_id:
+                        resolved.append(path_to_module_id[probe])
+                        break
+            else:
+                target_id = self._resolve_ts_alias(imp, tsconfig_aliases, path_to_module_id)
+                if target_id is not None:
+                    resolved.append(target_id)
+        return resolved
+
+    def _load_tsconfig_aliases(self, repo_path: Path) -> dict[str, list[str]]:
+        """Reads compilerOptions.paths (resolved against baseUrl) from the
+        repo-root tsconfig.json, following a single 'extends' hop -- the common
+        case of a project tsconfig extending a shared base config. Handles JSONC
+        (comments, trailing commas), which is the Nest CLI's own default
+        tsconfig.json format. Scoped to one repo-root config rather than a full
+        monorepo-aware walk up the directory tree, consistent with this parser's
+        existing dataset-selection criteria, which already excludes nested
+        package.json monorepo structures (see the dataset construction docs).
+        The tsconfig-walk-and-alias-match approach here was informed by the
+        public resolution logic in Graphify (github.com/Graphify-Labs/graphify,
+        Apache-2.0), reimplemented independently against this project's own
+        data structures rather than ported."""
+        data = self._read_jsonc(repo_path / "tsconfig.json")
+        if data is None:
+            return {}
+
+        extends = data.get("extends")
+        parent_options: dict = {}
+        if isinstance(extends, str) and extends and not extends.startswith("@"):
+            parent_path = (repo_path / extends).resolve()
+            if not parent_path.suffix:
+                parent_path = parent_path.with_suffix(".json")
+            parent_data = self._read_jsonc(parent_path)
+            if parent_data is not None:
+                parent_options = parent_data.get("compilerOptions", {})
+
+        compiler_options = {**parent_options, **data.get("compilerOptions", {})}
+        base_url = (repo_path / (compiler_options.get("baseUrl") or ".")).resolve()
+
+        aliases: dict[str, list[str]] = {}
+        for alias, targets in compiler_options.get("paths", {}).items():
+            candidates = [str(base_url / t) for t in targets if isinstance(t, str) and t]
+            if candidates:
+                aliases[alias] = candidates
+        return aliases
+
+    @staticmethod
+    def _read_jsonc(path: Path) -> "dict | None":
+        """Parses a JSON file, falling back to stripping comments first --
+        tsconfig.json is JSONC by convention and plain json.loads rejects that.
+        Returns None for a missing, unreadable, or unparseable file, so a
+        malformed config degrades to "no aliases" rather than raising."""
+        if not path.exists():
+            return None
+        try:
+            raw = path.read_text(encoding="utf-8")
+        except OSError:
+            return None
+        for candidate in (raw, NestJSParser._strip_jsonc(raw)):
+            try:
+                parsed = json.loads(candidate)
+            except json.JSONDecodeError:
                 continue
-            candidate = (current_file.parent / imp).resolve()
+            return parsed if isinstance(parsed, dict) else None
+        return None
+
+    @staticmethod
+    def _strip_jsonc(text: str) -> str:
+        """Strips // line comments and /* */ block comments while leaving string
+        contents (including a // or /* that happens to appear inside a string)
+        untouched, then strips trailing commas before a closing } or ] -- the
+        Nest CLI's scaffolded tsconfig.json routinely has both, and plain
+        json.loads rejects either on its own."""
+        pattern = re.compile(r'"(?:\\.|[^"\\])*"' r"|/\*.*?\*/" r"|//[^\n]*", re.DOTALL)
+        without_comments = pattern.sub(
+            lambda m: m.group(0) if m.group(0).startswith('"') else "", text
+        )
+        return re.sub(r",(\s*[}\]])", r"\1", without_comments)
+
+    @staticmethod
+    def _match_alias(raw: str, pattern: str) -> "tuple[int, str] | None":
+        """Returns (specificity, captured-wildcard-text) if pattern matches raw,
+        else None. Exact aliases always outrank wildcard ones; among wildcards,
+        the longer prefix wins, matching TypeScript's own longest-prefix rule."""
+        if "*" in pattern:
+            if pattern.count("*") != 1:
+                return None
+            prefix, suffix = pattern.split("*", 1)
+            if not raw.startswith(prefix) or not raw.endswith(suffix):
+                return None
+            end = len(raw) - len(suffix) if suffix else len(raw)
+            if end < len(prefix):
+                return None
+            return len(prefix), raw[len(prefix):end]
+        if raw == pattern:
+            return len(pattern) + 1, ""  # +1: an exact match always beats any wildcard
+        return None
+
+    def _resolve_ts_alias(
+        self, raw: str, aliases: dict[str, list[str]], path_to_module_id: dict[Path, str]
+    ) -> "str | None":
+        """Resolves a non-relative import against the most specific matching
+        tsconfig alias pattern, trying each declared target in order (tsc itself
+        tries each until one exists on disk) and returning the first that
+        resolves to a known module."""
+        best: "tuple[int, str, list[str]] | None" = None
+        for pattern, targets in aliases.items():
+            match = self._match_alias(raw, pattern)
+            if match is None:
+                continue
+            specificity, captured = match
+            if best is None or specificity > best[0]:
+                best = (specificity, captured, targets)
+        if best is None:
+            return None
+        _, captured, targets = best
+        for target in targets:
+            candidate = Path(target.replace("*", captured, 1) if "*" in target else target)
             for suffix in ("", ".ts", "/index.ts"):
                 probe = Path(str(candidate) + suffix)
                 if probe in path_to_module_id:
-                    resolved.append(path_to_module_id[probe])
-                    break
-        return resolved
+                    return path_to_module_id[probe]
+        return None
 
     def _extract_classes(
         self, root: Node, source: bytes, module_id: str

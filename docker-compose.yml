@@ -50,7 +50,7 @@ services:
       OLLAMA_HOST: http://ollama:11434
       OLLAMA_MODEL_PRIMARY: qwen2.5-coder:7b
       OLLAMA_MODEL_FALLBACK: codellama:7b-instruct
-      OLLAMA_MODEL_DIVERSITY: deepseek-coder:6.7b-instruct
+      OLLAMA_MODEL_DIVERSITY: gemma2:9b
       OLLAMA_NUM_CTX: "8192"
     ports:
       - "8000:8000"

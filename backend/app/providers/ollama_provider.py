@@ -30,8 +30,20 @@ class OllamaProvider(BaseLLMProvider):
         num_ctx: Optional[int] = None,
         temperature: float = 0.0,
         seed: int = 42,
+        timeout: float = 900.0,
     ):
-        self._client = ollama.Client(host=host or os.environ.get("OLLAMA_HOST", DEFAULT_HOST))
+        # Request timeout. Without one, a genuinely wedged call (as opposed to a
+        # slow-but-finishing one) blocks forever and freezes the whole batch -- the
+        # failure mode that cost three multi-hour battery attempts. A generation that
+        # completes within the window is untouched; only a hung call is killed, and
+        # the harness records it as run_status=failed instead of hanging. Read from
+        # OLLAMA_TIMEOUT_S, same pattern as num_ctx below.
+        env_timeout = os.environ.get("OLLAMA_TIMEOUT_S")
+        self._timeout = float(env_timeout) if env_timeout else timeout
+        self._client = ollama.Client(
+            host=host or os.environ.get("OLLAMA_HOST", DEFAULT_HOST),
+            timeout=self._timeout,
+        )
         # Context window. Ollama defaults these models to ~2-4K tokens, which silently
         # truncates the larger raw-code context; set OLLAMA_NUM_CTX (or pass num_ctx) to
         # widen it. Left as None -> use the model's own default. When raising this, the

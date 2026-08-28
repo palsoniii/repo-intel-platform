@@ -1,57 +1,49 @@
-# Does Structured Repository Representation Improve LLM-Generated Codebase Summaries?
+# Grading the Grader: A Parser-Grounded Audit of LLM-as-Judge Coverage Metrics for Repository-Level Code Summarization
 
-**AI-Powered Repository Intelligence Platform — Capstone Report (working draft)**
+**AI-Powered Repository Intelligence Platform — Capstone Report**
 
-Status: results chapters complete and backed by a real evaluation run; related work
-and final framing still to be written by the team. Last updated 2026-08-24.
+Last updated 2026-08-28. Results chapters complete and backed by three independent
+measurements of the same 157 summaries: a deterministic oracle and two LLM judges.
 
-> **⚠️ Results in §5.1–§5.3 require re-measurement**, now for three compounding
-> reasons, not one:
-> 1. They were produced before three parser defects were fixed (see §5.4a). The most
->    consequential caused the parser to recover **zero internal import edges**, which
->    left the `dependency_graph` arm — one third of the ablation — almost
->    structurally empty.
-> 2. The evaluation dataset has since been expanded from 6 to **18 repositories**
->    (see §4.1a) for statistical power, and two further Express parser bugs were
->    found and fixed while building the new annotations (§5.4a).
-> 3. The metrics stack has been substantially expanded beyond hallucination/coverage
->    (see §4.2a): text-overlap metrics (BLEU-4/ROUGE-L/METEOR/BERTScore) against
->    reference summaries, a G-Eval rubric scorer, calibration, and formal paired
->    significance testing are all now implemented and tested, but have not yet been
->    run against live infrastructure -- that requires a running Ollama + Neo4j,
->    which this working environment does not have.
->
-> The primary result (§5.1) compares `knowledge_graph` against `raw` and is less
-> exposed to (1), but every number in §5.1–§5.3 must be regenerated under the new
-> 18-repo dataset and new metrics stack before being reported as findings. §5.4
-> reflects the fixed parser as of the original 6-repo set; it too needs re-running
-> against all 18. See Appendix A for the reproduction command.
+> **Reading note.** This report was originally framed around the question *"does
+> structured repository representation improve summaries?"* That question is answered
+> (§5.7), but it is no longer the primary contribution. During evaluation we found that
+> the coverage metric itself was measuring the judge's output formatting rather than the
+> summaries. §5.6 documents the defect, §4.7 the deterministic replacement, and §5.8 the
+> judge meta-evaluation. Sections 5.1–5.3 describe an early 6-repository pilot and are
+> retained for provenance only; **they are superseded by §5.5–§5.8 and should not be
+> cited as findings.**
 
 ---
 
 ## Abstract
 
-We investigate whether the *representation* of a source repository given to a large
-language model affects the factual faithfulness of the summary it produces. We built a
-pipeline that clones a JavaScript/TypeScript web-service repository, statically parses
-it with tree-sitter, materialises the result as a Neo4j knowledge graph, and renders
-three different context representations from the same underlying parse: **raw source
-text**, a **dependency graph**, and a **full knowledge graph**. Three locally hosted
-7–8B parameter models each summarise all six evaluation repositories under all three
-representations (54 runs). Faithfulness is scored by an LLM-as-judge that checks each
-claim against parser-extracted ground truth; critically, the judge is a **fourth model
-that is not one of the generators**, so no summary is ever graded by its own author.
+Evaluating repository-level code summaries requires knowing which facts a summary should
+have mentioned. A common design uses an LLM judge to check a generated summary against a
+fact list extracted by static analysis. We report a failure of this design that is
+invisible in ordinary use.
 
-Because between-repository variance is large, we analyse **paired** (repository, model)
-observations. The knowledge-graph representation yields more faithful summaries than raw
-source in **15 of 17 pairs (sign test, p = 0.002)**. Neither the dependency-graph vs.
-raw comparison (p = 0.454) nor the knowledge-graph vs. dependency-graph comparison
-(p = 0.302) reaches significance. We therefore support a narrow claim — *a full
-knowledge graph beats raw code* — and explicitly **do not** support the broader claim
-that faithfulness increases monotonically with structure. We further report that the
-metric is **judge-sensitive**: an earlier configuration in which one generator also
-served as judge reversed the ranking of representations, which we treat as a finding in
-its own right.
+Our harness asked the judge to name missing facts verbatim and discarded any response that
+did not match byte-for-byte; a discarded miss scored as *covered*. A judge that correctly
+identified every missing fact, phrased without the category prefix, therefore scored the
+summary 1.000 instead of 0.000 — the full dynamic range of the metric, inverted. Across 157
+summaries this produced a coverage score with 86.4% of rows at exactly 1.0 and **zero rank
+correlation with ground truth** (Spearman rho = -0.002, 95% CI [-0.136, +0.132]), and a
+fact-level balanced accuracy of **0.541** — chance — over 9,777 individual decisions.
+
+We isolate the cause with a controlled experiment: the **same judge model** re-scoring the
+**same stored summaries** under a corrected harness moves from rho = -0.002 to **+0.475**,
+from 18 distinct score values to 101, and from balanced accuracy 0.541 to 0.700. Only the
+parsing code changed. We identify the same structural vulnerability — the judge's returned
+list is never reconciled against the list it was asked about, and the discrepancy is
+neither counted nor surfaced — in two widely-used evaluation frameworks.
+
+We then replace the judge with a deterministic parser-grounded oracle requiring no human
+annotation, yielding 10,062 fact-level decisions across 157 summaries. Under the oracle,
+structured repository representations recover a large advantage over raw truncated source
+(0.169 -> 0.577; all contrasts p_holm <= 0.0022; matched-pairs rank-biserial -1.000 in five
+of six comparisons) at **11.7x the coverage per input token** and 65% of the latency. We
+release the oracle, the fact-level decisions, and all three judge runs.
 
 ---
 
@@ -79,15 +71,21 @@ the model with the task it is actually good at. This project tests that hypothes
 
 ### 1.3 Contributions
 
-1. A working, end-to-end pipeline (clone → parse → Neo4j → context → local LLM) that can
-   render three distinct representations from a single parse, holding everything else
-   constant.
-2. A deterministic architecture-diagram generator and a graph-diff scorer that grades
-   extracted structure against hand-written ground truth.
-3. An LLM-as-judge faithfulness metric grounded in *parser output* rather than human
-   preference, with an independent judge model.
-4. A full 54-run evaluation with a statistically supported primary result, and an
-   explicit, quantified account of where the methodology is fragile.
+1. **A documented failure mode of reference-matching LLM judges**, with an identified
+   mechanism, a controlled before/after experiment isolating it, and evidence that the same
+   vulnerability class is present in two widely-used evaluation frameworks (§5.6).
+2. **A deterministic, parser-grounded coverage oracle** that requires no human annotation
+   and produces 10,062 fact-level decisions, superseding the planned 24-row human
+   validation sample at roughly 400x the scale (§4.7).
+3. **A judge meta-evaluation** against that oracle covering three judge configurations,
+   reporting rank correlation, saturation, format compliance, and fact-level
+   sensitivity/specificity (§5.8).
+4. **A re-measured representation effect** with paired non-parametric tests, Holm
+   correction, effect sizes and bootstrap intervals, plus a token-efficiency result showing
+   structured context is Pareto-dominant on coverage, cost and latency (§5.7).
+5. A working end-to-end pipeline (clone -> parse -> Neo4j -> context -> local LLM) that
+   renders three representations from a single parse, holding everything else constant.
+6. A deterministic architecture-diagram generator and graph-diff scorer.
 
 ### 1.4 Scope
 
@@ -412,11 +410,61 @@ A **human-validation sample**: since none of the above replaces a real human pan
 G-Eval outputs for manual double-scoring before the paper claims judge-human
 agreement — see Appendix A for the planned command shape.
 
+### 4.7 The parser oracle (deterministic coverage)
+
+Coverage asks: *of the facts static analysis found, how many did the summary mention?* For
+most fact types this is not a judgement call but string matching with alias handling. The
+LLM judge was introduced to credit *indirect* mention; §5.6 shows its score was instead
+dominated by its string-formatting compliance.
+
+We therefore compute coverage deterministically. The oracle imports
+`build_coverable_facts()` — the **same** function that produced the judge's fact list — so
+oracle and judge scores are directly comparable per row.
+
+**Two tiers, both reported.** STRICT uses normalised exact identifier matching. LENIENT
+adds camelCase splitting, path-parameter wildcards and scope-stripped packages. The gap
+between them measures surface-form variation.
+
+| Fact category | Rule |
+|---|---|
+| `Framework: Express 4.18.2` | word-boundary match on the name; version optional |
+| `Language: TypeScript` | exact; `ts`/`js` abbreviations only in LENIENT |
+| `Dependency: @nestjs/common` | full scoped string. LENIENT may strip the scope but **must still require the sub-name** — bare `nestjs` would fire on every NestJS summary |
+| `Endpoint: GET /tasks/:id` | method adjacent to path; `:id`/`{id}`/`<id>` wildcarded. LENIENT allows path without method |
+| `Class/Service: TaskService` | case-sensitive word boundary; LENIENT adds camel-split |
+| `Database entity: User` | **case-sensitive** — `User` lowercased is too generic to be evidence |
+
+Word boundaries use lookarounds on a code-identifier character class rather than `\b`,
+which fails adjacent to `@`, `/` and `.`.
+
+**Hallucination oracle.** The inverse: candidate identifiers are extracted from the summary
+(backticked spans, route-like paths, PascalCase with >=2 humps, scoped packages, source
+filenames) and checked against the union of all parsed entities. A 160-term stoplist
+excludes generic vocabulary (`API`, `HTTP`, `controller`, `database`, ...) without which the
+extractor is noise. This yields **8.2 checkable identifiers per summary (max 79)** against
+the LLM judge's 4.78 claims (max 11), resolving the quantization that made the original
+faithfulness measurement underpowered — see §5.5.3, whose "null result" is better described
+as an underpowered instrument.
+
+**Cost.** Pure CPU, no network, under 60 seconds for all 157 summaries, and deterministic.
+
+**Relationship to human validation.** The original design reserved a 24-row sample for human
+adjudication. The oracle supersedes it at roughly 400x the scale while removing annotator
+variance. Its cost is a narrower construct — see §6.5.
+
 ---
 
 ## 5. Results
 
 ### 5.1 Primary result: knowledge graph beats raw source
+
+> **SUPERSEDED — provenance only.** Sections 5.1–5.3 report the early **6-repository**
+> pilot, scored by the coverage metric whose defect is documented in §5.6. Those numbers
+> measure the judge's output formatting as much as they measure the summaries, and **must
+> not be cited as findings**. The 18-repository results begin at §5.5; the corrected,
+> oracle-measured representation effect is §5.7. This section is retained so a reader can
+> see what the broken instrument reported before the defect was found.
+
 
 Paired sign test over (repository, model) observations, excluding unjudged rows:
 
@@ -674,15 +722,319 @@ this task at this scale. BERTScore was disabled (`--no-bertscore`).
 reproduce via `app.evaluation.stats.summarize_by_cell` and
 `compare_all_levels_within`, as in Appendix A.
 
+## 5.6 The coverage metric was measuring the judge, not the summaries
+
+### 5.6.1 The defect
+
+`backend/app/evaluation/coverage.py`, pre-fix `_parse_coverage_verdict`:
+
+```python
+facts_set = set(facts)
+for item in missing:
+    s = str(item).strip()
+    if s in facts_set and s not in seen:   # non-verbatim -> silently DROPPED
+        seen.append(s)
+```
+
+The judge names the facts a summary missed, copying each verbatim. Anything not matching
+byte-for-byte is discarded — and a discarded miss is scored as **covered**. There is no
+counter and no warning. `GET /tasks` instead of `Endpoint: GET /tasks` is sufficient. The
+prompt compounds it: *"When genuinely unsure, mark the fact as covered rather than
+missing."*
+
+| | resolved | coverage reported |
+|---|---|---|
+| original | 0/6 | **1.000** — a perfect summary |
+| fixed | 6/6 | **0.000** — correct |
+
+### 5.6.2 Evidence the cause is formatting, not leniency
+
+- **Bimodality.** `missing_facts` is 0 in 141/157 rows, otherwise 41–60; almost nothing
+  between. A lenient grader produces a smooth distribution. This is a bail-out cliff.
+  (Figure 1)
+- **Six of eighteen repositories score exactly 1.00 in all nine cells** — three writers x
+  three representations. Three different models writing three different representations do
+  not produce identically complete summaries. The metric is keying off the repository's
+  fact-string format, not the summary. (Figure 2, left panel)
+- Not a divide-by-zero: `total_facts` ranges 15–122.
+- A second defect: the parse-failure path writes `coverage_score = 0.0` with
+  `judged = False`. Three cells sit at exactly 0.00 and may be parse failures rather than
+  bad summaries. All analyses filter on `coverage_judged`.
+
+### 5.6.3 The controlled experiment
+
+The same judge model re-scoring the **same stored summaries** with the **same prompt**.
+Only the parsing code differs.
+
+| mistral:7b-instruct | rho vs oracle | 95% CI | % at 1.0 | distinct values | specificity | balanced accuracy |
+|---|---|---|---|---|---|---|
+| **original harness** | **-0.0019** | [-0.136, +0.132] | **86.4%** | 18 | 0.093 | **0.541** |
+| **fixed harness** | **+0.4746** | [+0.321, +0.617] | 18.1% | **101** | **0.654** | **0.700** |
+
+One code change moves the same judge from zero correlation with ground truth to
+rho = +0.475. Nothing about the model, the summaries or the prompt differs.
+
+### 5.6.4 The fix
+
+Canonicalise **both sides** and match against an index built from the actual fact list. The
+membership check is retained deliberately — the judge still cannot introduce a fact the
+parser did not find — but a non-verbatim rendering of a *real* fact now resolves, and
+anything that still fails to resolve is **counted and returned** rather than discarded.
+`unmatched_verdict_items` is reported as a judge format-compliance metric (§5.8).
+
+### 5.6.5 What the judge names that will not resolve
+
+`unmatched_verdict_items` totals **1,211 items across 155 rows** for mistral versus **66
+across 157 rows** for gemma2. Three distinct causes, which must not be conflated:
+
+**1. Notation mismatch — the judge was right and the harness discarded it.** The dominant
+cause (56.1% of sampled items). mistral answers with the fact's *list index*:
+
+```
+express-mongoose-es6-rest-api / codellama / raw   unmatched = 44 of 44 facts
+   '1'  '2'  '3'  '4'  '5' ...
+```
+
+The judge correctly identified that the summary missed **every** fact and expressed it as
+indices into the numbered list it was shown. The original code discarded all 44 and scored
+the summary **1.000**; the oracle scores it 0.114.
+
+**2. Corruption.** `'56. Endendpoint: POST /v1/users'` — a list number plus a mangled
+prefix on an otherwise real fact.
+
+**3. Genuine invention — correctly rejected.** `'sinon'`, `'supertest'`: plausible test
+libraries absent from the repository's fact list. The retained membership guard rejects
+these, which is precisely its purpose.
+
+**Index notation is model-specific: 56.1% of mistral's unmatched items, 0% of gemma2's.**
+Format compliance is a measurable model property that the original harness silently
+converted into score inflation.
+
+### 5.6.6 The fix is incomplete, and the residual is measurable
+
+Index notation is resolvable in principle — the prompt numbers the facts — but our
+canonicaliser does not resolve it. Consequently **23 of mistral's 155 rows still score
+exactly 1.000** under the fixed harness, and in every one the judge named the missing facts
+by index:
+
+| repository | variant | coverage | facts | unmatched |
+|---|---|---|---|---|
+| nestjs-realworld-example-app | raw | **1.000** | 82 | **82** |
+| domain-driven-hexagon | dependency_graph | **1.000** | 85 | 81 |
+| nestjs-boilerplate | knowledge_graph | **1.000** | 106 | 86 |
+| express-rest-boilerplate | raw | **1.000** | 57 | 57 |
+
+This is the original defect, still live, in miniature — visible in the right-hand panel of
+Figure 4 as a band of points pinned at y = 1.0. Resolving every index item would remove up
+to 954 further covered facts, so fixed-mistral's true correlation is **higher** than the
++0.475 reported.
+
+We report this residual rather than eliminating it. The claim — *the fix recovers most of
+the lost signal; the residual is measurable and its dominant cause is a notation the
+harness still does not accept* — is stronger than a claim of completeness, and the residual
+is only visible because unmatched items are now **counted** rather than discarded silently.
+That is the paper's central methodological point demonstrating itself on our own corrected
+code.
+
+### 5.6.7 The same vulnerability class in current tooling
+
+Our specific line of code is ours; the class of defect is not. In both frameworks below the
+score is computed over what the judge *returned* rather than over what it was *asked to
+assess*, with no reconciliation and no reporting of the discrepancy.
+
+**DeepEval**, `deepeval/metrics/faithfulness/faithfulness.py`:
+
+```python
+number_of_verdicts = len(self.verdicts)
+...
+score = faithfulness_count / number_of_verdicts
+```
+
+`_generate_verdicts` passes `claims=self.claims` to the judge; the returned verdicts are
+never matched back. The denominator is the judge's output length.
+
+**RAGAS**, `src/ragas/metrics/_faithfulness.py`:
+
+```python
+num_statements = len(answers.statements)
+score = faithful_statements / num_statements
+```
+
+Same shape; positional correspondence to the input statements is assumed without a length
+check.
+
+> We do **not** claim these frameworks contain our bug — the mechanisms differ. The claim
+> is that reference-matching judge designs share a vulnerability in which the score is
+> computed over what the judge chose to return rather than what it was asked to assess.
+> Source inspected 2026-08-27; pin the commit SHA before submission.
+
+---
+
+## 5.7 Oracle-measured representation effect
+
+| Representation | coverage (strict) | 95% CI (10k bootstrap) |
+|---|---|---|
+| `raw` | 0.169 | [0.133, 0.207] |
+| `dependency_graph` | **0.577** | [0.532, 0.620] |
+| `knowledge_graph` | 0.547 | [0.495, 0.600] |
+
+Paired Wilcoxon signed-rank within (repository, writer), Holm-Bonferroni across the family.
+All six raw-vs-structured contrasts are significant (p_holm <= 0.0022) with matched-pairs
+rank-biserial **-1.000 in five of six** — every repository moves the same direction. The
+effect holds independently for all three writers.
+
+**Honest null.** `dependency_graph` vs `knowledge_graph` is not significant in any
+comparison (p_holm 0.58–0.89). The cheaper representation is sufficient; the full knowledge
+graph buys nothing measurable here.
+
+### 5.7.1 Token efficiency
+
+| | cov/1k tokens | mean input tokens | mean latency |
+|---|---|---|---|
+| `raw` | 0.045 | 5,774 | 98.9 s |
+| `dependency_graph` | 0.524 | 2,116 | 85.3 s |
+| `knowledge_graph` | **0.526** | **1,569** | **64.6 s** |
+
+**11.7x more coverage per input token**, on 27% of the tokens, in 65% of the time —
+Pareto-dominant on all three axes (Figure 3). Comparable in magnitude to the ~10x token
+reduction reported for graph-based code exploration by Codebase-Memory (arXiv 2603.27277).
+
+### 5.7.2 Truncation is the research question, not a confound
+
+An earlier draft flagged the raw arm's 24,000-character cap as a confound advantaging the
+structured arms. **The measurements show the opposite.** The raw arm receives the *largest*
+input (5,774 tokens mean, max 8,164 — saturating `num_ctx=8192`) while the knowledge graph
+sits at 1,569 tokens, 19% of the window. Raw was given more budget and still lost.
+
+The honest framing is a compression question: *given a fixed context budget, which lossy
+compression of a repository preserves more answerable facts?* Raw truncation is the
+realistic baseline — it is what a tool without retrieval does.
+
+### 5.7.3 Hallucination: a corrected result and a weak instrument
+
+**A defect found by running the live pipeline, and its correction.** The candidate
+extractor treated `Node.js` as a source filename — the `file` pattern matches
+`<name>.js` — and flagged it as an identifier unsupported by the parse. That single gap
+produced **68 of 89 flags (76%)**. Correcting it (a capitalised stem plus a JS extension
+is prose, not a file reference) reverses the direction of the result:
+
+| Representation | before correction | **after correction** | 95% CI |
+|---|---|---|---|
+| `raw` | 0.2514 | **0.0229** | [0.0000, 0.0583] |
+| `dependency_graph` | 0.2671 | **0.0059** | [0.0000, 0.0173] |
+| `knowledge_graph` | 0.3120 (worst) | **0.0000** (best) | [0.0000, 0.0000] |
+
+The uncorrected numbers would have supported the claim that structured context causes
+*more* hallucination. The corrected numbers point the other way: the knowledge-graph arm
+produced **zero** unsupported identifiers across all 53 summaries, and raw the most —
+consistent with a model that sees a truncated slice of the repository having more room to
+invent. This is the same class of error as §5.6, in our own replacement metric, and we
+report it for the same reason.
+
+**The instrument is nonetheless weak, and no strong claim should rest on it.**
+
+- **77 of 157 summaries (49%) contain zero extractable identifiers**, so the rate is
+  undefined for half the corpus and scored 0.0 by convention.
+- Only **21 unsupported identifiers in 1,286 candidates (1.6%)** across the entire corpus.
+  The between-arm differences are differences between very small counts.
+- Every confidence interval includes zero.
+
+We therefore report the direction as suggestive and explicitly **do not** claim a
+significant hallucination effect. The coverage results (§5.7) carry the argument; this
+metric does not.
+
+---
+
+## 5.8 Judge meta-evaluation
+
+### 5.8.1 Row-level agreement with the oracle
+
+| Judge | n | rho | 95% CI | % at 1.0 | distinct |
+|---|---|---|---|---|---|
+| `mistral:7b-instruct` (original harness) | 154 | **-0.0019** | [-0.136, +0.132] | **86.4%** | 18 |
+| `mistral:7b-instruct` (fixed harness) | 155 | +0.4746 | [+0.321, +0.617] | 18.1% | 101 |
+| `gemma2:9b` (fixed harness) | 157 | **+0.6611** | [+0.500, +0.798] | 19.1% | 86 |
+| oracle (reference) | 157 | — | — | 0.0% | 87 |
+
+### 5.8.2 Fact-level confusion — the decisive analysis
+
+Reference is the oracle. *Specificity* asks: of the facts a summary genuinely missed, what
+fraction did the judge also flag as missing?
+
+| Judge | n facts | sensitivity | **specificity** | balanced accuracy |
+|---|---|---|---|---|
+| `mistral` (original) | 9,777 | 0.9876 | **0.0934** | **0.5405** |
+| `mistral` (fixed) | 9,858 | 0.7466 | 0.6540 | 0.7003 |
+| `gemma2` (fixed) | 10,062 | 0.8682 | **0.8032** | 0.8357 |
+
+**The original configuration's balanced accuracy is 0.54 — barely above chance — across
+9,777 decisions.** It detects 9% of genuinely missing facts. A judge blindly answering
+"covered" scores sensitivity 1.000 / specificity 0.000; the original configuration is close
+to that degenerate strategy.
+
+**Fixed-mistral (+0.475) still does not reach gemma2 (+0.661).** There is therefore a
+genuine judge-quality difference between the two models — but it was swamped by a much
+larger harness artifact. The original "judges disagree" observation was mostly instrument,
+partly real.
+
+### 5.8.3 This is not a good-judge / bad-judge story
+
+gemma2 correlates well overall, yet **12 of 110 rows disagree with the oracle by more than
+0.5**. Same repository, same writer:
+
+| | gemma2 | oracle |
+|---|---|---|
+| `dependency_graph` | **1.000** | 0.737 |
+| `knowledge_graph` | **0.088** | 0.737 |
+
+The oracle scores both summaries identically — they mention the same facts — while gemma2
+swings 11x. LLM judges vary enormously in reliability, and even the well-behaved one shows
+roughly 11% severe disagreements with ground truth.
+
+### 5.8.4 Inter-judge agreement, and what it does *not* show
+
+| | oracle | mistral (orig) | gemma2 | mistral (fixed) |
+|---|---|---|---|---|
+| oracle | 1.000 | -0.002 | 0.661 | 0.475 |
+| mistral (orig) | -0.002 | 1.000 | **-0.142** | 0.085 |
+| gemma2 | 0.661 | -0.142 | 1.000 | 0.352 |
+| mistral (fixed) | 0.475 | 0.085 | 0.352 | 1.000 |
+
+The two judges agree with **each other** (-0.142) *less* than the better judge agrees with
+the oracle (+0.661). This is **not** the correlated-error pattern reported for judge panels
+(arXiv 2605.29800): they are not making the same mistake with different calibration, they
+are measuring different things. Averaging them into a panel would produce noise rather than
+accuracy — an argument for a deterministic reference rather than for more votes.
+
+### 5.8.5 Self-preference is absent
+
+gemma2 is both a writer (51 rows) and a judge, so those rows are self-judged. Using the
+difficulty-controlled contrast (judge score **minus** oracle score on the same row):
+
+| | n | mean gap |
+|---|---|---|
+| self-judged | 50 | **+0.0387** |
+| non-self-judged | 106 | **+0.0595** |
+
+Mann-Whitney U, **p = 0.3297 — no significant self-preference.** gemma2 is if anything
+marginally *harsher* on its own output. Primary analysis nonetheless uses the 106
+non-self-judged rows. This measured null supersedes the concern raised in §6.2, which was
+based on an earlier configuration.
+
 ---
 
 ## 6. Threats to validity
 
-### 6.1 The metric is judge-sensitive (most serious)
+### 6.1 The coverage metric measured judge formatting (resolved; see §5.6)
 
-The choice of judge model changed the ranking of representations. Holding the generator
-(`qwen2.5-coder:7b`), repositories, prompts, and representations fixed, and varying only
-the judge:
+**This section previously described judge sensitivity as an unexplained threat. The cause
+is now identified, and it is the report's primary finding.** §5.6 documents the mechanism —
+non-verbatim judge output silently discarded and scored as covered — with a controlled
+experiment isolating it and a deterministic replacement metric (§4.7).
+
+The earlier pilot observation is retained here because it was the first symptom. Holding
+the generator (`qwen2.5-coder:7b`), repositories, prompts and representations fixed, and
+varying only the judge:
 
 | Representation | judge = llama3.1:8b | judge = gemma2:9b |
 |---|:---:|:---:|
@@ -690,12 +1042,17 @@ the judge:
 | dependency_graph | **0.061** (best) | **0.404** (worst) |
 | knowledge_graph | 0.231 | **0.261** (best) |
 
-Under the Llama judge, the dependency graph appears dramatically best; under the
-independent gemma2 judge, it appears worst. **A finding that reverses under a different
-judge is not a finding about representations.** We report the gemma2-judged results
-because that judge is independent of all generators, but the instability itself is a
-result: single-judge LLM-as-judge scores at this scale should not be treated as absolute
-measurements.
+At the time we concluded only that *"a finding that reverses under a different judge is not
+a finding about representations."* That conclusion was correct but incomplete: the
+instability was not an inherent property of LLM judging, it was a specific, fixable defect
+in our verdict parser. Judge choice still matters after the fix (§5.8.1: rho +0.475 vs
++0.661), but the dominant term was the harness.
+
+**Corroborating prior work.** Bias in the Loop (arXiv 2604.16790) reports that LLM judge
+decisions in software engineering are highly sensitive to prompt phrasing even when the code
+is unchanged, with effects large enough to reshape task-level conclusions. Our finding is
+complementary and mechanistically distinct: the sensitivity we identify arises in the
+*result-parsing code*, not the prompt, and is therefore invisible to prompt-level controls.
 
 ### 6.2 Self-judging masked the effect
 
@@ -739,67 +1096,150 @@ in this class of experiment.
 
 ---
 
+### 6.5 Construct validity of the oracle
+
+**The oracle cannot credit paraphrase.** "Manages the app's tasks" does not match
+`GET /tasks`. It is a **lower bound** and it systematically under-credits abstraction: a
+summary that *lists* identifiers outscores one that *explains* them better. The LLM judge
+existed precisely to credit indirect mention. STRICT and LENIENT tiers bound the effect, and
+`disagreement_sample.csv` holds 30 sampled oracle-judge disagreements for manual
+classification into genuine paraphrase versus judge error.
+
+**The question is narrower than the original**, from "does the summary convey the
+repository" to "does it contain the repository's identifiers." This must be stated plainly
+in any claim built on oracle numbers.
+
+**Direct evidence of the limit.** For `clean-architecture-nestJS` all nine summaries are
+textually distinct (nine distinct hashes, 307–1080 characters) yet all six structured cells
+credit the **identical 34 facts** — symmetric difference zero — while the raw cells credit
+1, 4 and 9. Two readings, both true:
+
+1. It *supports the causal claim*: the representation, not the model, determines what
+   reaches the summary. Three different models given the same digest produce the same
+   factual content.
+2. It *limits the interpretation*: the digest hands the model the identifier strings, and
+   the oracle rewards their presence. The supported claim is **"structured context causes
+   more repository facts to appear in the summary"**, not "the model understands the
+   repository better."
+
+No coverage metric of any kind — LLM or deterministic — can separate comprehension from
+copying. We report claim 1 as the result and claim 2 as its boundary.
+
+**The hallucination oracle over- and under-flags.** It over-flags generic vocabulary
+surviving the 160-term stoplist, and under-flags false claims made in prose that carry no
+identifier.
+
+### 6.6 Scope and prior art
+
+- 18 repositories, all JavaScript/TypeScript web services, all 7–9B local models at
+  `num_ctx=8192`, one machine. Cross-hardware validation remains blocked.
+- Writer-set heterogeneity: two code-specialised writers, one general-purpose. With n=1
+  general-purpose writer, model identity and model type are not separable.
+- Very large repositories break every model — `ack-nestjs-boilerplate` (601 modules) cost
+  rows across four models. Reproducible, and reported as a limitation of local 7–9B models.
+- **Prior art exists on LLM-judge unreliability**, including specifically for code
+  summarization (SE-Jury, arXiv 2505.20854; Bias in the Loop, arXiv 2604.16790). We do not
+  claim priority on that observation. The contributions are the identified mechanism, the
+  programmatic oracle, and the repository-level setting.
+- **The representation result is not novel in direction.** RepoGraph (ICLR 2025) and
+  CodexGraph (arXiv 2408.03910) establish that repository graph context helps. We report it
+  as what the corrected instrument recovers, not as a new claim.
+
+---
+
 ## 7. Outstanding work
 
-### 7.1 Evaluation set ratification
+### 7.1 Completed since the previous draft
 
-The six repositories above are a **candidate set**, assembled by vetting fourteen
-candidates and retaining those that parsed successfully and exhibited non-trivial
-structure. The project plan additionally calls for **two held-back repositories**,
-untouched until demonstration, to evidence genuine generalisation. Neither the fixed set
-nor the held-back set has been ratified by the team, and the held-back repositories have
-deliberately not been selected or examined — vetting them would defeat their purpose.
-Results in this report should be labelled as candidate-set results until that ratifica-
-tion occurs.
+| Previously listed as outstanding | Status |
+|---|---|
+| Re-run the battery against the fixed parser (was "highest priority") | **Done.** 18 repositories, 3 writers, 3 representations, 162 runs / 157 successful (§5.5). |
+| A second independent judge, to quantify judge variance | **Done.** Three judge configurations against a deterministic reference (§5.8). |
+| Human validation of judge verdicts on a sample | **Superseded**, not skipped. The 24-row human sample is replaced by 10,062 fact-level oracle decisions (§4.7). Its cost is a narrower construct (§6.5). |
+| Expansion of the repository set | **Done.** 6 -> 18 repositories. |
 
-### 7.2 Designated evaluation machine
+### 7.2 Genuinely outstanding
 
-All timed results must be reproduced on a single agreed machine before latency is
-reported as a finding (§6.4).
+**Index-notation resolution in the verdict parser.** The dominant residual failure mode
+(§5.6.6): 23 of 155 rows still score 1.000 because the judge answered with fact indices
+rather than fact text. The prompt numbers the facts, so this is resolvable — mapping
+integer verdict items back to their index would recover up to 954 further fact decisions.
+Deliberately left unfixed for this report so that the residual remains measurable and
+visible; it is the natural next change.
 
-### 7.3 Re-run the battery against the fixed parser
+**Evaluation set ratification.** The 18 repositories are a candidate set. The project plan
+calls for two held-back repositories, untouched until demonstration, to evidence genuine
+generalisation. Those have deliberately not been selected or examined. Results should be
+labelled candidate-set results until ratified.
 
-**This is now the highest-priority item.** The three defects in §5.4a are fixed, so the
-`dependency_graph` and `knowledge_graph` arms receive materially different input than
-they did during the reported run. §5.1–§5.3 must be regenerated before publication.
+**Designated evaluation machine.** All timed results (§5.7.1) come from one laptop with a
+4 GB GPU under CPU offload. Latency figures should be reproduced on an agreed machine
+before being reported as findings (§6.4). The *token* figures are hardware-independent and
+do not carry this caveat.
 
-Remaining parser work, none of it blocking:
+**Manual classification of the disagreement sample.** `disagreement_sample.csv` holds 30
+oracle-judge disagreements. Classifying each as genuine paraphrase versus judge error would
+bound the oracle's principal validity threat (§6.5). Roughly 30 minutes of human work — the
+only remaining task that genuinely requires a person.
 
-1. **Data-flow-driven route mounting** — would recover
-   `hagopj13/node-express-boilerplate`'s endpoints, the last structural failure (§5.4).
-2. **`@Module()` metadata** (`controllers`/`providers`/`imports` arrays) — would add
-   NestJS's actual DI wiring to the graph, currently absent.
-3. **Path aliases** (tsconfig/webpack `paths`) — not exercised by the current set, but
-   common in larger codebases.
+**Parser work, none of it blocking.** Data-flow-driven route mounting (would recover
+`hagopj13/node-express-boilerplate`'s endpoints); `@Module()` metadata for NestJS DI
+wiring; path aliases for larger codebases.
 
-### 7.4 Methodological strengthening
+**Cross-hardware validation.** Blocked — requires a second physical machine.
 
-- A second independent judge, to quantify judge variance directly rather than
-  observing it incidentally (§6.1).
-- Human validation of judge verdicts on a sample, to calibrate the over-flagging bias.
-- Expansion of the repository set to increase power.
+### 7.3 Deliberately not pursued
+
+**A larger judge panel.** The obvious response to unreliable judges is to add more. §5.8.4
+shows the two judges here agree with each other *less* than the better one agrees with the
+oracle, and panel members are known to contribute far less independent information than
+their number suggests (arXiv 2605.29800). A deterministic reference addresses the problem
+that more votes does not.
 
 ---
 
 ## 8. Conclusion
 
-Given a fixed model, prompt, and repository, replacing raw source text with a complete
-knowledge-graph representation produces measurably more faithful summaries: better in 15
-of 17 paired comparisons (p = 0.002), while consuming roughly half the input tokens. The
-effect is not, however, a simple function of "more structure" — an intermediate
-dependency-graph representation showed no significant benefit, and one of the three
-generators preferred raw source outright.
+We set out to test whether a more structured representation of a repository produces more
+factually complete summaries. Answering that question required first discovering that the
+instrument we were using to measure it did not work.
 
-Two secondary findings are arguably as valuable as the primary one. First, the
-LLM-as-judge metric proved **judge-sensitive** to the point of reversing the ranking of
-representations, which constrains how confidently any single-judge result in this area
-should be stated. Second, allowing a model to grade its own output **suppressed** the
-effect under study, providing concrete evidence for judge independence rather than
-merely theoretical argument.
+**The measurement finding.** Our coverage metric asked an LLM judge to name the facts a
+summary had missed, then discarded any response that did not match the fact list
+byte-for-byte — scoring each discarded miss as *covered*. The failure is silent: it emits
+plausible numbers rather than errors. Across 157 summaries it produced 86.4% perfect scores,
+zero rank correlation with ground truth (rho = -0.002), and a fact-level balanced accuracy
+of 0.541 — chance — over 9,777 decisions. Re-scoring the identical summaries with the
+identical judge model under a corrected parser moves that to rho = +0.475 and balanced
+accuracy 0.700. Only the parsing code changed. The same structural vulnerability — a
+judge's returned list never reconciled against the list it was asked about — is present in
+two widely-used evaluation frameworks.
 
-The pipeline's structural extraction is strong on module discovery and NestJS
-decorator-based routing, and weak on import resolution and route-prefix composition —
-weaknesses that are measured, documented, and directly actionable.
+**The replacement.** A deterministic parser-grounded oracle scores coverage without any
+model, producing 10,062 fact-level decisions and superseding the planned human-validation
+sample at roughly 400x its scale. Its cost is a narrower construct: it measures whether a
+summary *contains* the repository's identifiers, not whether it *conveys* the repository,
+and it cannot credit paraphrase. We state that limit rather than working around it.
+
+**The original question, answered with the corrected instrument.** Structured
+representations recover a large advantage over raw truncated source — 0.169 to 0.577, every
+paired contrast significant after Holm correction, with every repository moving the same
+direction in five of six comparisons — while using 27% of the input tokens and 65% of the
+latency, an 11.7x gain in coverage per token. The advantage is not monotonic in structure:
+a dependency graph performs as well as a full knowledge graph, so the cheaper
+representation suffices.
+
+**What we would tell someone building this.** Do not trust an LLM judge you have not
+validated against something that cannot agree with you out of politeness. Count what your
+parser discards; our defect was invisible for an entire evaluation cycle precisely because
+discarded items were never counted. And prefer a reference that is wrong in a fixed,
+inspectable way over one that is wrong in a way that changes with the phrasing of its
+input.
+
+The strongest evidence for that last point is in our own corrected code: 23 rows still
+score a perfect 1.000 because the judge answered with fact indices we still do not resolve.
+We can say so precisely, and quantify the residual, only because those items are now
+counted instead of dropped.
 
 ---
 
@@ -868,13 +1308,39 @@ code.
 
 ## Appendix B — Artefacts
 
+### Primary results (this report)
+
+| Artefact | Location | Contents |
+|---|---|---|
+| Stored summaries + original judge | `backend/evaluation_results/battery_v2.db` | 162 rows / 157 successful, with `summary_text` — enables re-judging without regeneration |
+| Oracle scores, per summary | `backend/evaluation_results/oracle_scores.csv` | 157 rows, STRICT and LENIENT tiers |
+| **Oracle decisions, per fact** | `backend/evaluation_results/fact_decisions.csv` | **10,062 rows** — the human-validation substitute |
+| gemma2 re-judge (fixed harness) | `backend/evaluation_results/rejudge_gemma2_9b.db` | 157/157, zero failures |
+| mistral re-judge (fixed harness) | `backend/evaluation_results/rejudge_mistral_7b-instruct.db` | 157/157, zero failures |
+| Representation statistics | `backend/evaluation_results/ORACLE_STATS.txt` | Wilcoxon + Holm, effect sizes, bootstrap CIs, efficiency |
+| Judge meta-evaluation | `backend/evaluation_results/T7_META_EVALUATION.txt` | §5.8 tables incl. fact-level confusion |
+| Residual analysis | `backend/evaluation_results/RESIDUAL_ANALYSIS.txt` | §5.6.6 index-notation breakdown |
+| Disagreement sample | `backend/evaluation_results/disagreement_sample.csv` | 30 oracle-judge disagreements awaiting manual classification (§6.5) |
+| Figures | `backend/evaluation_results/figures/*.png` | Bimodality, per-repo heatmap, Pareto, judge scatter |
+| Cached parses | `backend/evaluation_results/parse_cache/*.json` | 18 repositories; lets any re-judge run without network access |
+
+### Code
+
 | Artefact | Location |
 |---|---|
-| Per-arm result CSVs | `backend/evaluation_results/clean_{qwen,llama,mistral}.csv` |
-| Accumulated results database | `backend/evaluation_results/study_clean.db` |
-| Results summary and caveats | `backend/evaluation_results/RESULTS.md` |
-| Ground-truth annotations | `backend/annotations/*.json` |
-| Annotation conventions | `backend/annotations/README.md` |
+| **Deterministic oracle** | `backend/app/evaluation/oracle.py` |
+| Coverage scorer (fixed verdict parser) | `backend/app/evaluation/coverage.py` |
 | Faithfulness scorer | `backend/app/evaluation/hallucination.py` |
 | Graph-diff scorer | `backend/app/evaluation/diagram_score.py` |
 | Evaluation harness | `backend/app/evaluation/harness.py` |
+| Re-judge driver (any judge, no regeneration) | `rejudge.py` |
+| Ground-truth annotations | `backend/annotations/*.json` |
+| Annotation conventions | `backend/annotations/README.md` |
+
+### Superseded (retained for provenance)
+
+| Artefact | Location | Note |
+|---|---|---|
+| 6-repository pilot | `backend/evaluation_results/study_clean.db`, `clean_{qwen,llama,mistral}.csv` | Basis of §5.1–§5.3; superseded |
+| Run 1, 18 repos, gemma2 judge | `backend/evaluation_results/battery.db` | 108 rows. **Stores no `summary_text`**, so it cannot be re-judged or oracle-scored |
+| Human validation sample | `backend/evaluation_results/human_validation_sample.csv` | 24 rows, never filled in; superseded by `fact_decisions.csv` |

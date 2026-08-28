@@ -20,6 +20,7 @@ mean/CI/paired-test treatment.
 
 from __future__ import annotations
 
+import json
 from typing import Optional
 
 from pydantic import BaseModel
@@ -70,6 +71,115 @@ def summarize_by_cell(rows: list[Row], metric_field: str, group_fields: tuple[st
             )
         )
     return summaries
+
+
+def add_coverage_efficiency(
+    rows: list[Row],
+    coverage_field: str = "coverage_score",
+    token_field: str = "input_tokens",
+    out_field: str = "coverage_per_1k_input_tokens",
+    per_tokens: int = 1000,
+) -> list[Row]:
+    """Returns new row dicts with a derived `out_field`: how much coverage a
+    representation delivers per unit of input-token cost. Fuses the two
+    strongest results in the study (coverage improves with structure; structure
+    is also cheaper in input tokens) into one directly comparable number instead
+    of two separate claims a reader has to mentally combine -- e.g. 'structured
+    context delivers N times more coverage per 1,000 input tokens than raw'.
+    Pure arithmetic over fields every row already has; feed the result straight
+    into summarize_by_cell / compare_all_levels_within like any other metric.
+    Rows missing either field, or with token_field == 0, are passed through
+    unchanged (no out_field key), matching summarize_by_cell's existing
+    None-skipping behavior for a metric a row doesn't have."""
+    result: list[Row] = []
+    for row in rows:
+        new_row = dict(row)
+        coverage = row.get(coverage_field)
+        tokens = row.get(token_field)
+        if coverage is not None and tokens:
+            new_row[out_field] = round(float(coverage) / (float(tokens) / per_tokens), 4)
+        result.append(new_row)
+    return result
+
+
+class CategoryCoverageSummary(BaseModel):
+    group_key: tuple[str, ...]  # e.g. (model, context_variant)
+    category: str  # "Dependency", "Endpoint", "Class/Service", "Database entity", ...
+    n_rows: int
+    total_facts: int  # summed across the group's rows
+    missing_facts: int  # summed across the group's rows
+    coverage: float  # (total_facts - missing_facts) / total_facts; 1.0 if total_facts == 0
+
+
+def category_coverage_breakdown(
+    rows: list[Row], group_fields: tuple[str, ...] = ("model", "context_variant")
+) -> list[CategoryCoverageSummary]:
+    """Coverage broken out by fact category instead of one aggregate number per
+    row -- reads the `facts_by_category` (per-category totals) and
+    `missing_facts_list` (which specific facts were missing, category-prefixed
+    e.g. 'Dependency: express') JSON columns EvaluationRow now persists. Lets the
+    write-up say something sharper than 'coverage improves': whether structured
+    context's advantage is spread evenly across dependencies/endpoints/classes/
+    database entities, or concentrated in one category. Rows with missing or
+    unparseable JSON in either column are skipped for that row rather than
+    raising, consistent with this module's general "a bad row degrades the
+    sample size, not the whole computation" stance."""
+    # group_key -> category -> [total_facts_this_row, missing_facts_this_row, n_rows]
+    totals: dict[tuple[str, ...], dict[str, list[int]]] = {}
+
+    for row in rows:
+        key = tuple(str(row.get(f, "")) for f in group_fields)
+        try:
+            by_category: dict[str, int] = json.loads(row.get("facts_by_category") or "{}")
+            missing_list: list[str] = json.loads(row.get("missing_facts_list") or "[]")
+        except (TypeError, json.JSONDecodeError):
+            continue
+        if not isinstance(by_category, dict) or not isinstance(missing_list, list):
+            continue
+
+        missing_by_category: dict[str, int] = {}
+        for fact in missing_list:
+            category = str(fact).split(":", 1)[0]
+            missing_by_category[category] = missing_by_category.get(category, 0) + 1
+
+        for category, total in by_category.items():
+            bucket = totals.setdefault(key, {}).setdefault(category, [0, 0, 0])
+            bucket[0] += total
+            bucket[1] += missing_by_category.get(category, 0)
+            bucket[2] += 1
+
+    summaries = []
+    for key, by_category in sorted(totals.items()):
+        for category, (total_facts, missing_facts, n_rows) in sorted(by_category.items()):
+            coverage = (total_facts - missing_facts) / total_facts if total_facts > 0 else 1.0
+            summaries.append(
+                CategoryCoverageSummary(
+                    group_key=key, category=category, n_rows=n_rows,
+                    total_facts=total_facts, missing_facts=missing_facts,
+                    coverage=round(coverage, 4),
+                )
+            )
+    return summaries
+
+
+def diagram_f1_report(
+    rows: list[Row], group_fields: tuple[str, ...] = ("framework",)
+) -> dict[str, list[CellSummary]]:
+    """Mean +/- 95% CI for all four diagram graph-diff F1 fields
+    (module/import/endpoint/overall), grouped by `group_fields` (default:
+    framework, since the diagram is deterministic per repo and doesn't vary by
+    generator model or representation -- grouping by model would just repeat
+    the same numbers 3x). A thin convenience wrapper around summarize_by_cell,
+    which already handles these fields generically since they're plain floats
+    on EvaluationRow; exists so this specific, previously-unreported metric
+    family has one obvious call site rather than requiring a reader to
+    remember to call summarize_by_cell four separate times."""
+    return {
+        field: summarize_by_cell(rows, field, group_fields=group_fields)
+        for field in (
+            "diagram_module_f1", "diagram_import_f1", "diagram_endpoint_f1", "diagram_overall_f1",
+        )
+    }
 
 
 class PairedTestResult(BaseModel):

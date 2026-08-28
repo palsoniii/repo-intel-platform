@@ -117,3 +117,55 @@ def test_internal_imports_resolve_to_module_ids(parsed):
     assert users_module.id in app_module.imports
     edges = {(e.from_module_id, e.to_module_id) for e in parsed.dependencies.internal}
     assert (app_module.id, users_module.id) in edges
+
+
+ESM_FIXTURE_PATH = Path(__file__).parent / "fixtures" / "express-app-esm"
+
+
+@pytest.fixture
+def parsed_esm():
+    parser = ExpressParser()
+    assert parser.detect(ESM_FIXTURE_PATH) is True
+    return parser.parse(ESM_FIXTURE_PATH)
+
+
+def test_es_module_imports_are_resolved(parsed_esm):
+    """routes/posts.js is written in `import ... from` syntax rather than
+    require() -- before this fix, only require() calls were ever extracted, so a
+    file like this had an entirely empty imports list regardless of what it
+    actually imported."""
+    module_by_path = {m.path: m for m in parsed_esm.modules}
+    posts = module_by_path["routes/posts.js"]
+    post_service = module_by_path["services/postService.js"]
+    assert post_service.id in posts.imports
+    edges = {(e.from_module_id, e.to_module_id) for e in parsed_esm.dependencies.internal}
+    assert (posts.id, post_service.id) in edges
+
+
+def test_es_module_file_still_gets_its_mount_prefix(parsed_esm):
+    """The ESM-style file's own routes must still resolve through the normal
+    require()-based mount chain (app.js requires and mounts it via CommonJS) --
+    ESM import support is additive, not a replacement for require() handling."""
+    routes = {(ep.method, ep.path) for ep in parsed_esm.api_endpoints}
+    assert (HttpMethod.GET, "/api/posts") in routes
+
+
+MOUNT_CHAIN_FIXTURE_PATH = Path(__file__).parent / "fixtures" / "express-app-mount-chain"
+
+
+@pytest.fixture
+def parsed_mount_chain():
+    parser = ExpressParser()
+    assert parser.detect(MOUNT_CHAIN_FIXTURE_PATH) is True
+    return parser.parse(MOUNT_CHAIN_FIXTURE_PATH)
+
+
+def test_multi_hop_mount_prefix_composes_fully(parsed_mount_chain):
+    """app.js mounts routes/api.js at /api; routes/api.js itself mounts
+    routes/v1/health.js at /v1 -- a two-hop chain. Before this fix, the flat
+    module_id -> prefix map had no way to know routes/api.js was itself mounted
+    anywhere, so this endpoint resolved to just /v1/ping instead of the full
+    /api/v1/ping a client would actually call."""
+    routes = {(ep.method, ep.path) for ep in parsed_mount_chain.api_endpoints}
+    assert (HttpMethod.GET, "/api/v1/ping") in routes
+    assert (HttpMethod.GET, "/v1/ping") not in routes

@@ -1,0 +1,66 @@
+==============================================================================
+T4 -- ORACLE-MEASURED REPRESENTATION EFFECT
+==============================================================================
+rows=157  repos=18  writers=3
+Metric: oracle_coverage_strict (deterministic, no judge involved)
+
+------------------------------------------------------------------------------
+DESCRIPTIVES  (bootstrap 95% CI, 10k resamples)
+------------------------------------------------------------------------------
+  STRICT tier:
+    raw                n= 53  mean=0.1689  95% CI [0.1333, 0.2065]  sd=0.1368
+    dependency_graph   n= 51  mean=0.5765  95% CI [0.5316, 0.6198]  sd=0.1604
+    knowledge_graph    n= 53  mean=0.5472  95% CI [0.4953, 0.5996]  sd=0.1960
+
+  LENIENT tier:
+    raw                n= 53  mean=0.2089  95% CI [0.1709, 0.2497]  sd=0.1471
+    dependency_graph   n= 51  mean=0.6204  95% CI [0.5705, 0.6694]  sd=0.1808
+    knowledge_graph    n= 53  mean=0.5901  95% CI [0.5322, 0.6481]  sd=0.2149
+
+------------------------------------------------------------------------------
+PAIRED CONTRASTS -- Wilcoxon signed-rank, paired within (repo, writer)
+------------------------------------------------------------------------------
+  comparison                                       n   mean_A   mean_B     p_raw    p_holm rank-biserial
+  POOLED | raw vs knowledge_graph                 52   0.1718   0.5511   0.00000   0.00000  r=-0.998 *
+  POOLED | raw vs dependency_graph                50   0.1768   0.5865   0.00000   0.00000  r=-1.000 *
+  codellama | raw vs dependency_graph             17   0.1081   0.5623   0.00002   0.00015  r=-1.000 *
+  codellama | raw vs knowledge_graph              18   0.1035   0.5371   0.00002   0.00015  r=-0.988 *
+  gemma2 | raw vs knowledge_graph                 17   0.1779   0.5947   0.00002   0.00015  r=-1.000 *
+  qwen2.5-coder | raw vs dependency_graph         17   0.2380   0.5881   0.00002   0.00015  r=-1.000 *
+  gemma2 | raw vs dependency_graph                16   0.1849   0.6105   0.00003   0.00018  r=-1.000 *
+  qwen2.5-coder | raw vs knowledge_graph          17   0.2380   0.5223   0.00044   0.00219  r=-1.000 *
+  gemma2 | dependency_graph vs knowledge_graph    16   0.6105   0.6071   0.14413   0.57651  r=+0.800  
+  qwen2.5-coder | dependency_graph vs knowledge_graph  18   0.5595   0.5124   0.17630   0.57651  r=+0.571  
+  POOLED | dependency_graph vs knowledge_graph    51   0.5765   0.5606   0.21460   0.57651  r=+0.353  
+  codellama | dependency_graph vs knowledge_graph  17   0.5623   0.5677   0.89274   0.89274  r=-0.067  
+
+  * = significant after Holm-Bonferroni at alpha=.05
+  mean_A is the FIRST variant named; positive rank-biserial favours it.
+
+------------------------------------------------------------------------------
+TOKEN EFFICIENCY -- oracle coverage per 1,000 input tokens
+------------------------------------------------------------------------------
+  variant                n     cov/1k                 95% CI    mean_tok     mean_ms
+  raw                   53     0.0451   [0.0294, 0.0638]        5774       98885
+  dependency_graph      50     0.5237   [0.4172, 0.6349]        2116       85289
+  knowledge_graph       53     0.5260   [0.4344, 0.6205]        1569       64561
+
+  knowledge_graph is 11.7x more token-efficient than raw.
+  dependency_graph is 11.6x more token-efficient than raw.
+
+------------------------------------------------------------------------------
+MISTRAL JUDGE vs ORACLE -- resolution comparison, same 157 summaries
+------------------------------------------------------------------------------
+  n=154 paired rows
+  mistral   mean=0.9455  distinct values=18  at 1.0: 133 (86.4%)
+  oracle    mean=0.4334  distinct values=85  at 1.0: 0 (0.0%)
+  Spearman rho = -0.0019 (p=0.9811)
+  Kendall  tau = +0.0012 (p=0.9853)
+
+------------------------------------------------------------------------------
+HALLUCINATION ORACLE -- unsupported identifier rate
+------------------------------------------------------------------------------
+  raw                n= 53 mean=0.0229  95% CI [0.0000, 0.0583]
+  dependency_graph   n= 51 mean=0.0059  95% CI [0.0000, 0.0173]
+  knowledge_graph    n= 53 mean=0.0000  95% CI [0.0000, 0.0000]
+

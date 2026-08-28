@@ -1,0 +1,54 @@
+==============================================================================
+GRANITE-WRITER ARM -- all-code writers, gemma2:9b judge (battery_v3)
+==============================================================================
+rows=54  success=53  repos=18
+  FAILED: nestjs-boilerplate / dependency_graph
+
+------------------------------------------------------------------------------
+COVERAGE (gemma2 judge, fixed harness)
+------------------------------------------------------------------------------
+  raw                n=18  mean=0.1406  95% CI [0.0784, 0.2119]  distinct=16
+  dependency_graph   n=17  mean=0.6837  95% CI [0.5287, 0.8329]  distinct=12
+  knowledge_graph    n=18  mean=0.6178  95% CI [0.4602, 0.7664]  distinct=14
+
+  contrast                                 n   mean_A   mean_B     p_raw    p_holm rank-bis
+  raw vs dependency_graph                 17   0.1373   0.6837   0.00078   0.00233  r=-0.956 *
+  raw vs knowledge_graph                  18   0.1406   0.6178   0.00085   0.00233  r=-0.922 *
+  dependency_graph vs knowledge_graph     17   0.6837   0.6474   0.49896   0.49896  r=+0.286
+
+------------------------------------------------------------------------------
+TOKEN EFFICIENCY
+------------------------------------------------------------------------------
+  variant                   n cov/1k tok  mean_tokens      mean_ms
+  raw                      18     0.0344         5748        54580
+  dependency_graph         17     0.4884         2226        78424
+  knowledge_graph          18     0.5077         1664        68214
+  dependency_graph is 14.2x more token-efficient than raw
+  knowledge_graph is 14.7x more token-efficient than raw
+
+------------------------------------------------------------------------------
+ORACLE (deterministic) ON THE SAME GRANITE SUMMARIES
+------------------------------------------------------------------------------
+  raw                n=18  mean=0.1341  95% CI [0.0779, 0.2007]
+  dependency_graph   n=17  mean=0.5768  95% CI [0.5074, 0.6479]
+  knowledge_graph    n=18  mean=0.5800  95% CI [0.5153, 0.6439]
+
+  raw vs dependency_graph                n=17 0.1370 vs 0.5768  p_holm=0.00005  r=-1.000 *
+  raw vs knowledge_graph                 n=18 0.1341 vs 0.5800  p_holm=0.00039  r=-1.000 *
+  dependency_graph vs knowledge_graph    n=17 0.5768 vs 0.5908  p_holm=0.46521  r=-0.400
+
+------------------------------------------------------------------------------
+REPLICATION CHECK vs THE MAIN STUDY
+------------------------------------------------------------------------------
+  main study (battery_v2): 3 writers = qwen-coder, codellama, gemma2 (general)
+                           judge = mistral;  oracle-measured representation effect
+  granite arm (battery_v3): 3 writers = qwen-coder, codellama, granite-code (all code)
+                            judge = gemma2 (selected empirically, rho=+0.661 vs oracle)
+
+  variant             main (oracle) granite (judge)
+  raw                        0.1689         0.1406
+  dependency_graph           0.5765         0.6837
+  knowledge_graph            0.5472         0.6178
+
+  The confound removal (no general-purpose writer, no self-judging) does not
+  change the direction or rough magnitude of the effect.

@@ -21,6 +21,7 @@ hallucination's claim count is.
 from __future__ import annotations
 
 import json
+import re
 from typing import Optional
 
 from pydantic import BaseModel
@@ -74,6 +75,12 @@ class CoverageResult(BaseModel):
     coverage_score: float  # covered / total; 1.0 = every fact mentioned
     judged: bool  # False if the judge's output couldn't be parsed into the expected shape
     judge_raw_output: str
+    # Judge format-compliance telemetry. unmatched_verdict_items counts entries the
+    # judge named as missing that could not be resolved to any known fact even after
+    # canonicalisation. Before the T1 fix these were dropped SILENTLY and every drop
+    # inflated coverage. This count is a reported metric, not just debug output.
+    unmatched_verdict_items: int = 0
+    unmatched_samples: list[str] = []
 
 
 def build_coverable_facts(parsed: ParsedRepository, max_items: int = 40) -> list[str]:
@@ -98,6 +105,20 @@ def build_coverable_facts(parsed: ParsedRepository, max_items: int = 40) -> list
     facts.extend(f"Database entity: {d.name}" for d in parsed.database_entities[:max_items])
 
     return facts
+
+
+def categorize_facts(facts: list[str]) -> dict[str, int]:
+    """Buckets a fact list (as returned by build_coverable_facts) by its category
+    prefix -- the text before the first ': ', e.g. 'Dependency: express' ->
+    'Dependency'. Used to report coverage broken out by fact type (dependencies,
+    endpoints, classes, database entities) rather than only as one aggregate
+    number, which hides whether structured context's advantage is spread evenly
+    or concentrated in a specific category."""
+    counts: dict[str, int] = {}
+    for fact in facts:
+        category = fact.split(":", 1)[0]
+        counts[category] = counts.get(category, 0) + 1
+    return counts
 
 
 def score_coverage(
@@ -141,8 +162,13 @@ def score_coverage(
         task=LLMTask.COVERAGE_JUDGE,
     )
 
-    missing = _parse_coverage_verdict(result.output.raw_text, facts)
-    if missing is None:
+    verdict = _parse_coverage_verdict(result.output.raw_text, facts)
+    if verdict is None:
+        # PARSE FAILURE -- the judge's output was not the expected JSON shape.
+        # coverage_score is written as 0.0 only because the field is non-optional;
+        # it is NOT a measurement. Every analysis MUST filter on `judged` / the
+        # persisted `coverage_judged` column before aggregating, or these rows will
+        # be read as genuinely uncovered summaries and drag every mean down.
         return CoverageResult(
             repo_name=parsed.metadata.name,
             context_variant=context_variant,
@@ -154,6 +180,7 @@ def score_coverage(
             judge_raw_output=result.output.raw_text,
         )
 
+    missing, unmatched = verdict
     score = (len(facts) - len(missing)) / len(facts)
     return CoverageResult(
         repo_name=parsed.metadata.name,
@@ -164,10 +191,46 @@ def score_coverage(
         coverage_score=round(score, 4),
         judged=True,
         judge_raw_output=result.output.raw_text,
+        unmatched_verdict_items=len(unmatched),
+        unmatched_samples=unmatched[:5],
     )
 
 
-def _parse_coverage_verdict(raw_text: str, facts: list[str]) -> Optional[list[str]]:
+def _canon(s: str) -> str:
+    """Canonical form for matching a judge's fact string against the known fact list.
+
+    Aggressive normalisation is safe here because the result is still looked up in an
+    index built from the ACTUAL fact list -- the judge can never introduce a fact the
+    parser did not find. This closes the formatting hole without re-opening the
+    fact-invention hole the original exact-match guard existed to close.
+    """
+    s = s.strip().strip("`'\" ")
+    s = re.sub(r"^\s*\d+[.)]\s*", "", s)        # strip "12. " list numbering
+    s = s.lower()
+    s = re.sub(r"[^a-z0-9/:@._-]+", " ", s)      # keep code-ish characters
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def _build_fact_index(facts: list[str]) -> dict[str, str]:
+    """Two keys per fact -> the canonical fact string.
+
+    1. the whole fact:                        'endpoint: get /tasks'
+    2. the value after the category prefix:   'get /tasks'
+
+    Key 2 catches the dominant failure mode: judges that answer with the identifier
+    but drop the 'Endpoint: ' category prefix.
+    """
+    idx: dict[str, str] = {}
+    for f in facts:
+        idx.setdefault(_canon(f), f)
+        if ":" in f:
+            idx.setdefault(_canon(f.split(":", 1)[1]), f)
+    return idx
+
+
+def _parse_coverage_verdict(
+    raw_text: str, facts: list[str]
+) -> Optional[tuple[list[str], list[str]]]:
     """Returns the list of missing facts, or None if the judge's output isn't the
     expected JSON shape. Local models sometimes wrap JSON in prose or code fences, so
     a bare json.loads isn't enough -- extract the first JSON object, same approach as
@@ -187,13 +250,19 @@ def _parse_coverage_verdict(raw_text: str, facts: list[str]) -> Optional[list[st
     if not isinstance(missing, list):
         return None
 
-    # Keep only entries that are exact matches from the fact list we actually asked
-    # about, deduplicated -- guards against the judge inventing or rewording a fact
-    # instead of copying it verbatim, which would otherwise corrupt the score.
-    facts_set = set(facts)
+    # Resolve each entry to a known fact via canonicalisation, deduplicated. The
+    # membership check is DELIBERATELY RETAINED: we only ever return strings that are
+    # already in `facts`, so the judge still cannot invent a fact. What changed is that
+    # a non-verbatim rendering of a REAL fact ("GET /tasks" for "Endpoint: GET /tasks")
+    # now resolves instead of being silently dropped -- and anything that still fails to
+    # resolve is COUNTED and returned rather than discarded in silence.
+    idx = _build_fact_index(facts)
     seen: list[str] = []
+    unmatched: list[str] = []
     for item in missing:
-        s = str(item).strip()
-        if s in facts_set and s not in seen:
-            seen.append(s)
-    return seen
+        fact = idx.get(_canon(str(item)))
+        if fact is None:
+            unmatched.append(str(item)[:120])
+        elif fact not in seen:
+            seen.append(fact)
+    return seen, unmatched

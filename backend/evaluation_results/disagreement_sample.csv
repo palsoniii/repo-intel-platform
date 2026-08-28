@@ -1,0 +1,31 @@
+repo_name,model,context_variant,fact,category
+express-rest-boilerplate,gemma2:9b,dependency_graph,Endpoint: PUT /v1/users/:userId,Endpoint
+awesome-nest-boilerplate,codellama:7b-instruct,raw,Class/Service: PageMetaDto,Class/Service
+express-mongoose-es6-rest-api,codellama:7b-instruct,dependency_graph,Endpoint: GET /api/users,Endpoint
+nestjs-boilerplate,codellama:7b-instruct,dependency_graph,Class/Service: AuthFacebookModule,Class/Service
+express-rest-boilerplate,gemma2:9b,dependency_graph,Endpoint: POST /v1/auth/register,Endpoint
+node-express-boilerplate,qwen2.5-coder:7b,dependency_graph,Endpoint: POST /register,Endpoint
+awesome-nest-boilerplate,gemma2:9b,dependency_graph,Class/Service: AbstractDto,Class/Service
+ack-nestjs-boilerplate,qwen2.5-coder:7b,dependency_graph,Class/Service: DatabaseUtil,Class/Service
+awesome-nest-boilerplate,codellama:7b-instruct,dependency_graph,Endpoint: GET /auth/me,Endpoint
+ack-nestjs-boilerplate,qwen2.5-coder:7b,dependency_graph,Endpoint: GET /health/database,Endpoint
+nestjs-boilerplate,codellama:7b-instruct,dependency_graph,Endpoint: POST /auth/email/confirm/new,Endpoint
+nestjs-starter-rest-api,gemma2:9b,knowledge_graph,Class/Service: AppModule,Class/Service
+domain-driven-hexagon,gemma2:9b,knowledge_graph,Endpoint: POST /,Endpoint
+nestjs-prisma-starter,gemma2:9b,raw,Dependency: graphql-subscriptions,Dependency
+awesome-nest-boilerplate,gemma2:9b,dependency_graph,Class/Service: CreatePostHandler,Class/Service
+nestjs-starter-rest-api,gemma2:9b,knowledge_graph,Class/Service: CreateArticleInput,Class/Service
+nestjs-recipe,codellama:7b-instruct,knowledge_graph,Endpoint: GET /tasks/:id,Endpoint
+express-rest-boilerplate,qwen2.5-coder:7b,raw,Dependency: morgan,Dependency
+awesome-nest-boilerplate,codellama:7b-instruct,raw,Dependency: ioredis,Dependency
+nestjs-boilerplate,codellama:7b-instruct,knowledge_graph,Class/Service: AuthGoogleService,Class/Service
+rest-api-nodejs-mongodb,codellama:7b-instruct,raw,Dependency: cors,Dependency
+ack-nestjs-boilerplate,qwen2.5-coder:7b,dependency_graph,Endpoint: PUT /notification/update/setting,Endpoint
+nestjs-realworld-example-app,gemma2:9b,knowledge_graph,Class/Service: ValidationPipe,Class/Service
+awesome-nest-boilerplate,codellama:7b-instruct,raw,Dependency: class-transformer,Dependency
+ack-nestjs-boilerplate,qwen2.5-coder:7b,knowledge_graph,Endpoint: DELETE /user/:userId/device/remove/:deviceOwnershipId,Endpoint
+nestjs-boilerplate,codellama:7b-instruct,knowledge_graph,Endpoint: POST /auth/email/confirm,Endpoint
+express-rest-boilerplate,codellama:7b-instruct,dependency_graph,Endpoint: GET /v1/users,Endpoint
+awesome-nest-boilerplate,codellama:7b-instruct,raw,Class/Service: LanguageInterceptor,Class/Service
+nestjs-starter-rest-api,codellama:7b-instruct,dependency_graph,Class/Service: JwtAuthStrategy,Class/Service
+nestjs-realworld-example-app,gemma2:9b,knowledge_graph,Class/Service: ProfileModule,Class/Service

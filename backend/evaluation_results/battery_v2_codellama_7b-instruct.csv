@@ -1,0 +1,471 @@
+repo_name,source_url,framework,model,context_variant,run_status,latency_ms,input_tokens,output_tokens,estimated_cost_usd,judge_model,self_judged,hallucination_judged,hallucination_score,total_claims,unsupported_claims,coverage_judged,coverage_score,total_facts,missing_facts,diagram_scored,diagram_module_f1,diagram_import_f1,diagram_endpoint_f1,diagram_overall_f1,text_overlap_scored,bleu4,rouge_l,meteor,bertscore_f1,quality_judged,quality_mean_score,quality_completeness,quality_conciseness,quality_correctness,quality_cohesiveness,quality_domain_specificity,failure_tags,summary_text,missing_facts_list,unsupported_claims_list,facts_by_category,error
+node-express-sequelize-postgresql,https://github.com/bezkoder/node-express-sequelize-postgresql,express,codellama:7b-instruct,raw,success,112377,2555,119,0.0,mistral:7b-instruct,False,True,0.5,4,2,True,1.0,15,0,True,1.0,1.0,1.0,1.0,True,0.0392,0.2766,0.2141,0.0,False,,,,,,,"fabricated_technology,fabricated_technology,over_generic","{
+""overview"": ""This repository contains a Node.js application that uses Sequelize to interact with a PostgreSQL database. The application provides CRUD (create, read, update, delete) operations for a 'tutorial' table, and also includes a route to retrieve all published tutorials."",
+""tech_stack"": [""Node.js"", ""Sequelize"", ""PostgreSQL""],
+""services"": [""HTTP server"", ""background worker""],
+""dependencies"": [""express"", ""cors"", ""body-parser"", ""sequelize""]
+}",[],"[""Sequelize"", ""background worker""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 5, ""Endpoint"": 8}",
+node-express-sequelize-postgresql,https://github.com/bezkoder/node-express-sequelize-postgresql,express,codellama:7b-instruct,dependency_graph,success,22187,549,94,0.0,mistral:7b-instruct,False,True,0.25,4,1,True,1.0,15,0,True,1.0,1.0,1.0,1.0,True,0.0234,0.1481,0.1419,0.0,False,,,,,,,"fabricated_technology,over_generic","
+{
+""overview"": ""This repository appears to be a web application that provides a tutorial on a specific topic. It uses a Node.js framework and a PostgreSQL database."",
+""tech_stack"": [""Node.js"", ""Express"", ""PostgreSQL""],
+""services"": [""HTTP server""],
+""dependencies"": [""cors"", ""express"", ""pg"", ""pg-hstore"", ""sequelize""]
+}",[],"[""This repository appears to be a web application that provides a tutorial on a specific topic.""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 5, ""Endpoint"": 8}",
+node-express-sequelize-postgresql,https://github.com/bezkoder/node-express-sequelize-postgresql,express,codellama:7b-instruct,knowledge_graph,success,17238,675,137,0.0,mistral:7b-instruct,False,True,0.25,4,1,True,1.0,15,0,True,1.0,1.0,1.0,1.0,True,0.0459,0.2617,0.2391,0.0,False,,,,,,,fabricated_technology,"
+{
+""overview"": ""This repository appears to be a web application using the Express framework for Node.js, with a PostgreSQL database and Sequelize as the ORM. It includes a RESTful API for managing tutorials, with endpoints for creating, reading, updating, and deleting tutorials. The repository also includes a configuration file for the database connection."",
+""tech_stack"": [""Node.js"", ""Express"", ""PostgreSQL"", ""Sequelize""],
+""services"": [""HTTP server""],
+""dependencies"": [""cors"", ""express"", ""pg"", ""pg-hstore"", ""sequelize""]
+}",[],"[""PostgreSQL""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 5, ""Endpoint"": 8}",
+node_passport_login,https://github.com/bradtraversy/node_passport_login,express,codellama:7b-instruct,raw,success,58681,2348,141,0.0,mistral:7b-instruct,False,True,0.25,4,1,True,1.0,19,0,True,1.0,1.0,1.0,1.0,True,0.0197,0.2198,0.1718,0.0,False,,,,,,,fabricated_technology,"{
+""overview"": ""This repository contains a web application built using the Express.js framework and MongoDB database. It provides a simple login and registration system, as well as a dashboard for authenticated users. The repository includes a few modules and endpoints, as well as a configuration file for Passport.js."",
+""tech_stack"": [""JavaScript"", ""Express.js"", ""MongoDB"", ""Passport.js""],
+""services"": [""HTTP server"", ""background worker""],
+""dependencies"": [""express"", ""express-ejs-layouts"", ""mongoose"", ""passport"", ""connect-flash"", ""express-session""]
+}",[],"[""MongoDB""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 10, ""Endpoint"": 7}",
+node_passport_login,https://github.com/bradtraversy/node_passport_login,express,codellama:7b-instruct,dependency_graph,success,26510,556,137,0.0,mistral:7b-instruct,False,True,0.25,4,1,True,1.0,19,0,True,1.0,1.0,1.0,1.0,True,0.0124,0.1867,0.113,0.0,False,,,,,,,fabricated_technology,"
+{
+""overview"": ""This repository appears to be a web application using the Express.js framework and MongoDB as the database. It includes a user authentication system using Passport.js and bcryptjs for password hashing."",
+""tech_stack"": [""JavaScript"", ""Express.js"", ""MongoDB"", ""Passport.js"", ""bcryptjs""],
+""services"": [""HTTP server"", ""background worker""],
+""dependencies"": [""connect-flash"", ""ejs"", ""express"", ""express-ejs-layouts"", ""express-session"", ""mongoose"", ""nodemon"", ""passport""]
+}",[],"[""MongoDB""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 10, ""Endpoint"": 7}",
+node_passport_login,https://github.com/bradtraversy/node_passport_login,express,codellama:7b-instruct,knowledge_graph,success,18262,650,152,0.0,mistral:7b-instruct,False,False,0.0,0,0,True,1.0,19,0,True,1.0,1.0,1.0,1.0,True,0.0205,0.2022,0.1223,0.0,False,,,,,,,malformed_output,"
+{
+""overview"": ""This repository appears to be a web application built using the Express.js framework. It includes a user registration and login system, as well as a dashboard for users. The repository also includes a configuration file for Passport.js and a dependency on the Mongoose ORM."",
+""tech_stack"": [""JavaScript"", ""Express.js"", ""Mongoose""],
+""services"": [""HTTP server"", ""background worker""],
+""dependencies"": [""bcryptjs"", ""connect-flash"", ""ejs"", ""express"", ""express-ejs-layouts"", ""express-session"", ""mongoose"", ""nodemon"", ""passport"", ""passport-local""]
+}",[],[],"{""Framework"": 1, ""Language"": 1, ""Dependency"": 10, ""Endpoint"": 7}",
+node-express-boilerplate,https://github.com/hagopj13/node-express-boilerplate,express,codellama:7b-instruct,raw,success,81774,8164,101,0.0,mistral:7b-instruct,False,True,0.25,4,1,True,1.0,57,0,True,0.9744,0.125,0.0,0.3665,True,0.0023,0.1471,0.0659,0.0,False,,,,,,,fabricated_technology,"
+Here is the JSON object for the repository analysis:
+```json
+{
+  ""overview"": ""This repository contains a Node.js boilerplate for building RESTful APIs with Express.js and MongoDB."",
+  ""languages"": [""JavaScript"", ""TypeScript""],
+  ""frameworks"": [""Express.js"", ""MongoDB""],
+  ""tools"": [""Node.js"", ""npm""],
+  ""license"": ""MIT""
+}
+```",[],"[""This repository contains a Node.js boilerplate for building RESTful APIs with Express.js and MongoDB.""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 15}",
+node-express-boilerplate,https://github.com/hagopj13/node-express-boilerplate,express,codellama:7b-instruct,dependency_graph,success,73160,1817,350,0.0,mistral:7b-instruct,False,True,0.2,5,1,True,0.9123,57,5,True,0.9744,0.125,0.0,0.3665,True,0.0189,0.1887,0.1118,0.0,False,,,,,,,"fabricated_technology,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint","
+{
+""overview"": ""This repository appears to be a Node.js application that uses Express.js as the web framework and Mongoose as the ODM for MongoDB. It also uses JWT for authentication and Passport.js for authentication. The repository includes a variety of modules and endpoints for handling user authentication, user registration, and user profile management."",
+""tech_stack"": [""Node.js"", ""Express.js"", ""Mongoose"", ""JWT"", ""Passport.js""],
+""services"": [""HTTP server"", ""background worker""],
+""dependencies"": [""bcryptjs"", ""compression"", ""cors"", ""coveralls"", ""cross-env"", ""dotenv"", ""eslint"", ""eslint-config-airbnb-base"", ""eslint-config-prettier"", ""eslint-plugin-import"", ""eslint-plugin-jest"", ""eslint-plugin-prettier"", ""eslint-plugin-security"", ""express"", ""express-mongo-sanitize"", ""express-rate-limit"", ""faker"", ""helmet"", ""http-status"", ""husky"", ""jest"", ""joi"", ""jsonwebtoken"", ""lint-staged"", ""moment"", ""mongoose"", ""morgan"", ""node-mocks-http"", ""nodemailer"", ""nodemon"", ""passport"", ""passport-jwt"", ""pm2"", ""prettier"", ""supertest"", ""swagger-jsdoc"", ""swagger-ui-express"", ""validator"", ""winston"", ""xss-clean""]
+}","[""Endpoint: OPTIONS *"", ""Endpoint: POST /send-verification-email"", ""Endpoint: DELETE /:userId"", ""Endpoint: PATCH /:userId"", ""Endpoint: POST /forgot-password""]","[""Mongoose as the ODM for MongoDB""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 15}",
+node-express-boilerplate,https://github.com/hagopj13/node-express-boilerplate,express,codellama:7b-instruct,knowledge_graph,success,64267,1309,338,0.0,mistral:7b-instruct,False,True,0.0,5,0,True,0.807,57,11,True,0.9744,0.125,0.0,0.3665,True,0.0109,0.1584,0.1125,0.0,False,,,,,,,"missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_dependency,missed_dependency,missed_dependency,missed_dependency","
+{
+""overview"": ""This repository appears to be a Node.js application using the Express framework for building RESTful APIs. It includes a variety of features such as user authentication, email verification, password reset, and token generation. The repository also includes a test suite using Jest and a linting configuration using ESLint."",
+""tech_stack"": [""Node.js"", ""Express"", ""Jest"", ""ESLint""],
+""services"": [""HTTP server"", ""background worker""],
+""dependencies"": [""bcryptjs"", ""compression"", ""cors"", ""coveralls"", ""cross-env"", ""dotenv"", ""eslint"", ""eslint-config-airbnb-base"", ""eslint-config-prettier"", ""eslint-plugin-import"", ""eslint-plugin-jest"", ""eslint-plugin-prettier"", ""eslint-plugin-security"", ""express"", ""express-mongo-sanitize"", ""express-rate-limit"", ""faker"", ""helmet"", ""http-status"", ""husky"", ""jest"", ""joi"", ""jsonwebtoken"", ""lint-staged"", ""moment"", ""mongoose"", ""morgan"", ""node-mocks-http"", ""nodemailer"", ""nodemon"", ""passport"", ""passport-jwt"", ""pm2"", ""prettier"", ""supertest"", ""swagger-jsdoc"", ""swagger-ui-express"", ""validator"", ""winston"", ""xss-clean""]
+}","[""Endpoint: OPTIONS *"", ""Endpoint: POST /logout"", ""Endpoint: DELETE /:userId"", ""Endpoint: PATCH /:userId"", ""Endpoint: POST /send-verification-email"", ""Endpoint: POST /forgot-password"", ""Endpoint: POST /refresh-tokens"", ""Dependency: eslint-plugin-security"", ""Dependency: winston"", ""Dependency: xss-clean"", ""Dependency: coveralls""]",[],"{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 15}",
+express-mongoose-es6-rest-api,https://github.com/kunalkapadia/express-mongoose-es6-rest-api,express,codellama:7b-instruct,raw,success,82969,4966,106,0.0,mistral:7b-instruct,False,True,1.0,4,4,True,1.0,44,0,True,1.0,1.0,0.125,0.7083,True,0.0112,0.2,0.1574,0.0,False,,,,,,,"fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology","
+{
+  ""overview"": ""This repository contains a simple RESTful API built with Node.js, Express, and Mongoose. It includes a user model, user routes, and authentication routes."",
+  ""tech_stack"": [""Node.js"", ""Express"", ""Mongoose"", ""JSON Web Tokens""],
+  ""services"": [""HTTP server"", ""background worker""],
+  ""dependencies"": [""dotenv"", ""express"", ""mongoose"", ""jsonwebtoken""]
+}",[],"[""This repository contains a simple RESTful API built with Node.js, Express, and Mongoose."", ""It includes a user model."", ""It includes user routes."", ""It includes authentication routes.""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 34, ""Endpoint"": 8}",
+express-mongoose-es6-rest-api,https://github.com/kunalkapadia/express-mongoose-es6-rest-api,express,codellama:7b-instruct,dependency_graph,success,60013,819,287,0.0,mistral:7b-instruct,False,True,0.25,4,1,True,1.0,44,0,True,1.0,1.0,0.125,0.7083,True,0.0195,0.1481,0.0978,0.0,False,,,,,,,fabricated_technology,"
+{
+""overview"": ""This repository appears to be a Node.js project that uses Express.js as the web framework and Mongoose as the ODM (Object Document Mapper) for MongoDB. It also uses various other libraries and tools for development and testing, such as ESLint, Jest, and Husky."",
+""tech_stack"": [""Node.js"", ""Express.js"", ""Mongoose""],
+""services"": [""HTTP server"", ""background worker""],
+""dependencies"": [""bluebird"", ""body-parser"", ""chai"", ""commitizen"", ""compression"", ""cookie-parser"", ""cors"", ""coveralls"", ""cross-env"", ""cz-conventional-changelog"", ""debug"", ""dotenv"", ""eslint"", ""eslint-config-airbnb-base"", ""eslint-plugin-import"", ""eslint-watch"", ""express"", ""express-jwt"", ""express-validation"", ""express-winston"", ""helmet"", ""http-status"", ""husky"", ""istanbul"", ""joi"", ""jsonwebtoken"", ""method-override"", ""mocha"", ""mongoose"", ""morgan"", ""supertest"", ""supertest-as-promised"", ""validate-commit-msg"", ""winston""]
+}",[],"[""Mongoose""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 34, ""Endpoint"": 8}",
+express-mongoose-es6-rest-api,https://github.com/kunalkapadia/express-mongoose-es6-rest-api,express,codellama:7b-instruct,knowledge_graph,success,34191,865,245,0.0,mistral:7b-instruct,False,True,0.25,4,1,True,1.0,44,0,True,1.0,1.0,0.125,0.7083,True,0.0065,0.1538,0.0758,0.0,False,,,,,,,fabricated_technology,"
+{
+""overview"": ""This repository appears to be a Node.js Express API for managing user accounts and authentication."",
+""tech_stack"": [""JavaScript"", ""Express"", ""Mongoose"", ""JWT"", ""ESLint""],
+""services"": [""HTTP server"", ""background worker""],
+""dependencies"": [""bluebird"", ""body-parser"", ""chai"", ""commitizen"", ""compression"", ""cookie-parser"", ""cors"", ""coveralls"", ""cross-env"", ""cz-conventional-changelog"", ""debug"", ""dotenv"", ""eslint"", ""eslint-config-airbnb-base"", ""eslint-plugin-import"", ""eslint-watch"", ""express"", ""express-jwt"", ""express-validation"", ""express-winston"", ""helmet"", ""http-status"", ""husky"", ""istanbul"", ""joi"", ""jsonwebtoken"", ""method-override"", ""mongoose"", ""morgan"", ""supertest"", ""supertest-as-promised"", ""validate-commit-msg"", ""winston""]
+}",[],"[""Mongoose""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 34, ""Endpoint"": 8}",
+express-rest-boilerplate,https://github.com/danielfsousa/express-rest-boilerplate,express,codellama:7b-instruct,raw,success,232806,7982,734,0.0,mistral:7b-instruct,False,True,0.0,0,0,True,1.0,57,0,True,1.0,1.0,1.0,1.0,True,0.0024,0.0433,0.0439,0.0,False,,,,,,,over_generic,"
+Here is the JSON object that you can use to respond with:
+```json
+{
+  ""token"": {
+    ""tokenType"": ""Bearer"",
+    ""accessToken"": ""eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"",
+    ""refreshToken"": ""eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"",
+    ""expiresIn"": 3600
+  },
+  ""user"": {
+    ""id"": ""608e491e69c59e3954966fc6"",
+    ""name"": ""John Doe"",
+    ""email"": ""johndoe@example.com"",
+    ""role"": ""user"",
+    ""createdAt"": ""2022-02-23T18:25:43.511Z""
+  }
+}
+```
+This JSON object contains the following fields:
+
+* `token`: This field contains the access token, refresh token, and expiration time for the user.
+* `user`: This field contains the user's information, including their ID, name, email, role, and creation date.
+
+Note that the `token` field is a JSON object, and the `user` field is a JSON object as well. The `token` field contains the following fields:
+
+* `tokenType`: This field contains the type of token, which is `Bearer` in this case.
+* `accessToken`: This field contains the access token for the user.
+* `refreshToken`: This field contains the refresh token for the user.
+* `expiresIn`: This field contains the expiration time for the access token, in seconds.
+
+The `user` field contains the following fields:
+
+* `id`: This field contains the user's ID.
+* `name`: This field contains the user's name.
+* `email`: This field contains the user's email address.
+* `role`: This field contains the user's role.
+* `createdAt`: This field contains the date and time when the user was created, in ISO 8601 format.
+
+Note that the `id` field is a string, and the `createdAt` field is a date and time in ISO 8601 format.",[],[],"{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 15}",
+express-rest-boilerplate,https://github.com/danielfsousa/express-rest-boilerplate,express,codellama:7b-instruct,dependency_graph,success,78801,1335,322,0.0,mistral:7b-instruct,False,True,1.0,6,6,True,1.0,57,0,True,1.0,1.0,1.0,1.0,True,0.011,0.169,0.0689,0.0,False,,,,,,,"fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,over_generic","
+{
+""overview"": ""This repository appears to be a Node.js API for a web application. It includes a variety of modules and endpoints for handling user authentication, user registration, and password reset requests."",
+""tech_stack"": [""JavaScript"", ""Node.js"", ""Express.js"", ""Mongoose"", ""JWT"", ""Passport"", ""Winston""],
+""services"": [""HTTP server"", ""background worker""],
+""dependencies"": [""apidoc"", ""axios"", ""bcryptjs"", ""bluebird"", ""body-parser"", ""chai"", ""chai-as-promised"", ""compression"", ""cors"", ""coveralls"", ""cross-env"", ""dotenv-safe"", ""email-templates"", ""eslint"", ""eslint-config-airbnb-base"", ""eslint-plugin-import"", ""express"", ""express-validation"", ""helmet"", ""http-status"", ""husky"", ""joi"", ""jwt-simple"", ""lodash"", ""method-override"", ""mocha"", ""moment-timezone"", ""mongoose"", ""morgan"", ""nodemailer"", ""nodemon"", ""nyc"", ""opn-cli"", ""passport"", ""passport-http-bearer"", ""passport-jwt"", ""pm2"", ""pug"", ""sinon"", ""sinon-chai"", ""supertest"", ""uuid"", ""winston""]
+}",[],"[""Mongoose"", ""Passport"", ""Winston"", ""sinon"", ""sinon-chai"", ""supertest""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 15}",
+express-rest-boilerplate,https://github.com/danielfsousa/express-rest-boilerplate,express,codellama:7b-instruct,knowledge_graph,success,48869,1235,315,0.0,mistral:7b-instruct,False,True,1.0,6,6,True,1.0,57,0,True,1.0,1.0,1.0,1.0,True,0.0098,0.1389,0.0412,0.0,False,,,,,,,"fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology","
+{
+""overview"": ""This repository appears to be a web application built using the Express.js framework. It includes a variety of modules and endpoints for handling user authentication, user registration, and user profile management."",
+""tech_stack"": [""JavaScript"", ""Express.js"", ""Mongoose"", ""JWT"", ""Passport.js""],
+""services"": [""HTTP server"", ""background worker""],
+""dependencies"": [""apidoc"", ""axios"", ""bcryptjs"", ""bluebird"", ""body-parser"", ""chai"", ""chai-as-promised"", ""compression"", ""cors"", ""coveralls"", ""cross-env"", ""dotenv-safe"", ""email-templates"", ""eslint"", ""eslint-config-airbnb-base"", ""eslint-plugin-import"", ""express"", ""express-validation"", ""helmet"", ""http-status"", ""husky"", ""joi"", ""jwt-simple"", ""lodash"", ""method-override"", ""mocha"", ""moment-timezone"", ""mongoose"", ""morgan"", ""nodemailer"", ""nodemon"", ""nyc"", ""opn-cli"", ""passport"", ""passport-http-bearer"", ""passport-jwt"", ""pm2"", ""pug"", ""sinon"", ""sinon-chai"", ""supertest"", ""uuid"", ""winston""]
+}",[],"[""Mongoose"", ""JWT"", ""Passport.js"", ""sinon"", ""sinon-chai"", ""supertest""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 15}",
+node-express-mongodb-jwt-rest-api-skeleton,https://github.com/davellanedam/node-express-mongodb-jwt-rest-api-skeleton,express,codellama:7b-instruct,raw,success,88623,7789,114,0.0,mistral:7b-instruct,False,True,0.25,4,1,True,1.0,63,0,True,1.0,1.0,0.4,0.8,True,0.0091,0.0667,0.0668,0.0,False,,,,,,,fabricated_technology,"  ""overview"": ""This repository contains the code for a simple authentication system using JSON Web Tokens (JWT) and the Express.js framework. It includes a login endpoint, a register endpoint, and a reset password endpoint."",
+  ""tech_stack"": [""JavaScript"", ""Node.js"", ""Express.js"", ""JSON Web Tokens (JWT)""],
+  ""services"": [""HTTP server""],
+  ""dependencies"": [""bcryptjs"", ""jsonwebtoken"", ""mongoose"", ""validator""]
+}",[],"[""bcryptjs""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 21}",
+node-express-mongodb-jwt-rest-api-skeleton,https://github.com/davellanedam/node-express-mongodb-jwt-rest-api-skeleton,express,codellama:7b-instruct,dependency_graph,success,139833,6001,363,0.0,mistral:7b-instruct,False,True,0.25,4,1,True,1.0,63,0,True,1.0,1.0,0.4,0.8,True,0.0096,0.1013,0.0412,0.0,False,,,,,,,fabricated_technology,"
+{
+""overview"": ""This repository contains a web application for managing cities and users. It uses Node.js, Express.js, and Mongoose for the backend, and EJS for the frontend. The repository includes a variety of modules and endpoints for managing cities, users, and authentication."",
+""tech_stack"": [""Node.js"", ""Express.js"", ""Mongoose"", ""EJS""],
+""services"": [""HTTP server"", ""background worker""],
+""dependencies"": [""babel-eslint"", ""bcrypt"", ""body-parser"", ""chai"", ""chai-http"", ""compression"", ""cors"", ""cross-env"", ""date-fns"", ""dotenv-safe"", ""ejs"", ""eslint"", ""eslint-config-formidable"", ""eslint-config-prettier"", ""eslint-plugin-prettier"", ""expeditious-engine-redis"", ""express"", ""express-expeditious"", ""express-validator"", ""faker"", ""helmet"", ""husky"", ""i18n"", ""istanbul-merge"", ""jest"", ""jsonwebtoken"", ""lint-staged"", ""mocha"", ""mongo-seeding"", ""mongoose"", ""mongoose-paginate-v2"", ""morgan"", ""nodemailer"", ""nodemailer-mailgun-transport"", ""nodemon"", ""nyc"", ""passport"", ""passport-jwt"", ""prettier"", ""prettier-eslint"", ""remark-cli"", ""request-ip"", ""trim-request"", ""uuid"", ""validator""]
+}",[],"[""EJS for the frontend""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 21}",
+node-express-mongodb-jwt-rest-api-skeleton,https://github.com/davellanedam/node-express-mongodb-jwt-rest-api-skeleton,express,codellama:7b-instruct,knowledge_graph,success,56631,2751,214,0.0,mistral:7b-instruct,False,False,0.0,0,0,True,1.0,63,0,True,1.0,1.0,0.4,0.8,True,0.0304,0.1798,0.114,0.0,False,,,,,,,malformed_output,"
+{
+""overview"": ""This repository appears to be a Node.js web application using the Express.js framework. It includes a variety of modules and endpoints for handling user authentication, profile management, and city management. The repository also includes a dependency on the Mongoose ORM and a configuration file for setting up the database connection."",
+""tech_stack"": [""JavaScript"", ""Express.js"", ""Mongoose""],
+""services"": [""HTTP server"", ""background worker""],
+""dependencies"": [""bcrypt"", ""body-parser"", ""cors"", ""date-fns"", ""dotenv-safe"", ""express"", ""express-expeditious"", ""express-validator"", ""jsonwebtoken"", ""mongoose"", ""mongoose-paginate-v2"", ""morgan"", ""nodemailer"", ""nodemailer-mailgun-transport"", ""passport"", ""passport-jwt"", ""request-ip"", ""trim-request"", ""validator""]
+}",[],[],"{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 21}",
+rest-api-nodejs-mongodb,https://github.com/maitraysuthar/rest-api-nodejs-mongodb,express,codellama:7b-instruct,raw,success,128912,4098,463,0.0,mistral:7b-instruct,False,True,0.2,10,2,True,1.0,33,0,True,1.0,1.0,0.1,0.7,True,0.0024,0.0747,0.1034,0.0,False,,,,,,,"fabricated_technology,fabricated_technology","
+This is a Node.js project with a few different components:
+
+* `controllers/AuthController.js`: This file contains the logic for handling authentication-related requests, such as registering a new user or logging in an existing user.
+* `controllers/BookController.js`: This file contains the logic for handling book-related requests, such as listing all books or creating a new book.
+* `helpers/apiResponse.js`: This file contains functions for generating API responses with specific status codes and messages.
+* `helpers/constants.js`: This file contains constants that are used throughout the project, such as the admin user and the confirmation email settings.
+* `helpers/mailer.js`: This file contains functions for sending emails using Nodemailer.
+* `helpers/utility.js`: This file contains utility functions, such as generating a random number.
+* `middlewares/jwt.js`: This file contains a middleware function for authenticating requests using JSON Web Tokens (JWT).
+* `models/BookModel.js`: This file contains the schema for the `Book` model, which is used to store information about books in the database.
+* `models/UserModel.js`: This file contains the schema for the `User` model, which is used to store information about users in the database.
+* `routes/api.js`: This file contains the main route for the API, which is used to handle requests for authentication and book-related operations.
+* `routes/auth.js`: This file contains the route for handling authentication-related requests, such as registering a new user or logging in an existing user.
+* `routes/book.js`: This file contains the route for handling book-related requests, such as listing all books or creating a new book.
+* `routes/index.js`: This file contains the main route for the application, which is used to handle requests for the home page.
+
+The `app.js` file is the main entry point for the application, and it sets up the Express.js server and defines the routes for the API and the home page.",[],"[""models/BookModel.js"", ""models/UserModel.js""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 21, ""Endpoint"": 10}",
+rest-api-nodejs-mongodb,https://github.com/maitraysuthar/rest-api-nodejs-mongodb,express,codellama:7b-instruct,dependency_graph,success,38751,744,187,0.0,mistral:7b-instruct,False,True,0.25,4,1,True,0.697,33,10,True,1.0,1.0,0.1,0.7,True,0.0131,0.1791,0.094,0.0,False,,,,,,,"fabricated_technology,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint","
+{
+""overview"": ""This repository appears to be a web application that provides an API for managing books and users. It uses Express.js as the web framework and Mongoose as the ODM for MongoDB."",
+""tech_stack"": [""JavaScript"", ""Express.js"", ""Mongoose""],
+""services"": [""HTTP server"", ""background worker""],
+""dependencies"": [""bcrypt"", ""chai"", ""chai-http"", ""codacy-coverage"", ""cookie-parser"", ""cors"", ""debug"", ""dotenv"", ""eslint"", ""express"", ""express-jwt"", ""express-validator"", ""jsonwebtoken"", ""mocha"", ""mocha-lcov-reporter"", ""moment"", ""mongoose"", ""morgan"", ""nodemailer"", ""nodemon"", ""nyc""]
+}","[""Endpoint: POST /api/auth/login"", ""Endpoint: POST /api/auth/register"", ""Endpoint: POST /api/auth/verify-otp"", ""Endpoint: POST /api/auth/resend-verify-otp"", ""Endpoint: GET /api/book"", ""Endpoint: GET /api/book/:id"", ""Endpoint: POST /api/book"", ""Endpoint: PUT /api/book/:id"", ""Endpoint: DELETE /api/book/:id"", ""Endpoint: GET /""]","[""Mongoose as the ODM for MongoDB""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 21, ""Endpoint"": 10}",
+rest-api-nodejs-mongodb,https://github.com/maitraysuthar/rest-api-nodejs-mongodb,express,codellama:7b-instruct,knowledge_graph,success,25492,835,189,0.0,mistral:7b-instruct,False,True,0.5,4,2,True,1.0,33,0,True,1.0,1.0,0.1,0.7,True,0.0122,0.1644,0.1231,0.0,False,,,,,,,"fabricated_technology,fabricated_technology","
+{
+""overview"": ""This repository appears to be a web application built with the Express.js framework. It includes a RESTful API for managing books and authentication for users. The repository also includes a variety of external dependencies and configuration files."",
+""tech_stack"": [""JavaScript"", ""Express.js"", ""Mongoose"", ""Morgan"", ""Nodemon"", ""NYC""],
+""services"": [""HTTP server"", ""Background worker""],
+""dependencies"": [""bcrypt"", ""chai"", ""chai-http"", ""codacy-coverage"", ""cookie-parser"", ""cors"", ""debug"", ""dotenv"", ""eslint"", ""express"", ""express-jwt"", ""express-validator"", ""jsonwebtoken"", ""mocha"", ""mocha-lcov-reporter"", ""moment"", ""nodemailer""]
+}",[],"[""Mongoose"", ""Background worker""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 21, ""Endpoint"": 10}",
+express-sequelize-api-boilerplate,https://github.com/binitghetiya/express-sequelize-api-boilerplate,express,codellama:7b-instruct,raw,success,99261,6776,223,0.0,mistral:7b-instruct,False,True,1.0,5,5,True,1.0,37,0,True,1.0,0.1905,1.0,0.7302,True,0.0088,0.1769,0.0935,0.0,False,,,,,,,"fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology","
+{
+  ""overview"": ""This repository is a Node.js web application that uses Express.js as the web framework and Sequelize as the ORM to interact with a PostgreSQL database. It also uses JWT for authentication and CORS for cross-origin resource sharing. The repository includes a user model, a user controller, and a user route. The user model has a first name, last name, email, password, profile picture, and admin status. The user controller has methods for registering a new user, logging in, and getting the profile of a user. The user route has endpoints for registering a new user, logging in, and getting the profile of a user."",
+  ""tech_stack"": [""Node.js"", ""Express.js"", ""Sequelize"", ""PostgreSQL"", ""JWT"", ""CORS""],
+  ""services"": [""HTTP server"", ""background worker""],
+  ""dependencies"": [""dotenv"", ""express"", ""sequelize"", ""jsonwebtoken"", ""cors""]
+}",[],"[""Sequelize as the ORM to interact with a PostgreSQL database."", ""The repository includes a user model, a user controller, and a user route."", ""The user model has a first name, last name, email, password, profile picture, and admin status."", ""The user controller has methods for registering a new user, logging in, and getting the profile of a user."", ""The user route has endpoints for registering a new user, logging in, and getting the profile of a user.""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 30, ""Endpoint"": 5}",
+express-sequelize-api-boilerplate,https://github.com/binitghetiya/express-sequelize-api-boilerplate,express,codellama:7b-instruct,dependency_graph,success,71470,1039,166,0.0,mistral:7b-instruct,False,True,0.25,4,1,True,1.0,37,0,True,1.0,0.1905,1.0,0.7302,True,0.0228,0.1818,0.1336,0.0,False,,,,,,,fabricated_technology,"
+{
+""overview"": ""This repository appears to be a Node.js web application using Express.js and Sequelize for database access. It includes a RESTful API for user management and authentication, as well as a CLI for managing database migrations."",
+""tech_stack"": [""Node.js"", ""Express.js"", ""Sequelize""],
+""services"": [""HTTP server"", ""background worker""],
+""dependencies"": [""axios"", ""cors"", ""dotenv"", ""eslint"", ""express"", ""express-joi-validator"", ""express-validation"", ""http"", ""jsonwebtoken"", ""mock-express-response"", ""mysql2"", ""nodemon"", ""os"", ""sequelize"", ""sequelize-cli""]
+}",[],"[""Sequelize for database access""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 30, ""Endpoint"": 5}",
+express-sequelize-api-boilerplate,https://github.com/binitghetiya/express-sequelize-api-boilerplate,express,codellama:7b-instruct,knowledge_graph,success,43252,913,276,0.0,mistral:7b-instruct,False,True,0.25,4,1,True,1.0,37,0,True,1.0,0.1905,1.0,0.7302,True,0.0094,0.1149,0.0678,0.0,False,,,,,,,fabricated_technology,"
+{
+""overview"": ""This repository appears to be a web application using the Express.js framework for building RESTful APIs. It includes a variety of modules and endpoints for handling user authentication, registration, and password changes. The repository also includes a Jest test suite for testing the application's functionality."",
+""tech_stack"": [""JavaScript"", ""Express.js"", ""Sequelize"", ""Jest""],
+""services"": [""HTTP server"", ""background worker""],
+""dependencies"": [""@babel/core"", ""@babel/plugin-proposal-object-rest-spread"", ""@babel/plugin-transform-runtime"", ""@babel/preset-env"", ""@babel/register"", ""@babel/runtime"", ""axios"", ""babel-jest"", ""babel-loader"", ""body-parser"", ""cluster"", ""cors"", ""crypto"", ""dotenv"", ""eslint"", ""eslint-config-airbnb-base"", ""eslint-plugin-import"", ""express"", ""express-joi-validator"", ""express-validation"", ""http"", ""jest"", ""joi"", ""jsonwebtoken"", ""mock-express-response"", ""mysql2"", ""nodemon"", ""os"", ""sequelize"", ""sequelize-cli""]
+}",[],"[""Sequelize""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 30, ""Endpoint"": 5}",
+api-design-node-v3,https://github.com/FrontendMasters/api-design-node-v3,express,codellama:7b-instruct,raw,success,77406,4763,152,0.0,mistral:7b-instruct,False,True,0.25,4,1,True,1.0,52,0,True,1.0,0.16,0.1818,0.4473,True,0.0254,0.3158,0.2226,0.0,False,,,,,,,fabricated_technology,"{
+""overview"": ""This repository contains a RESTful API for a to-do list application. It uses Node.js, Express.js, and MongoDB as its primary technologies. The API provides CRUD operations for items and lists, as well as authentication and authorization using JWT. The repository also includes a test suite using Jest and Supertest."",
+""tech_stack"": [""Node.js"", ""Express.js"", ""MongoDB"", ""JWT""],
+""services"": [""HTTP server"", ""background worker""],
+""dependencies"": [""body-parser"", ""cors"", ""express"", ""jsonwebtoken"", ""mongoose"", ""morgan"", ""supertest"", ""jest""]
+}",[],"[""MongoDB""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 36, ""Endpoint"": 14}",
+api-design-node-v3,https://github.com/FrontendMasters/api-design-node-v3,express,codellama:7b-instruct,dependency_graph,success,61901,1117,334,0.0,mistral:7b-instruct,False,True,0.25,4,1,True,1.0,52,0,True,1.0,0.16,0.1818,0.4473,True,0.0129,0.1928,0.1414,0.0,False,,,,,,,fabricated_technology,"
+{
+""overview"": ""This repository appears to be a server-side application written in JavaScript using the Express.js framework. It includes a RESTful API for managing a list of items and users, with authentication and authorization implemented using JSON Web Tokens (JWT)."",
+""tech_stack"": [""JavaScript"", ""Express.js"", ""Mongoose"", ""JSON Web Tokens (JWT)""],
+""services"": [""HTTP server"", ""background worker""],
+""dependencies"": [""@babel/cli"", ""@babel/core"", ""@babel/plugin-proposal-class-properties"", ""@babel/plugin-proposal-object-rest-spread"", ""@babel/preset-env"", ""babel-core"", ""babel-eslint"", ""babel-jest"", ""bcrypt"", ""body-parser"", ""cors"", ""cuid"", ""dotenv"", ""eslint"", ""eslint-config-prettier"", ""eslint-config-standard"", ""eslint-friendly-formatter"", ""eslint-loader"", ""eslint-plugin-import"", ""eslint-plugin-jest"", ""eslint-plugin-node"", ""eslint-plugin-prettier"", ""eslint-plugin-promise"", ""eslint-plugin-standard"", ""express"", ""jest"", ""jsonwebtoken"", ""lodash"", ""mock-req-res"", ""mongoose"", ""morgan"", ""nodemon"", ""prettier"", ""rimraf"", ""supertest"", ""validator""]
+}",[],"[""Mongoose""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 36, ""Endpoint"": 14}",
+api-design-node-v3,https://github.com/FrontendMasters/api-design-node-v3,express,codellama:7b-instruct,knowledge_graph,success,47501,994,326,0.0,mistral:7b-instruct,False,True,0.2,5,1,True,1.0,52,0,True,1.0,0.16,0.1818,0.4473,True,0.0119,0.225,0.1036,0.0,False,,,,,,,fabricated_technology,"
+{
+""overview"": ""This repository appears to be a Node.js project using the Express framework for building a RESTful API. It includes a variety of dependencies and modules, including a database driver, an ORM, and a validation/auth library."",
+""tech_stack"": [""JavaScript"", ""Express"", ""Mongoose"", ""JSON Web Token"", ""Bcrypt"", ""Validator""],
+""services"": [""HTTP server"", ""background worker""],
+""dependencies"": [""@babel/cli"", ""@babel/core"", ""@babel/plugin-proposal-class-properties"", ""@babel/plugin-proposal-object-rest-spread"", ""@babel/preset-env"", ""babel-core"", ""babel-eslint"", ""babel-jest"", ""bcrypt"", ""body-parser"", ""cors"", ""cuid"", ""dotenv"", ""eslint"", ""eslint-config-prettier"", ""eslint-config-standard"", ""eslint-friendly-formatter"", ""eslint-loader"", ""eslint-plugin-import"", ""eslint-plugin-jest"", ""eslint-plugin-node"", ""eslint-plugin-prettier"", ""eslint-plugin-promise"", ""eslint-plugin-standard"", ""express"", ""jest"", ""jsonwebtoken"", ""lodash"", ""mock-req-res"", ""mongoose"", ""morgan"", ""nodemon"", ""prettier"", ""rimraf"", ""supertest""]
+}",[],"[""Mongoose""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 36, ""Endpoint"": 14}",
+nestjs-realworld-example-app,https://github.com/lujakob/nestjs-realworld-example-app,nestjs,codellama:7b-instruct,raw,success,85514,7630,108,0.0,mistral:7b-instruct,False,True,0.5,4,2,True,1.0,82,0,True,1.0,0.1765,1.0,0.7255,True,0.0067,0.2,0.1012,0.0,False,,,,,,,"fabricated_technology,fabricated_technology","
+{
+  ""overview"": ""This repository is a NestJS application that implements a realworld example app, a social blogging site where developers can share and discuss technical concepts and topics."",
+  ""tech_stack"": [""TypeScript"", ""NestJS"", ""TypeORM"", ""PostgreSQL"", ""Redis"", ""Swagger""],
+  ""services"": [""HTTP server"", ""background worker""],
+  ""dependencies"": [""TypeORM"", ""PostgreSQL"", ""Redis""]
+}",[],"[""PostgreSQL"", ""Redis""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 32, ""Endpoint"": 21, ""Class/Service"": 27}",
+nestjs-realworld-example-app,https://github.com/lujakob/nestjs-realworld-example-app,nestjs,codellama:7b-instruct,dependency_graph,success,91705,1676,269,0.0,mistral:7b-instruct,False,True,0.25,4,1,True,1.0,82,0,True,1.0,0.1765,1.0,0.7255,True,0.0224,0.2105,0.1375,0.0,False,,,,,,,fabricated_technology,"
+{
+""overview"": ""This repository appears to be a NestJS project that provides a RESTful API for managing articles and users. It includes a variety of modules and controllers, as well as a dependency on the TypeORM library for working with a MySQL database."",
+""tech_stack"": [""TypeScript"", ""NestJS"", ""TypeORM"", ""MySQL""],
+""services"": [""HTTP server"", ""background worker""],
+""dependencies"": [""@nestjs/common"", ""@nestjs/core"", ""@nestjs/microservices"", ""@nestjs/platform-express"", ""@nestjs/swagger"", ""@nestjs/testing"", ""@nestjs/typeorm"", ""@nestjs/websockets"", ""@types/jest"", ""@types/node"", ""argon2"", ""atob"", ""class-transformer"", ""class-validator"", ""crypto"", ""crypto-js"", ""deep-extend"", ""extend"", ""jest"", ""jsonwebtoken"", ""mysql"", ""nodemon"", ""passport-jwt"", ""reflect-metadata"", ""rxjs"", ""slug"", ""supertest"", ""swagger-ui-express"", ""ts-jest"", ""ts-node"", ""typeorm"", ""typescript""]
+}",[],"[""It includes a dependency on the TypeORM library for working with a MySQL database.""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 32, ""Endpoint"": 21, ""Class/Service"": 27}",
+nestjs-realworld-example-app,https://github.com/lujakob/nestjs-realworld-example-app,nestjs,codellama:7b-instruct,knowledge_graph,success,39806,1341,263,0.0,mistral:7b-instruct,False,True,0.25,4,1,True,1.0,82,0,True,1.0,0.1765,1.0,0.7255,True,0.009,0.2198,0.099,0.0,False,,,,,,,fabricated_technology,"{
+""overview"": ""This repository appears to be a NestJS project for building a social media platform. It includes modules for user authentication, article management, and profile management. The repository also includes a number of external dependencies and configuration files."",
+""tech_stack"": [""NestJS"", ""TypeScript"", ""TypeORM"", ""MySQL""],
+""services"": [""HTTP server"", ""background worker""],
+""dependencies"": [""@nestjs/common"", ""@nestjs/core"", ""@nestjs/microservices"", ""@nestjs/platform-express"", ""@nestjs/swagger"", ""@nestjs/testing"", ""@nestjs/typeorm"", ""@nestjs/websockets"", ""@types/jest"", ""@types/node"", ""argon2"", ""atob"", ""class-transformer"", ""class-validator"", ""crypto"", ""crypto-js"", ""deep-extend"", ""extend"", ""jest"", ""jsonwebtoken"", ""mysql"", ""nodemon"", ""passport-jwt"", ""reflect-metadata"", ""rxjs"", ""slug"", ""supertest"", ""swagger-ui-express"", ""ts-jest"", ""ts-node"", ""typeorm"", ""typescript""]
+}",[],"[""MySQL""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 32, ""Endpoint"": 21, ""Class/Service"": 27}",
+nestjs-prisma-starter,https://github.com/notiz-dev/nestjs-prisma-starter,nestjs,codellama:7b-instruct,raw,success,89882,8095,98,0.0,mistral:7b-instruct,False,True,0.25,4,1,True,1.0,76,0,True,1.0,0.1892,1.0,0.7297,True,0.0077,0.2813,0.1157,0.0,False,,,,,,,fabricated_technology,"
+{
+  ""overview"": ""This repository contains a NestJS application that uses Prisma to manage the database and GraphQL to provide a GraphQL API."",
+  ""tech_stack"": [""NestJS"", ""Prisma"", ""GraphQL""],
+  ""services"": [""GraphQL API""],
+  ""dependencies"": [""@prisma/client"", ""graphql-scalars"", ""nestjs-prisma""]
+}",[],"[""This repository contains a NestJS application that uses Prisma to manage the database""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 2, ""Class/Service"": 32}",
+nestjs-prisma-starter,https://github.com/notiz-dev/nestjs-prisma-starter,nestjs,codellama:7b-instruct,dependency_graph,success,83857,2170,422,0.0,mistral:7b-instruct,False,True,0.4,5,2,True,1.0,76,0,True,1.0,0.1892,1.0,0.7297,True,0.022,0.2133,0.1375,0.0,False,,,,,,,"fabricated_technology,fabricated_technology","
+{
+""overview"": ""This repository appears to be a NestJS application that uses GraphQL for API endpoints and Prisma for database access. It also includes a JWT authentication strategy and a password hashing service."",
+""tech_stack"": [""TypeScript"", ""NestJS"", ""GraphQL"", ""Prisma"", ""JWT"", ""bcrypt""],
+""services"": [""HTTP server"", ""background worker""],
+""dependencies"": [""@apollo/server"", ""@devoxa/prisma-relay-cursor-connection"", ""@nestjs/apollo"", ""@nestjs/cli"", ""@nestjs/common"", ""@nestjs/config"", ""@nestjs/core"", ""@nestjs/graphql"", ""@nestjs/jwt"", ""@nestjs/passport"", ""@nestjs/platform-express"", ""@nestjs/schematics"", ""@nestjs/swagger"", ""@nestjs/testing"", ""@prisma/client"", ""@swc/cli"", ""@swc/core"", ""@types/bcrypt"", ""@types/chance"", ""@types/express"", ""@types/jest"", ""@types/node"", ""@types/supertest"", ""@typescript-eslint/eslint-plugin"", ""@typescript-eslint/parser"", ""bcrypt"", ""chance"", ""class-transformer"", ""class-validator"", ""eslint"", ""eslint-config-prettier"", ""eslint-plugin-prettier"", ""graphql"", ""graphql-scalars"", ""graphql-subscriptions"", ""jest"", ""nestjs-prisma"", ""passport"", ""passport-jwt"", ""prettier"", ""prisma"", ""prisma-dbml-generator"", ""reflect-metadata"", ""rxjs"", ""supertest"", ""ts-jest"", ""ts-loader"", ""ts-node"", ""tsconfig-paths"", ""typescript""]
+}",[],"[""Prisma"", ""database access""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 2, ""Class/Service"": 32}",
+nestjs-prisma-starter,https://github.com/notiz-dev/nestjs-prisma-starter,nestjs,codellama:7b-instruct,knowledge_graph,success,69116,1467,417,0.0,mistral:7b-instruct,False,True,0.6667,3,2,True,1.0,76,0,True,1.0,0.1892,1.0,0.7297,True,0.0122,0.2278,0.1238,0.0,False,,,,,,,"fabricated_technology,fabricated_technology","
+{
+""overview"": ""This repository appears to be a NestJS project that uses Prisma for database access and GraphQL for API endpoints. It includes a variety of modules, classes, and endpoints for authentication, user management, and post management."",
+""tech_stack"": [""NestJS"", ""Prisma"", ""GraphQL""],
+""services"": [""HTTP server"", ""background worker""],
+""dependencies"": [""@apollo/server"", ""@devoxa/prisma-relay-cursor-connection"", ""@nestjs/apollo"", ""@nestjs/cli"", ""@nestjs/common"", ""@nestjs/config"", ""@nestjs/core"", ""@nestjs/graphql"", ""@nestjs/jwt"", ""@nestjs/passport"", ""@nestjs/platform-express"", ""@nestjs/schematics"", ""@nestjs/swagger"", ""@nestjs/testing"", ""@prisma/client"", ""@swc/cli"", ""@swc/core"", ""@types/bcrypt"", ""@types/chance"", ""@types/express"", ""@types/jest"", ""@types/node"", ""@types/supertest"", ""@typescript-eslint/eslint-plugin"", ""@typescript-eslint/parser"", ""bcrypt"", ""chance"", ""class-transformer"", ""class-validator"", ""eslint"", ""eslint-config-prettier"", ""eslint-plugin-prettier"", ""graphql"", ""graphql-scalars"", ""graphql-subscriptions"", ""jest"", ""nestjs-prisma"", ""passport"", ""passport-jwt"", ""prettier"", ""prisma"", ""prisma-dbml-generator"", ""reflect-metadata"", ""rxjs"", ""supertest"", ""ts-jest"", ""ts-loader"", ""ts-node"", ""tsconfig-paths"", ""typescript""]
+}",[],"[""Prisma"", ""database access""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 2, ""Class/Service"": 32}",
+nestjs-boilerplate,https://github.com/brocoders/nestjs-boilerplate,nestjs,codellama:7b-instruct,raw,success,73597,7753,92,0.0,mistral:7b-instruct,False,True,0.2,5,1,True,1.0,106,0,True,1.0,0.0191,1.0,0.673,True,0.0065,0.1455,0.0479,0.0,False,,,,,,,fabricated_technology,"{
+  ""overview"": ""This repository contains the source code for a NestJS application that provides authentication and authorization features."",
+  ""tech_stack"": [""NestJS"", ""TypeORM"", ""JWT"", ""Passport"", ""Mailer""],
+  ""services"": [""HTTP server"", ""background worker""],
+  ""dependencies"": [""TypeORM"", ""JWT"", ""Passport"", ""Mailer""]
+}",[],"[""Mailer""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 24, ""Class/Service"": 40}",
+nestjs-boilerplate,https://github.com/brocoders/nestjs-boilerplate,nestjs,codellama:7b-instruct,dependency_graph,success,221719,4098,677,0.0,mistral:7b-instruct,False,True,1.0,4,4,True,1.0,106,0,True,1.0,0.0191,1.0,0.673,True,0.0029,0.0541,0.0527,0.0,False,,,,,,,"fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology","
+The `dependencies` and `devDependencies` sections of the `package.json` file contain the list of external dependencies and development dependencies for the project.
+
+* `dependencies` contains the list of external dependencies that are required to run the project.
+* `devDependencies` contains the list of development dependencies that are required to build and test the project.
+
+In this case, the `package.json` file includes the following dependencies and development dependencies:
+
+* `@aws-sdk/client-s3`, `@aws-sdk/s3-request-presigner`, `@commitlint/cli`, `@commitlint/config-conventional`, `@eslint/eslintrc`, `@eslint/js`, `@nestjs/cli`, `@nestjs/common`, `@nestjs/config`, `@nestjs/core`, `@nestjs/jwt`, `@nestjs/mongoose`, `@nestjs/passport`, `@nestjs/platform-express`, `@nestjs/schematics`, `@nestjs/swagger`, `@nestjs/testing`, `@nestjs/typeorm`, `@release-it/conventional-changelog`, `@swc/cli`, `@swc/core`, `bcryptjs`, `class-transformer`, `class-validator`, `dotenv`, `env-cmd`, `eslint`, `eslint-config-prettier`, `eslint-plugin-prettier`, `globals`, `google-auth-library`, `handlebars`, `helmet`, `husky`, `hygen`, `is-ci`, `jest`, `mongoose`, `mongoose-autopopulate`, `ms`, `multer`, `multer-s3`, `nestjs-i18n`, `nodemailer`, `passport`, `passport-anonymous`, `passport-jwt`, `pg`, `prettier`, `prompts`, `reflect-metadata`, `release-it`, `rimraf`, `rxjs`, `source-map-support`, `supertest`, `swagger-ui-express`, `ts-jest`, `ts-loader`, `ts-node`, `tsconfig-paths`, `tslib`, `typeorm`, `typescript`
+* `@types/bcryptjs`, `@types/express`, `@types/jest`, `@types/ms`, `@types/multer`, `@types/multer-s3`, `@types/node`, `@types/nodemailer`, `@types/passport-anonymous`, `@types/passport-jwt`, `@types/prompts`, `@types/supertest`, `@typescript-eslint/eslint-plugin`, `@typescript-eslint/parser`, `apple-signin-auth`, `hygen`, `is-ci`, `ms`, `pg`, `prompts`, `rimraf`, `supertest`, `ts-jest`, `ts-loader`, `ts-node`, `tsconfig-paths`, `tslib`, `typescript`
+
+These dependencies and development dependencies are used by the project to build, test, and run the application.",[],"[""@eslint/eslintrc"", ""@eslint/js"", ""@nestjs/schematics"", ""hygen""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 24, ""Class/Service"": 40}",
+nestjs-boilerplate,https://github.com/brocoders/nestjs-boilerplate,nestjs,codellama:7b-instruct,knowledge_graph,success,136871,4450,507,0.0,mistral:7b-instruct,False,True,0.1667,6,1,True,1.0,106,0,True,1.0,0.0191,1.0,0.673,True,0.0194,0.15,0.1262,0.0,False,,,,,,,fabricated_technology,"
+{
+""overview"": ""This repository appears to be a NestJS project for a social media platform. It includes a variety of modules, services, and endpoints for user authentication, file uploading, and more. The repository also includes a variety of external dependencies and configuration files."",
+""tech_stack"": [""NestJS"", ""TypeScript"", ""JavaScript"", ""Mongoose"", ""TypeORM"", ""Passport"", ""JWT"", ""S3""],
+""services"": [""HTTP server"", ""background worker""],
+""dependencies"": [""@aws-sdk/client-s3"", ""@aws-sdk/s3-request-presigner"", ""@commitlint/cli"", ""@commitlint/config-conventional"", ""@eslint/eslintrc"", ""@eslint/js"", ""@nestjs/cli"", ""@nestjs/common"", ""@nestjs/config"", ""@nestjs/core"", ""@nestjs/jwt"", ""@nestjs/mongoose"", ""@nestjs/passport"", ""@nestjs/platform-express"", ""@nestjs/schematics"", ""@nestjs/swagger"", ""@nestjs/testing"", ""@nestjs/typeorm"", ""@release-it/conventional-changelog"", ""@swc/cli"", ""@swc/core"", ""bcryptjs"", ""class-transformer"", ""class-validator"", ""dotenv"", ""env-cmd"", ""eslint"", ""eslint-config-prettier"", ""eslint-plugin-prettier"", ""globals"", ""google-auth-library"", ""handlebars"", ""helmet"", ""husky"", ""hygen"", ""is-ci"", ""jest"", ""mongoose"", ""mongoose-autopopulate"", ""ms"", ""multer"", ""multer-s3"", ""nestjs-i18n"", ""nodemailer"", ""passport"", ""passport-anonymous"", ""passport-jwt"", ""pg"", ""prettier"", ""prompts"", ""reflect-metadata"", ""release-it"", ""rimraf"", ""rxjs"", ""source-map-support"", ""supertest"", ""swagger-ui-express"", ""ts-jest"", ""ts-loader"", ""ts-node"", ""tsconfig-paths"", ""tslib"", ""typeorm"", ""typescript""]
+}",[],"[""JavaScript""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 24, ""Class/Service"": 40}",
+ack-nestjs-boilerplate,https://github.com/andrechristikan/ack-nestjs-boilerplate,nestjs,codellama:7b-instruct,raw,success,106590,7873,131,0.0,mistral:7b-instruct,False,True,0.25,4,1,True,1.0,122,0,True,1.0,0.0018,1.0,0.6673,True,0.0131,0.1408,0.1173,0.0,False,,,,,,,fabricated_technology,"```
+{
+  ""overview"": ""This repository contains a NestJS application that serves as a starting point for building a RESTful API with JWT authentication and authorization."",
+  ""tech_stack"": [""TypeScript"", ""NestJS"", ""JWT"", ""Passport"", ""MongoDB""],
+  ""services"": [""HTTP server"", ""background worker""],
+  ""dependencies"": [""crypto"", ""dotenv"", ""express"", ""jsonwebtoken"", ""mongoose"", ""passport"", ""passport-jwt"", ""reflect-metadata"", ""winston""]
+}
+```",[],"[""MongoDB""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 40, ""Class/Service"": 40}",
+ack-nestjs-boilerplate,https://github.com/andrechristikan/ack-nestjs-boilerplate,nestjs,codellama:7b-instruct,dependency_graph,failed,900120,0,0,0.0,mistral:7b-instruct,False,False,0.0,0,0,False,0.0,0,0,True,1.0,0.0018,1.0,0.6673,False,,,,,False,,,,,,,malformed_output,,[],[],{},
+ack-nestjs-boilerplate,https://github.com/andrechristikan/ack-nestjs-boilerplate,nestjs,codellama:7b-instruct,knowledge_graph,success,113788,4098,195,0.0,mistral:7b-instruct,False,True,0.25,4,1,True,1.0,122,0,True,1.0,0.0018,1.0,0.6673,True,0.0072,0.0725,0.1233,0.0,False,,,,,,,fabricated_technology,"
+The JSON object contains the following information:
+
+* API endpoints: A list of API endpoints that are exposed by the application, along with their corresponding controller methods.
+* External dependencies: A list of external dependencies that are used by the application, including popular libraries and frameworks such as Nest.js, TypeScript, and Axios.
+* Config files: A list of configuration files that are used by the application, including the main configuration file (package.json), the Nest.js configuration file (nest-cli.json), and the Docker configuration file (docker-compose.yml).
+* Database entities: A list of database entities that are used by the application, including the main entity (User) and any additional entities that are defined in the application.
+
+The JSON object is a summary of the application's architecture and configuration, and it can be used to quickly identify the main components and dependencies of the application.",[],"[""Database entities: A list of database entities that are used by the application, including the main entity (User) and any additional entities that are defined in the application.""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 40, ""Class/Service"": 40}",
+awesome-nest-boilerplate,https://github.com/NarHakobyan/awesome-nest-boilerplate,nestjs,codellama:7b-instruct,raw,success,297801,4098,1108,0.0,mistral:7b-instruct,False,True,0.3333,3,1,True,0.4362,94,53,True,1.0,1.0,1.0,1.0,True,0.0018,0.0211,0.0427,0.0,False,,,,,,,"fabricated_technology,missed_framework_or_language,missed_framework_or_language,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service","
+Here is the updated `src/database/migrations/1641994291086-add-posts-table.ts` file:
+```typescript
+import type { MigrationInterface, QueryRunner } from 'typeorm';
+
+export class AddPostsTable1641994291086 implements MigrationInterface {
+  name = 'addPostsTable1641994291086';
+
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`
+      CREATE TABLE ""posts""
+      (
+        ""id""         uuid      NOT NULL DEFAULT uuid_generate_v4(),
+        ""created_at"" TIMESTAMP NOT NULL DEFAULT now(),
+        ""updated_at"" TIMESTAMP NOT NULL DEFAULT now(),
+        ""user_id""    uuid      NOT NULL,
+        CONSTRAINT ""PK_2829ac61eff60fcec60d7274b9e"" PRIMARY KEY (""id"")
+      )`);
+    await queryRunner.query(`
+      CREATE TABLE ""post_translations""
+      (
+        ""id""            uuid                                            NOT NULL DEFAULT uuid_generate_v4(),
+        ""created_at""    TIMESTAMP                                       NOT NULL DEFAULT now(),
+        ""updated_at""    TIMESTAMP                                       NOT NULL DEFAULT now(),
+        ""title""         character varying                               NOT NULL,
+        ""description""   character varying                               NOT NULL,
+        ""post_id""       uuid                                            NOT NULL,
+        ""language_code"" ""public"".""post_translations_language_code_enum"" NOT NULL,
+        CONSTRAINT ""PK_977f23a9a89bf4a1a9e2e29c136"" PRIMARY KEY (""id"")
+      )`);
+    await queryRunner.query(`
+      ALTER TABLE ""post_translations""
+        ADD CONSTRAINT ""FK_11f143c8b50a9ff60340edca475"" FOREIGN KEY (""post_id"") REFERENCES ""posts"" (""id"") ON DELETE CASCADE ON UPDATE CASCADE`);
+    await queryRunner.query(`
+      ALTER TABLE ""posts""
+        ADD CONSTRAINT ""FK_c4f9a7bd77b489e711277ee5986"" FOREIGN KEY (""user_id"") REFERENCES ""users"" (""id"") ON DELETE CASCADE ON UPDATE CASCADE`);
+    await queryRunner.query(`
+      ALTER TABLE ""user_settings""
+        ADD CONSTRAINT ""FK_4ed056b9344e6f7d8d46ec4b302"" FOREIGN KEY (""user_id"") REFERENCES ""users"" (""id"") ON DELETE CASCADE ON UPDATE CASCADE`);
+  }
+
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`ALTER TABLE ""user_settings""
+      DROP CONSTRAINT ""FK_4ed056b9344e6f7d8d46ec4b302""`);
+    await queryRunner.query(`ALTER TABLE ""posts""
+      DROP CONSTRAINT ""FK_c4f9a7bd77b489e711277ee5986""`);
+    await queryRunner.query(`ALTER TABLE ""post_translations""
+      DROP CONSTRAINT ""FK_11f143c8b50a9ff60340edca475""`);
+    await queryRunner.query('DROP TABLE ""posts""');
+    await queryRunner.query('DROP TABLE ""post_translations""');
+    await queryRunner.query(
+      'DROP TYPE ""public"".""post_translations_language_code_enum""'
+    );
+  }
+}
+```
+This migration creates the `posts` and `post_translations` tables, and adds foreign key constraints to the `user_settings` table. It also creates the `post_translations_language_code_enum` type, which is used to define the `language_code` column in the `post_translations` table.
+
+Note that the `down` method is also updated to remove the `post_translations_language_code_enum` type, as well as the `posts` and `post_translations` tables, when the migration is rolled back.","[""Framework: nestjs ^11.1.6"", ""Language: typescript"", ""Endpoint: POST /auth/login"", ""Endpoint: POST /auth/register"", ""Endpoint: GET /auth/me"", ""Endpoint: GET /health"", ""Endpoint: POST /posts"", ""Endpoint: GET /posts"", ""Endpoint: GET /posts/:id"", ""Endpoint: PUT /posts/:id"", ""Endpoint: DELETE /posts/:id"", ""Endpoint: GET /users/admin"", ""Endpoint: GET /users"", ""Endpoint: GET /users/:id"", ""Class/Service: AppModule"", ""Class/Service: AbstractClientService"", ""Class/Service: AbstractTranslationEntity"", ""Class/Service: AbstractDto"", ""Class/Service: AbstractTranslationDto"", ""Class/Service: CreateTranslationDto"", ""Class/Service: PageMetaDto"", ""Class/Service: PageOptionsDto"", ""Class/Service: PageDto"", ""Class/Service: CreateUsersTable1622299665807"", ""Class/Service: AddUserSettings1639940635548"", ""Class/Service: UserSubscriber"", ""Class/Service: FileNotImageException"", ""Class/Service: PageTypeException"", ""Class/Service: UserNotFoundException"", ""Class/Service: HttpExceptionFilter"", ""Class/Service: QueryFailedFilter"", ""Class/Service: RolesGuard"", ""Class/Service: AuthUserInterceptor"", ""Class/Service: LanguageInterceptor"", ""Class/Service: TranslationInterceptor"", ""Class/Service: AuthController"", ""Class/Service: AuthModule"", ""Class/Service: AuthService"", ""Class/Service: LoginPayloadDto"", ""Class/Service: TokenPayloadDto"", ""Class/Service: UserLoginDto"", ""Class/Service: UserRegisterDto"", ""Class/Service: JwtStrategy"", ""Class/Service: PublicStrategy"", ""Class/Service: HealthCheckerController"", ""Class/Service: HealthCheckerModule"", ""Class/Service: ServiceHealthIndicator"", ""Class/Service: CreatePostCommand"", ""Class/Service: CreatePostHandler"", ""Class/Service: CreatePostDto"", ""Class/Service: PostPageOptionsDto"", ""Class/Service: PostTranslationDto"", ""Class/Service: PostDto""]","[""This migration creates the `posts` and `post_translations` tables, and adds foreign key constraints to the `user_settings` table. It also creates the `post_translations_language_code_enum` type, which is used to define the `language_code` column in the `post_translations` table.""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 12, ""Class/Service"": 40}",
+awesome-nest-boilerplate,https://github.com/NarHakobyan/awesome-nest-boilerplate,nestjs,codellama:7b-instruct,dependency_graph,success,252719,5919,902,0.0,mistral:7b-instruct,False,True,1.0,10,10,True,1.0,94,0,True,1.0,1.0,1.0,1.0,True,0.0081,0.1132,0.1075,0.0,False,,,,,,,"fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology","{
+""overview"": ""This repository appears to be a NestJS project with a focus on building a RESTful API for a fictional e-commerce platform. The repository includes modules for user authentication, user settings, and product management, as well as a health checker module for monitoring the API's health. The repository also includes a shared module for common services and utilities, and a setup script for generating the API's documentation."",
+""tech_stack"": [""NestJS"", ""TypeScript"", ""TypeORM"", ""JWT"", ""Passport"", ""AWS S3"", ""AWS Secrets Manager"", ""Stripe""],
+""services"": [""HTTP server"", ""background worker""],
+""dependencies"": [""@ai-sdk/anthropic"", ""@ai-sdk/openai"", ""@ai-sdk/openai-compatible"", ""@aws-sdk/client-s3"", ""@aws-sdk/client-secrets-manager"", ""@biomejs/biome"", ""@eslint/compat"", ""@eslint/eslintrc"", ""@eslint/js"", ""@fal-ai/client"", ""@golevelup/nestjs-stripe"", ""@google/genai"", ""@nestjs/axios"", ""@nestjs/bullmq"", ""@nestjs/cli"", ""@nestjs/common"", ""@nestjs/config"", ""@nestjs/core"", ""@nestjs/cqrs"", ""@nestjs/jwt"", ""@nestjs/microservices"", ""@nestjs/passport"", ""@nestjs/platform-express"", ""@nestjs/schedule"", ""@nestjs/swagger"", ""@nestjs/terminus"", ""@nestjs/testing"", ""@nestjs/throttler"", ""@nestjs/typeorm"", ""@stylistic/eslint-plugin"", ""@swc/cli"", ""@swc/core"", ""@swc/plugin-transform-imports"", ""@types/bcrypt"", ""@types/compression"", ""@types/express"", ""@types/jest"", ""@types/jsonwebtoken"", ""@types/lodash"", ""@types/mime-types"", ""@types/morgan"", ""@types/node"", ""@types/passport"", ""@types/passport-jwt"", ""@types/supertest"", ""@types/uuid"", ""@typescript-eslint/eslint-plugin"", ""@typescript-eslint/parser"", ""ai"", ""awesome-nestjs-schematics"", ""axios"", ""bcrypt"", ""bullmq"", ""class-transformer"", ""class-validator"", ""compression"", ""cookie-parser"", ""cross-env"", ""esbuild"", ""eslint"", ""eslint-config-prettier"", ""eslint-import-resolver-typescript"", ""eslint-plugin-canonical"", ""eslint-plugin-import"", ""eslint-plugin-import-helpers"", ""eslint-plugin-n"", ""eslint-plugin-no-secrets"", ""eslint-plugin-prettier"", ""eslint-plugin-promise"", ""eslint-plugin-simple-import-sort"", ""eslint-plugin-sonarjs"", ""eslint-plugin-unicorn"", ""express"", ""firebase-admin"", ""globals"", ""helmet"", ""http-proxy"", ""husky"", ""ioredis"", ""jest"", ""jsonwebtoken"", ""knip"", ""limax"", ""lint-staged"", ""lodash"", ""mime-types"", ""morgan"", ""nanoid"", ""nestjs-cls"", ""nestjs-i18n"", ""parse-duration"", ""passport"", ""passport-jwt"", ""pg"", ""prettier"", ""reflect-metadata"", ""rxjs"", ""stripe"", ""supertest"", ""swagger-ui-express"", ""taze"", ""ts-jest"", ""ts-node"", ""tslib"", ""tsx"", ""typeorm"", ""typeorm-transactional"", ""typescript"", ""typescript-eslint"", ""uuid"", ""vite"", ""vite-plugin-node"", ""vitepress"", ""zod""]
+}",[],"[""@biomejs/biome"", ""@swc/cli"", ""@swc/core"", ""@swc/plugin-transform-imports"", ""awesome-nestjs-schematics"", ""knip"", ""taze"", ""vite"", ""vite-plugin-node"", ""vitepress""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 12, ""Class/Service"": 40}",
+awesome-nest-boilerplate,https://github.com/NarHakobyan/awesome-nest-boilerplate,nestjs,codellama:7b-instruct,knowledge_graph,success,227305,3157,851,0.0,mistral:7b-instruct,False,True,1.0,6,6,True,1.0,94,0,True,1.0,1.0,1.0,1.0,True,0.013,0.1096,0.1023,0.0,False,,,,,,,"fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology","
+{
+""overview"": ""This repository appears to be a NestJS project for building a RESTful API for managing users and their settings. It includes a variety of modules, services, and dependencies related to user authentication, authorization, and data storage."",
+""tech_stack"": [""NestJS"", ""TypeScript"", ""JavaScript"", ""ORM"", ""Database Driver"", ""Validation/Auth Library""],
+""services"": [""HTTP Server"", ""Background Worker""],
+""dependencies"": [""@ai-sdk/anthropic"", ""@ai-sdk/openai"", ""@ai-sdk/openai-compatible"", ""@aws-sdk/client-s3"", ""@aws-sdk/client-secrets-manager"", ""@biomejs/biome"", ""@eslint/compat"", ""@eslint/eslintrc"", ""@eslint/js"", ""@fal-ai/client"", ""@golevelup/nestjs-stripe"", ""@google/genai"", ""@nestjs/axios"", ""@nestjs/bullmq"", ""@nestjs/cli"", ""@nestjs/common"", ""@nestjs/config"", ""@nestjs/core"", ""@nestjs/cqrs"", ""@nestjs/jwt"", ""@nestjs/microservices"", ""@nestjs/passport"", ""@nestjs/platform-express"", ""@nestjs/schedule"", ""@nestjs/swagger"", ""@nestjs/terminus"", ""@nestjs/testing"", ""@nestjs/throttler"", ""@nestjs/typeorm"", ""@stylistic/eslint-plugin"", ""@swc/cli"", ""@swc/core"", ""@swc/plugin-transform-imports"", ""@types/bcrypt"", ""@types/compression"", ""@types/express"", ""@types/jest"", ""@types/jsonwebtoken"", ""@types/lodash"", ""@types/mime-types"", ""@types/morgan"", ""@types/node"", ""@types/passport"", ""@types/passport-jwt"", ""@types/supertest"", ""@types/uuid"", ""@typescript-eslint/eslint-plugin"", ""@typescript-eslint/parser"", ""ai"", ""awesome-nestjs-schematics"", ""axios"", ""bcrypt"", ""bullmq"", ""class-transformer"", ""class-validator"", ""compression"", ""cookie-parser"", ""cross-env"", ""esbuild"", ""eslint"", ""eslint-config-prettier"", ""eslint-import-resolver-typescript"", ""eslint-plugin-canonical"", ""eslint-plugin-import"", ""eslint-plugin-import-helpers"", ""eslint-plugin-n"", ""eslint-plugin-no-secrets"", ""eslint-plugin-prettier"", ""eslint-plugin-promise"", ""eslint-plugin-simple-import-sort"", ""eslint-plugin-sonarjs"", ""eslint-plugin-unicorn"", ""express"", ""firebase-admin"", ""globals"", ""helmet"", ""http-proxy"", ""husky"", ""ioredis"", ""jest"", ""jsonwebtoken"", ""knip"", ""limax"", ""lint-staged"", ""lodash"", ""mime-types"", ""morgan"", ""nanoid"", ""nestjs-cls"", ""nestjs-i18n"", ""parse-duration"", ""passport"", ""passport-jwt"", ""pg"", ""prettier"", ""reflect-metadata"", ""rxjs"", ""stripe"", ""supertest"", ""swagger-ui-express"", ""taze"", ""ts-jest"", ""ts-node"", ""tslib"", ""tsx"", ""typeorm"", ""typeorm-transactional"", ""typescript"", ""typescript-eslint"", ""uuid"", ""vite"", ""vite-plugin-node"", ""vitepress"", ""zod""]
+}",[],"[""Database Driver"", ""Validation/Auth Library"", ""@biomejs/biome"", ""@swc/cli"", ""@swc/core"", ""@swc/plugin-transform-imports""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 12, ""Class/Service"": 40}",
+domain-driven-hexagon,https://github.com/Sairyss/domain-driven-hexagon,nestjs,codellama:7b-instruct,raw,success,108540,7610,183,0.0,mistral:7b-instruct,False,True,0.25,4,1,True,1.0,85,0,True,1.0,0.7623,1.0,0.9208,True,0.0118,0.2069,0.1522,0.0,False,,,,,,,fabricated_technology,"
+{
+  ""overview"": ""This repository contains a database module with a migrator and a seed module. It also contains a NestJS application module with a GraphQL endpoint and a logger. The repository uses Slonik for database access and NestJS for the application framework."",
+  ""tech_stack"": [""TypeScript"", ""NestJS"", ""Slonik"", ""GraphQL"", ""PostgreSQL""],
+  ""services"": [""HTTP server"", ""background worker""],
+  ""dependencies"": [""@nestjs/cqrs"", ""@nestjs/event-emitter"", ""@nestjs/graphql"", ""@nestjs/typeorm"", ""@slonik/migrator"", ""dotenv"", ""nestjs-request-context"", ""nestjs-slonik"", ""pg"", ""slonik"", ""typeorm""]
+}",[],"[""PostgreSQL""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 3, ""Class/Service"": 40}",
+domain-driven-hexagon,https://github.com/Sairyss/domain-driven-hexagon,nestjs,codellama:7b-instruct,dependency_graph,success,144326,4880,436,0.0,mistral:7b-instruct,False,True,0.8,5,4,True,1.0,85,0,True,1.0,0.7623,1.0,0.9208,True,0.0105,0.1443,0.1487,0.0,False,,,,,,,"fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology","{
+""overview"": ""This repository appears to be a NestJS application that uses GraphQL for querying and mutating data. It includes a user module with queries, mutations, and domain events, as well as a wallet module with similar functionality. The repository also includes a database module for managing migrations and seeding the database."",
+""tech_stack"": [""NestJS"", ""GraphQL"", ""TypeScript"", ""JavaScript""],
+""services"": [""HTTP server"", ""background worker""],
+""dependencies"": [""@nestjs/apollo"", ""@nestjs/cli"", ""@nestjs/common"", ""@nestjs/core"", ""@nestjs/cqrs"", ""@nestjs/event-emitter"", ""@nestjs/graphql"", ""@nestjs/microservices"", ""@nestjs/platform-express"", ""@nestjs/schematics"", ""@nestjs/swagger"", ""@nestjs/testing"", ""@slonik/migrator"", ""@types/express"", ""@types/jest"", ""@types/node"", ""@types/supertest"", ""@types/uuid"", ""@typescript-eslint/eslint-plugin"", ""@typescript-eslint/parser"", ""apollo-server-core"", ""apollo-server-express"", ""class-transformer"", ""class-validator"", ""dependency-cruiser"", ""dotenv"", ""env-var"", ""eslint"", ""eslint-config-prettier"", ""eslint-plugin-prettier"", ""graphql"", ""jest"", ""jest-cucumber"", ""nanoid"", ""nestjs-console"", ""nestjs-request-context"", ""nestjs-slonik"", ""oxide.ts"", ""prettier"", ""reflect-metadata"", ""rimraf"", ""rxjs"", ""slonik"", ""source-map-support"", ""supertest"", ""ts-jest"", ""ts-loader"", ""ts-node"", ""tsconfig-paths"", ""typescript"", ""uuid""]
+}",[],"[""GraphQL"", ""TypeScript"", ""JavaScript"", ""database module for managing migrations and seeding the database""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 3, ""Class/Service"": 40}",
+domain-driven-hexagon,https://github.com/Sairyss/domain-driven-hexagon,nestjs,codellama:7b-instruct,knowledge_graph,success,79176,2601,406,0.0,mistral:7b-instruct,False,True,0.3333,3,1,True,1.0,85,0,True,1.0,0.7623,1.0,0.9208,True,0.0094,0.1867,0.1531,0.0,False,,,,,,,fabricated_technology,"
+{
+""overview"": ""This repository appears to be a NestJS application that uses GraphQL for querying and mutating data. It also uses TypeORM for database interactions and NestJS for the framework."",
+""tech_stack"": [""NestJS"", ""TypeORM"", ""GraphQL""],
+""services"": [""HTTP server"", ""background worker""],
+""dependencies"": [""@nestjs/apollo"", ""@nestjs/cli"", ""@nestjs/common"", ""@nestjs/core"", ""@nestjs/cqrs"", ""@nestjs/event-emitter"", ""@nestjs/graphql"", ""@nestjs/microservices"", ""@nestjs/platform-express"", ""@nestjs/schematics"", ""@nestjs/swagger"", ""@nestjs/testing"", ""@slonik/migrator"", ""@types/express"", ""@types/jest"", ""@types/node"", ""@types/supertest"", ""@types/uuid"", ""@typescript-eslint/eslint-plugin"", ""@typescript-eslint/parser"", ""apollo-server-core"", ""apollo-server-express"", ""class-transformer"", ""class-validator"", ""dependency-cruiser"", ""dotenv"", ""env-var"", ""eslint"", ""eslint-config-prettier"", ""eslint-plugin-prettier"", ""graphql"", ""jest"", ""jest-cucumber"", ""nanoid"", ""nestjs-console"", ""nestjs-request-context"", ""nestjs-slonik"", ""oxide.ts"", ""prettier"", ""reflect-metadata"", ""rimraf"", ""rxjs"", ""slonik"", ""source-map-support"", ""supertest"", ""ts-jest"", ""ts-loader"", ""ts-node"", ""tsconfig-paths"", ""typescript"", ""uuid""]
+}",[],"[""TypeORM""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 3, ""Class/Service"": 40}",
+nestjs-recipe,https://github.com/arielweinberger/nestjs-recipe,nestjs,codellama:7b-instruct,raw,success,68157,5555,89,0.0,mistral:7b-instruct,False,True,0.25,4,1,True,1.0,66,0,True,1.0,1.0,1.0,1.0,True,0.0279,0.2593,0.2287,0.0,False,,,,,,,fabricated_technology,"{
+""overview"": ""This repository contains a NestJS application that provides a RESTful API for managing tasks. It uses TypeORM for database access and JWT for authentication."",
+""tech_stack"": [""NestJS"", ""TypeORM"", ""JWT""],
+""services"": [""HTTP server"", ""background worker""],
+""dependencies"": [""TypeORM"", ""JWT"", ""bcrypt""]
+}",[],"[""This repository contains a NestJS application that provides a RESTful API for managing tasks. It uses TypeORM for database access and JWT for authentication.""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 7, ""Class/Service"": 17}",
+nestjs-recipe,https://github.com/arielweinberger/nestjs-recipe,nestjs,codellama:7b-instruct,dependency_graph,success,64245,1497,337,0.0,mistral:7b-instruct,False,True,0.25,4,1,True,1.0,66,0,True,1.0,1.0,1.0,1.0,True,0.0237,0.2424,0.239,0.0,False,,,,,,,fabricated_technology,"
+{
+""overview"": ""This repository appears to be a NestJS project that provides a RESTful API for managing tasks and users. It includes a variety of modules and services, as well as external dependencies for authentication and database management."",
+""tech_stack"": [""TypeScript"", ""NestJS"", ""TypeORM"", ""PostgreSQL""],
+""services"": [""HTTP server"", ""background worker""],
+""dependencies"": [""@hapi/joi"", ""@nestjs/cli"", ""@nestjs/common"", ""@nestjs/config"", ""@nestjs/core"", ""@nestjs/jwt"", ""@nestjs/passport"", ""@nestjs/platform-express"", ""@nestjs/schematics"", ""@nestjs/testing"", ""@nestjs/typeorm"", ""@types/express"", ""@types/hapi__joi"", ""@types/jest"", ""@types/node"", ""@types/passport-jwt"", ""@types/supertest"", ""@typescript-eslint/eslint-plugin"", ""@typescript-eslint/parser"", ""bcrypt"", ""class-transformer"", ""class-validator"", ""eslint"", ""eslint-config-prettier"", ""eslint-plugin-prettier"", ""jest"", ""passport"", ""passport-jwt"", ""pg"", ""prettier"", ""reflect-metadata"", ""rimraf"", ""rxjs"", ""supertest"", ""ts-jest"", ""ts-loader"", ""ts-node"", ""tsconfig-paths"", ""typeorm"", ""typescript""]
+}",[],"[""PostgreSQL""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 7, ""Class/Service"": 17}",
+nestjs-recipe,https://github.com/arielweinberger/nestjs-recipe,nestjs,codellama:7b-instruct,knowledge_graph,success,65545,1106,444,0.0,mistral:7b-instruct,False,True,0.25,4,1,True,1.0,66,0,True,1.0,1.0,1.0,1.0,True,0.0243,0.2449,0.1573,0.0,False,,,,,,,fabricated_technology,"
+{
+""overview"": ""This repository appears to be a NestJS project that provides a RESTful API for managing tasks and user authentication."",
+""tech_stack"": [""TypeScript"", ""NestJS"", ""@nestjs/jwt"", ""bcrypt"", ""class-transformer"", ""class-validator"", ""eslint"", ""jest"", ""passport"", ""pg"", ""reflect-metadata"", ""rimraf"", ""rxjs"", ""supertest"", ""ts-jest"", ""ts-loader"", ""ts-node"", ""tsconfig-paths"", ""typeorm"", ""@types/express"", ""@types/hapi__joi"", ""@types/jest"", ""@types/node"", ""@types/passport-jwt"", ""@types/supertest"", ""@typescript-eslint/eslint-plugin"", ""@typescript-eslint/parser""],
+""services"": [""HTTP server"", ""background worker""],
+""dependencies"": [""@hapi/joi"", ""@nestjs/cli"", ""@nestjs/common"", ""@nestjs/config"", ""@nestjs/core"", ""@nestjs/jwt"", ""@nestjs/passport"", ""@nestjs/platform-express"", ""@nestjs/schematics"", ""@nestjs/testing"", ""@nestjs/typeorm"", ""@types/express"", ""@types/hapi__joi"", ""@types/jest"", ""@types/node"", ""@types/passport-jwt"", ""@types/supertest"", ""@typescript-eslint/eslint-plugin"", ""@typescript-eslint/parser"", ""bcrypt"", ""class-transformer"", ""class-validator"", ""eslint"", ""eslint-config-prettier"", ""eslint-plugin-prettier"", ""jest"", ""passport"", ""passport-jwt"", ""pg"", ""prettier"", ""reflect-metadata"", ""rimraf"", ""rxjs"", ""supertest"", ""ts-jest"", ""ts-loader"", ""ts-node"", ""tsconfig-paths"", ""typeorm""]
+}",[],"[""This repository appears to be a NestJS project""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 7, ""Class/Service"": 17}",
+nestjs-starter-rest-api,https://github.com/monstar-lab-oss/nestjs-starter-rest-api,nestjs,codellama:7b-instruct,raw,success,100054,8094,163,0.0,mistral:7b-instruct,False,True,0.2,5,1,True,0.7684,95,22,True,1.0,1.0,1.0,1.0,True,0.0094,0.1026,0.0794,0.0,False,,,,,,,"fabricated_technology,missed_endpoint,missed_endpoint,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,over_generic","
+{
+  ""overview"": ""This repository contains a simple blog application built with Nest.js and TypeORM. It includes a user module with basic CRUD operations, an article module with basic CRUD operations and a many-to-many relationship between users and articles, and a shared module with common services and utilities."",
+  ""tech_stack"": [""Nest.js"", ""TypeORM"", ""PostgreSQL"", ""TypeScript""],
+  ""services"": [""User"", ""Article"", ""Shared""],
+  ""repositories"": [""User"", ""Article"", ""Shared""],
+  ""acl"": [""User"", ""Article""],
+  ""strategies"": [""Local"", ""JWT"", ""JWT Refresh""]
+}","[""Endpoint: GET /"", ""Endpoint: GET /users/:id"", ""Class/Service: CreateUsers1658910111727"", ""Class/Service: CreateArticleInput"", ""Class/Service: UpdateArticleInput"", ""Class/Service: ArticleOutput"", ""Class/Service: AuthorOutput"", ""Class/Service: Article"", ""Class/Service: ArticleAclService"", ""Class/Service: ArticleRepository"", ""Class/Service: ArticleService"", ""Class/Service: AuthTokenOutput"", ""Class/Service: UserAccessTokenClaims"", ""Class/Service: UserRefreshTokenClaims"", ""Class/Service: BaseAclService"", ""Class/Service: BaseApiResponse"", ""Class/Service: ExtendedBaseApiResponse"", ""Class/Service: BaseApiErrorObject"", ""Class/Service: BaseApiErrorResponse"", ""Class/Service: PaginationParamsDto"", ""Class/Service: BaseApiException"", ""Class/Service: AllExceptionsFilter""]","[""PostgreSQL""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 13, ""Class/Service"": 40}",
+nestjs-starter-rest-api,https://github.com/monstar-lab-oss/nestjs-starter-rest-api,nestjs,codellama:7b-instruct,dependency_graph,success,102833,4140,453,0.0,mistral:7b-instruct,False,True,0.2,5,1,True,0.4421,95,53,True,1.0,1.0,1.0,1.0,True,0.0114,0.1892,0.186,0.0,False,,,,,,,"fabricated_technology,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service","{
+""overview"": ""This repository appears to be a NestJS application that provides a RESTful API for managing articles and users. It includes a user authentication system using JWT and local strategy, as well as an ACL system for controlling access to articles based on user roles."",
+""tech_stack"": [""TypeScript"", ""NestJS"", ""TypeORM"", ""Jest"", ""Passport"", ""JWT"", ""bcrypt"", ""PostgreSQL""],
+""services"": [""HTTP server"", ""background worker""],
+""dependencies"": [""@commitlint/cli"", ""@commitlint/config-conventional"", ""@nestjs/cli"", ""@nestjs/common"", ""@nestjs/config"", ""@nestjs/core"", ""@nestjs/jwt"", ""@nestjs/passport"", ""@nestjs/platform-express"", ""@nestjs/schematics"", ""@nestjs/swagger"", ""@nestjs/testing"", ""@nestjs/typeorm"", ""@types/bcrypt"", ""@types/express"", ""@types/jest"", ""@types/node"", ""@types/passport-jwt"", ""@types/passport-local"", ""@types/pg"", ""@types/supertest"", ""@types/uuid"", ""@typescript-eslint/eslint-plugin"", ""@typescript-eslint/parser"", ""bcrypt"", ""class-transformer"", ""class-validator"", ""dotenv"", ""eslint"", ""eslint-config-prettier"", ""eslint-plugin-import"", ""eslint-plugin-simple-import-sort"", ""husky"", ""jest"", ""jest-sonar-reporter"", ""joi"", ""lint-staged"", ""passport"", ""passport-jwt"", ""passport-local"", ""pg"", ""prettier"", ""reflect-metadata"", ""rimraf"", ""rxjs"", ""supertest"", ""swagger-ui-express"", ""ts-jest"", ""ts-loader"", ""ts-node"", ""tsconfig-paths"", ""typeorm"", ""typescript"", ""uuid"", ""winston""]
+}","[""Endpoint: GET /"", ""Endpoint: POST /articles"", ""Endpoint: GET /articles"", ""Endpoint: GET /articles/:id"", ""Endpoint: PATCH /articles/:id"", ""Endpoint: DELETE /articles/:id"", ""Endpoint: POST /auth/login"", ""Endpoint: POST /auth/register"", ""Endpoint: POST /auth/refresh-token"", ""Endpoint: GET /users/me"", ""Endpoint: GET /users"", ""Endpoint: GET /users/:id"", ""Endpoint: PATCH /users/:id"", ""Class/Service: CreateUsers1658910111727"", ""Class/Service: CreateArticles1658910213536"", ""Class/Service: AppController"", ""Class/Service: AppModule"", ""Class/Service: AppService"", ""Class/Service: ArticleModule"", ""Class/Service: ArticleController"", ""Class/Service: CreateArticleInput"", ""Class/Service: UpdateArticleInput"", ""Class/Service: ArticleOutput"", ""Class/Service: AuthorOutput"", ""Class/Service: Article"", ""Class/Service: ArticleRepository"", ""Class/Service: ArticleAclService"", ""Class/Service: ArticleService"", ""Class/Service: AuthModule"", ""Class/Service: AuthController"", ""Class/Service: LoginInput"", ""Class/Service: RefreshTokenInput"", ""Class/Service: RegisterInput"", ""Class/Service: RegisterOutput"", ""Class/Service: AuthTokenOutput"", ""Class/Service: UserAccessTokenClaims"", ""Class/Service: UserRefreshTokenClaims"", ""Class/Service: JwtAuthGuard"", ""Class/Service: JwtRefreshGuard"", ""Class/Service: LocalAuthGuard"", ""Class/Service: RolesGuard"", ""Class/Service: AuthService"", ""Class/Service: JwtAuthStrategy"", ""Class/Service: JwtRefreshStrategy"", ""Class/Service: LocalStrategy"", ""Class/Service: BaseAclService"", ""Class/Service: BaseApiResponse"", ""Class/Service: ExtendedBaseApiResponse"", ""Class/Service: BaseApiErrorObject"", ""Class/Service: BaseApiErrorResponse"", ""Class/Service: PaginationParamsDto"", ""Class/Service: BaseApiException"", ""Class/Service: AllExceptionsFilter""]","[""PostgreSQL""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 13, ""Class/Service"": 40}",
+nestjs-starter-rest-api,https://github.com/monstar-lab-oss/nestjs-starter-rest-api,nestjs,codellama:7b-instruct,knowledge_graph,success,84589,2168,424,0.0,mistral:7b-instruct,False,True,0.25,4,1,True,1.0,95,0,True,1.0,1.0,1.0,1.0,True,0.0214,0.2222,0.2037,0.0,False,,,,,,,fabricated_technology,"
+{
+""overview"": ""This repository appears to be a NestJS project for building a RESTful API for managing users and articles. It includes a variety of modules, controllers, services, and dependencies, as well as a Dockerfile and configuration files for building and running the application."",
+""tech_stack"": [""NestJS"", ""TypeScript"", ""JavaScript"", ""TypeORM"", ""PostgreSQL""],
+""services"": [""HTTP server"", ""background worker""],
+""dependencies"": [""@nestjs/cli"", ""@nestjs/common"", ""@nestjs/config"", ""@nestjs/core"", ""@nestjs/jwt"", ""@nestjs/passport"", ""@nestjs/platform-express"", ""@nestjs/schematics"", ""@nestjs/swagger"", ""@nestjs/testing"", ""@nestjs/typeorm"", ""@types/bcrypt"", ""@types/express"", ""@types/jest"", ""@types/node"", ""@types/passport-jwt"", ""@types/passport-local"", ""@types/pg"", ""@types/supertest"", ""@types/uuid"", ""@typescript-eslint/eslint-plugin"", ""@typescript-eslint/parser"", ""bcrypt"", ""class-transformer"", ""class-validator"", ""dotenv"", ""eslint"", ""eslint-config-prettier"", ""eslint-plugin-import"", ""eslint-plugin-simple-import-sort"", ""husky"", ""jest"", ""jest-sonar-reporter"", ""joi"", ""lint-staged"", ""passport"", ""passport-jwt"", ""passport-local"", ""pg"", ""prettier"", ""reflect-metadata"", ""rimraf"", ""rxjs"", ""supertest"", ""swagger-ui-express"", ""ts-jest"", ""ts-loader"", ""ts-node"", ""tsconfig-paths"", ""typeorm"", ""typescript"", ""uuid"", ""winston""]
+}",[],"[""PostgreSQL""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 13, ""Class/Service"": 40}",
+clean-architecture-nestJS,https://github.com/royib/clean-architecture-nestJS,nestjs,codellama:7b-instruct,raw,success,57541,7122,89,0.0,mistral:7b-instruct,False,True,0.3333,3,1,True,1.0,81,0,True,1.0,1.0,1.0,1.0,True,0.0226,0.1967,0.1712,0.0,False,,,,,,,fabricated_technology,"{
+""overview"": ""This repository is a NestJS application that provides a RESTful API for managing books, authors, and genres. It uses the NestJS framework and the MongoDB database."",
+""tech_stack"": [""NestJS"", ""MongoDB""],
+""services"": [""HTTP server"", ""background worker""],
+""dependencies"": [""NestJS"", ""MongoDB""]
+}",[],"[""MongoDB""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 32, ""Endpoint"": 13, ""Class/Service"": 34}",
+clean-architecture-nestJS,https://github.com/royib/clean-architecture-nestJS,nestjs,codellama:7b-instruct,dependency_graph,success,71388,2239,297,0.0,mistral:7b-instruct,False,True,0.25,4,1,True,1.0,81,0,True,1.0,1.0,1.0,1.0,True,0.0234,0.1644,0.1275,0.0,False,,,,,,,fabricated_technology,"
+{
+""overview"": ""This repository appears to be a NestJS project, with a focus on building a RESTful API for managing books and authors. It includes a variety of modules and services, as well as external dependencies for NestJS and MongoDB."",
+""tech_stack"": [""TypeScript"", ""NestJS"", ""MongoDB""],
+""services"": [""HTTP server"", ""background worker""],
+""dependencies"": [""@nestjs/cli"", ""@nestjs/common"", ""@nestjs/core"", ""@nestjs/mapped-types"", ""@nestjs/mongoose"", ""@nestjs/platform-express"", ""@nestjs/schematics"", ""@nestjs/testing"", ""@types/express"", ""@types/jest"", ""@types/node"", ""@types/supertest"", ""@typescript-eslint/eslint-plugin"", ""@typescript-eslint/parser"", ""class-validator"", ""eslint"", ""eslint-config-prettier"", ""eslint-plugin-prettier"", ""jest"", ""mongoose"", ""mongoose-autopopulate"", ""prettier"", ""reflect-metadata"", ""rimraf"", ""rxjs"", ""source-map-support"", ""supertest"", ""ts-jest"", ""ts-loader"", ""ts-node"", ""tsconfig-paths"", ""typescript""]
+}",[],"[""MongoDB""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 32, ""Endpoint"": 13, ""Class/Service"": 34}",
+clean-architecture-nestJS,https://github.com/royib/clean-architecture-nestJS,nestjs,codellama:7b-instruct,knowledge_graph,success,49157,1669,301,0.0,mistral:7b-instruct,False,True,0.25,4,1,True,1.0,81,0,True,1.0,1.0,1.0,1.0,True,0.0211,0.1316,0.1124,0.0,False,,,,,,,fabricated_technology,"
+{
+""overview"": ""This repository appears to be a NestJS project that provides a RESTful API for managing books and authors. It includes a variety of modules, services, and endpoints for interacting with the database and performing CRUD operations on book and author data."",
+""tech_stack"": [""TypeScript"", ""NestJS"", ""Mongoose""],
+""services"": [""HTTP server"", ""background worker""],
+""dependencies"": [""@nestjs/cli"", ""@nestjs/common"", ""@nestjs/core"", ""@nestjs/mapped-types"", ""@nestjs/mongoose"", ""@nestjs/platform-express"", ""@nestjs/schematics"", ""@nestjs/testing"", ""@types/express"", ""@types/jest"", ""@types/node"", ""@types/supertest"", ""@typescript-eslint/eslint-plugin"", ""@typescript-eslint/parser"", ""class-validator"", ""eslint"", ""eslint-config-prettier"", ""eslint-plugin-prettier"", ""jest"", ""mongoose"", ""mongoose-autopopulate"", ""prettier"", ""reflect-metadata"", ""rimraf"", ""rxjs"", ""source-map-support"", ""supertest"", ""ts-jest"", ""ts-loader"", ""ts-node"", ""tsconfig-paths"", ""typescript""]
+}",[],"[""Mongoose""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 32, ""Endpoint"": 13, ""Class/Service"": 34}",

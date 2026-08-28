@@ -1,0 +1,4 @@
+{
+  "name": "fixture-app-esm",
+  "dependencies": { "express": "^4.18.2" }
+}
