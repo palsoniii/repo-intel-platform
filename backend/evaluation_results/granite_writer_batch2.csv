@@ -1,0 +1,485 @@
+repo_name,source_url,framework,model,context_variant,run_status,latency_ms,input_tokens,output_tokens,estimated_cost_usd,judge_model,self_judged,hallucination_judged,hallucination_score,total_claims,unsupported_claims,coverage_judged,coverage_score,total_facts,missing_facts,diagram_scored,diagram_module_f1,diagram_import_f1,diagram_endpoint_f1,diagram_overall_f1,text_overlap_scored,bleu4,rouge_l,meteor,bertscore_f1,quality_judged,quality_mean_score,quality_completeness,quality_conciseness,quality_correctness,quality_cohesiveness,quality_domain_specificity,failure_tags,summary_text,missing_facts_list,unsupported_claims_list,facts_by_category,error
+rest-api-nodejs-mongodb,https://github.com/maitraysuthar/rest-api-nodejs-mongodb,express,granite-code:8b-instruct,raw,success,62757,6785,179,0.0,gemma2:9b,False,True,0.2,10,2,True,0.4242,33,19,True,1.0,1.0,0.1,0.7,False,,,,,False,,,,,,,"fabricated_technology,fabricated_technology,missed_framework_or_language,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint","{
+  ""overview"": ""This repository is a Node.js application that provides an API for managing a list of books. The application uses Express.js for the server, Mongoose for the database, and JWT for authentication. The application also includes email confirmation and password encryption using bcrypt."",
+  ""tech_stack"": [
+    ""JavaScript"",
+    ""Node.js"",
+    ""Express.js"",
+    ""Mongoose"",
+    ""JWT"",
+    ""Bcrypt""
+  ],
+  ""services"": [
+    ""HTTP server"",
+    ""API endpoints for user authentication and book management""
+  ],
+  ""dependencies"": [
+    ""express"",
+    ""mongoose"",
+    ""cookie-parser"",
+    ""morgan"",
+    ""dotenv"",
+    ""cors"",
+    ""jsonwebtoken"",
+    ""nodemailer"",
+    ""express-validator"",
+    ""bcrypt""
+  ]
+}
+","[""Framework: express ~4.16.0"", ""Dependency: codacy-coverage"", ""Dependency: debug"", ""Dependency: chai"", ""Dependency: chai-http"", ""Dependency: eslint"", ""Dependency: mocha"", ""Dependency: nodemon"", ""Dependency: nyc"", ""Endpoint: POST /api/auth/login"", ""Endpoint: POST /api/auth/register"", ""Endpoint: POST /api/auth/verify-otp"", ""Endpoint: POST /api/auth/resend-verify-otp"", ""Endpoint: GET /api/book/:id"", ""Endpoint: GET /api/book"", ""Endpoint: POST /api/book"", ""Endpoint: PUT /api/book/:id"", ""Endpoint: DELETE /api/book/:id"", ""Endpoint: GET /""]","[""Mongoose"", ""JWT""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 21, ""Endpoint"": 10}",
+rest-api-nodejs-mongodb,https://github.com/maitraysuthar/rest-api-nodejs-mongodb,express,granite-code:8b-instruct,dependency_graph,success,24151,684,180,0.0,gemma2:9b,False,True,0.125,8,1,True,0.9091,33,3,True,1.0,1.0,0.1,0.7,False,,,,,False,,,,,,,"fabricated_technology,missed_framework_or_language,missed_framework_or_language,missed_dependency","{
+ ""overview"": ""This repository is a Node.js application that provides an API for managing books and authentication. It uses Express.js for routing, JWT for authentication, and Mongoose for MongoDB data modeling."",
+ ""tech_stack"": [""Node.js"", ""Express.js"", ""JWT"", ""Mongoose""],
+ ""services"": [""HTTP server"", ""API endpoint for books"", ""API endpoint for authentication""],
+ ""dependencies"": [""bcrypt"", ""chai"", ""chai-http"", ""codacy-coverage"", ""cookie-parser"", ""cors"", ""debug"", ""dotenv"", ""eslint"", ""express"", ""express-jwt"", ""express-validator"", ""jsonwebtoken"", ""mocha"", ""mocha-lcov-reporter"", ""moment"", ""mongoose"", ""morgan"", ""nodemailer"", ""nodemon"", ""nyc""]
+}
+","[""Framework: express ~4.16.0"", ""Language: javascript"", ""Dependency: express""]","[""Mongoose""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 21, ""Endpoint"": 10}",
+rest-api-nodejs-mongodb,https://github.com/maitraysuthar/rest-api-nodejs-mongodb,express,granite-code:8b-instruct,knowledge_graph,success,26428,779,224,0.0,gemma2:9b,False,True,0.3636,22,8,True,0.9091,33,3,True,1.0,1.0,0.1,0.7,False,,,,,False,,,,,,,"fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,missed_framework_or_language,missed_framework_or_language,missed_dependency","{
+ ""overview"": ""This repository is a Node.js Express application for managing books and authentication."",
+ ""tech_stack"": [""Node.js"", ""Express"", ""JWT"", ""bcrypt"", ""mocha"", ""chai"", ""chai-http"", ""codacy-coverage"", ""cookie-parser"", ""cors"", ""debug"", ""dotenv"", ""eslint"", ""express-jwt"", ""express-validator"", ""jsonwebtoken"", ""mocha"", ""mocha-lcov-reporter"", ""moment"", ""mongoose"", ""morgan"", ""nodemailer"", ""nodemon"", ""nyc""],
+ ""services"": [""HTTP server""],
+ ""dependencies"": [""bcrypt"", ""chai"", ""chai-http"", ""codacy-coverage"", ""cookie-parser"", ""cors"", ""debug"", ""dotenv"", ""eslint"", ""express"", ""express-jwt"", ""express-validator"", ""jsonwebtoken"", ""mocha"", ""mocha-lcov-reporter"", ""moment"", ""mongoose"", ""morgan"", ""nodemailer"", ""nodemon"", ""nyc""]
+}
+","[""Framework: express ~4.16.0"", ""Language: javascript"", ""Dependency: jsonwebtoken""]","[""JWT"", ""mocha"", ""mocha-lcov-reporter"", ""moment"", ""mongoose"", ""nodemailer"", ""nodemon"", ""nyc""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 21, ""Endpoint"": 10}",
+express-sequelize-api-boilerplate,https://github.com/binitghetiya/express-sequelize-api-boilerplate,express,granite-code:8b-instruct,raw,success,69193,5796,187,0.0,gemma2:9b,False,True,0.3,10,3,True,0.2162,37,29,True,1.0,0.1905,1.0,0.7302,False,,,,,False,,,,,,,"fabricated_technology,fabricated_technology,fabricated_technology,missed_framework_or_language,missed_framework_or_language,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint","{
+  ""overview"": ""This repository is a Node.js application that provides authentication and authorization services for a web application. It uses Express.js for the server, JWT for authentication, and a custom database for user management. The application also includes middleware for error handling and CORS. The repository is structured with separate files for configuration, controllers, helpers, middleware, models, migrations, and seeders."",
+  ""tech_stack"": [
+    ""Node.js"",
+    ""Express.js"",
+    ""JWT"",
+    ""Sequelize"",
+    ""MySQL""
+  ],
+  ""services"": [
+    ""HTTP server"",
+    ""Authentication and authorization services"",
+    ""User management""
+  ],
+  ""dependencies"": [
+    ""express"",
+    ""jsonwebtoken"",
+    ""sequelize"",
+    ""mysql2"",
+    ""dotenv"",
+    ""cors"",
+    ""body-parser"",
+    ""axios""
+  ]
+}
+","[""Framework: express ^4.16.4"", ""Language: javascript"", ""Dependency: @babel/preset-env"", ""Dependency: @babel/register"", ""Dependency: @babel/runtime"", ""Dependency: @babel/core"", ""Dependency: @babel/plugin-proposal-object-rest-spread"", ""Dependency: @babel/plugin-transform-runtime"", ""Dependency: babel-loader"", ""Dependency: cluster"", ""Dependency: crypto"", ""Dependency: express-joi-validator"", ""Dependency: express-validation"", ""Dependency: http"", ""Dependency: jest"", ""Dependency: joi"", ""Dependency: mock-express-response"", ""Dependency: nodemon"", ""Dependency: os"", ""Dependency: sequelize-cli"", ""Dependency: babel-jest"", ""Dependency: eslint"", ""Dependency: eslint-config-airbnb-base"", ""Dependency: eslint-plugin-import"", ""Endpoint: GET /allUsers"", ""Endpoint: GET /me"", ""Endpoint: POST /changePassword"", ""Endpoint: POST /login"", ""Endpoint: POST /register""]","[""JWT"", ""Sequelize"", ""MySQL""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 30, ""Endpoint"": 5}",
+express-sequelize-api-boilerplate,https://github.com/binitghetiya/express-sequelize-api-boilerplate,express,granite-code:8b-instruct,dependency_graph,success,33335,966,222,0.0,gemma2:9b,False,True,0.3333,9,3,True,0.0,37,37,True,1.0,0.1905,1.0,0.7302,False,,,,,False,,,,,,,"fabricated_technology,fabricated_technology,fabricated_technology,missed_framework_or_language,missed_framework_or_language,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,over_generic","{
+ ""overview"": ""This repository is a Node.js application that provides an API for managing user accounts and authentication."",
+ ""tech_stack"": [""Node.js"", ""Express"", ""Sequelize"", ""JWT"", ""Joi"", ""Axios""],
+ ""services"": [""HTTP server""],
+ ""dependencies"": [""@babel/core"", ""@babel/plugin-proposal-object-rest-spread"", ""@babel/plugin-transform-runtime"", ""@babel/preset-env"", ""@babel/register"", ""@babel/runtime"", ""axios"", ""babel-jest"", ""babel-loader"", ""body-parser"", ""cluster"", ""cors"", ""crypto"", ""dotenv"", ""eslint"", ""eslint-config-airbnb-base"", ""eslint-plugin-import"", ""express"", ""express-joi-validator"", ""express-validation"", ""http"", ""jest"", ""joi"", ""jsonwebtoken"", ""mock-express-response"", ""mysql2"", ""nodemon"", ""os"", ""sequelize"", ""sequelize-cli""]
+}
+","[""Framework: express ^4.16.4"", ""Language: javascript"", ""Dependency: @babel/core"", ""Dependency: @babel/plugin-proposal-object-rest-spread"", ""Dependency: @babel/plugin-transform-runtime"", ""Dependency: @babel/preset-env"", ""Dependency: @babel/register"", ""Dependency: @babel/runtime"", ""Dependency: axios"", ""Dependency: babel-loader"", ""Dependency: body-parser"", ""Dependency: cluster"", ""Dependency: cors"", ""Dependency: crypto"", ""Dependency: dotenv"", ""Dependency: express"", ""Dependency: express-joi-validator"", ""Dependency: express-validation"", ""Dependency: http"", ""Dependency: jest"", ""Dependency: joi"", ""Dependency: jsonwebtoken"", ""Dependency: mock-express-response"", ""Dependency: mysql2"", ""Dependency: nodemon"", ""Dependency: os"", ""Dependency: sequelize"", ""Dependency: sequelize-cli"", ""Dependency: babel-jest"", ""Dependency: eslint"", ""Dependency: eslint-config-airbnb-base"", ""Dependency: eslint-plugin-import"", ""Endpoint: GET /allUsers"", ""Endpoint: GET /me"", ""Endpoint: POST /changePassword"", ""Endpoint: POST /login"", ""Endpoint: POST /register""]","[""Sequelize"", ""JWT"", ""mysql2""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 30, ""Endpoint"": 5}",
+express-sequelize-api-boilerplate,https://github.com/binitghetiya/express-sequelize-api-boilerplate,express,granite-code:8b-instruct,knowledge_graph,success,27070,853,227,0.0,gemma2:9b,False,True,0.1818,11,2,True,0.0,37,37,True,1.0,0.1905,1.0,0.7302,False,,,,,False,,,,,,,"fabricated_technology,fabricated_technology,missed_framework_or_language,missed_framework_or_language,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint","{
+ ""overview"": ""This repository is a Node.js application using the Express framework for building a web API."",
+ ""tech_stack"": [""Node.js"", ""Express"", ""Joi"", ""JWT"", ""Axios"", ""Sequelize"", ""dotenv"", ""eslint""],
+ ""services"": [""HTTP server""],
+ ""dependencies"": [""@babel/core"", ""@babel/plugin-proposal-object-rest-spread"", ""@babel/plugin-transform-runtime"", ""@babel/preset-env"", ""@babel/register"", ""@babel/runtime"", ""axios"", ""babel-jest"", ""babel-loader"", ""body-parser"", ""cluster"", ""cors"", ""crypto"", ""dotenv"", ""eslint"", ""eslint-config-airbnb-base"", ""eslint-plugin-import"", ""express"", ""express-joi-validator"", ""express-validation"", ""http"", ""jest"", ""joi"", ""jsonwebtoken"", ""mock-express-response"", ""mysql2"", ""nodemon"", ""os"", ""sequelize"", ""sequelize-cli""]
+}
+","[""Framework: express ^4.16.4"", ""Language: javascript"", ""Dependency: @babel/core"", ""Dependency: @babel/plugin-proposal-object-rest-spread"", ""Dependency: @babel/plugin-transform-runtime"", ""Dependency: @babel/preset-env"", ""Dependency: @babel/register"", ""Dependency: @babel/runtime"", ""Dependency: axios"", ""Dependency: babel-loader"", ""Dependency: body-parser"", ""Dependency: cluster"", ""Dependency: cors"", ""Dependency: crypto"", ""Dependency: dotenv"", ""Dependency: express"", ""Dependency: express-joi-validator"", ""Dependency: express-validation"", ""Dependency: http"", ""Dependency: jest"", ""Dependency: joi"", ""Dependency: jsonwebtoken"", ""Dependency: mock-express-response"", ""Dependency: mysql2"", ""Dependency: nodemon"", ""Dependency: os"", ""Dependency: sequelize"", ""Dependency: sequelize-cli"", ""Dependency: babel-jest"", ""Dependency: eslint"", ""Dependency: eslint-config-airbnb-base"", ""Dependency: eslint-plugin-import"", ""Endpoint: GET /allUsers"", ""Endpoint: GET /me"", ""Endpoint: POST /changePassword"", ""Endpoint: POST /login"", ""Endpoint: POST /register""]","[""JWT"", ""Sequelize""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 30, ""Endpoint"": 5}",
+api-design-node-v3,https://github.com/FrontendMasters/api-design-node-v3,express,granite-code:8b-instruct,raw,success,40210,4155,102,0.0,gemma2:9b,False,True,0.4286,7,3,True,0.1731,52,43,True,1.0,0.16,0.1818,0.4473,False,,,,,False,,,,,,,"fabricated_technology,fabricated_technology,fabricated_technology,missed_framework_or_language,missed_framework_or_language,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,over_generic","{
+  ""overview"": ""This repository is a Node.js application that provides a REST API for managing items and lists. The application uses MongoDB as the database and implements authentication and authorization using JSON Web Tokens (JWTs)."",
+  ""tech_stack"": [
+    ""Node.js"",
+    ""Express"",
+    ""MongoDB"",
+    ""JWT"",
+    ""mongoose"",
+    ""bcrypt""
+  ],
+  ""services"": [
+    ""HTTP server""
+  ],
+  ""dependencies"": []
+}
+","[""Framework: express ^4.16.4"", ""Language: javascript"", ""Dependency: body-parser"", ""Dependency: cors"", ""Dependency: cuid"", ""Dependency: dotenv"", ""Dependency: jsonwebtoken"", ""Dependency: lodash"", ""Dependency: morgan"", ""Dependency: validator"", ""Dependency: @babel/cli"", ""Dependency: @babel/core"", ""Dependency: @babel/plugin-proposal-class-properties"", ""Dependency: @babel/plugin-proposal-object-rest-spread"", ""Dependency: @babel/preset-env"", ""Dependency: babel-core"", ""Dependency: babel-eslint"", ""Dependency: babel-jest"", ""Dependency: eslint"", ""Dependency: eslint-config-prettier"", ""Dependency: eslint-config-standard"", ""Dependency: eslint-friendly-formatter"", ""Dependency: eslint-loader"", ""Dependency: eslint-plugin-import"", ""Dependency: eslint-plugin-jest"", ""Dependency: eslint-plugin-node"", ""Dependency: eslint-plugin-prettier"", ""Dependency: eslint-plugin-promise"", ""Dependency: eslint-plugin-standard"", ""Dependency: jest"", ""Dependency: mock-req-res"", ""Dependency: nodemon"", ""Dependency: prettier"", ""Dependency: rimraf"", ""Dependency: supertest"", ""Endpoint: DELETE /:id"", ""Endpoint: GET /"", ""Endpoint: POST /"", ""Endpoint: PUT /:id"", ""Endpoint: GET /:id"", ""Endpoint: PUT /"", ""Endpoint: POST /signup"", ""Endpoint: POST /signin""]","[""MongoDB"", ""JSON Web Tokens (JWTs)"", ""mongoose""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 36, ""Endpoint"": 14}",
+api-design-node-v3,https://github.com/FrontendMasters/api-design-node-v3,express,granite-code:8b-instruct,dependency_graph,success,35363,1045,278,0.0,gemma2:9b,False,True,0.2,10,2,True,1.0,52,0,True,1.0,0.16,0.1818,0.4473,False,,,,,False,,,,,,,"fabricated_technology,fabricated_technology,over_generic","{
+ ""overview"": ""This repository is a Node.js server that provides a RESTful API for managing a list of items. It uses MongoDB as the database and implements authentication and authorization using JSON Web Tokens (JWTs)."",
+ ""tech_stack"": [""Node.js"", ""Express"", ""MongoDB"", ""JWTs""],
+ ""services"": [""HTTP server""],
+ ""dependencies"": [""@babel/cli"", ""@babel/core"", ""@babel/plugin-proposal-class-properties"", ""@babel/plugin-proposal-object-rest-spread"", ""@babel/preset-env"", ""babel-core"", ""babel-eslint"", ""babel-jest"", ""bcrypt"", ""body-parser"", ""cors"", ""cuid"", ""dotenv"", ""eslint"", ""eslint-config-prettier"", ""eslint-config-standard"", ""eslint-friendly-formatter"", ""eslint-loader"", ""eslint-plugin-import"", ""eslint-plugin-jest"", ""eslint-plugin-node"", ""eslint-plugin-prettier"", ""eslint-plugin-promise"", ""eslint-plugin-standard"", ""express"", ""jest"", ""jsonwebtoken"", ""lodash"", ""mock-req-res"", ""mongoose"", ""morgan"", ""nodemon"", ""prettier"", ""rimraf"", ""supertest"", ""validator""]
+}
+",[],"[""MongoDB"", ""JSON Web Tokens (JWTs)""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 36, ""Endpoint"": 14}",
+api-design-node-v3,https://github.com/FrontendMasters/api-design-node-v3,express,granite-code:8b-instruct,knowledge_graph,success,36873,919,307,0.0,gemma2:9b,False,True,0.1,10,1,True,1.0,52,0,True,1.0,0.16,0.1818,0.4473,False,,,,,False,,,,,,,fabricated_technology,"{
+ ""overview"": ""This repository is a Node.js Express server with a focus on RESTful API development."",
+ ""tech_stack"": [
+ ""Node.js"",
+ ""Express"",
+ ""JWT"",
+ ""mongoose"",
+ ""validator""
+ ],
+ ""services"": [
+ ""HTTP server""
+ ],
+ ""dependencies"": [
+ ""@babel/cli"",
+ ""@babel/core"",
+ ""@babel/plugin-proposal-class-properties"",
+ ""@babel/plugin-proposal-object-rest-spread"",
+ ""@babel/preset-env"",
+ ""babel-core"",
+ ""babel-eslint"",
+ ""babel-jest"",
+ ""bcrypt"",
+ ""body-parser"",
+ ""cors"",
+ ""cuid"",
+ ""dotenv"",
+ ""eslint"",
+ ""eslint-config-prettier"",
+ ""eslint-config-standard"",
+ ""eslint-friendly-formatter"",
+ ""eslint-loader"",
+ ""eslint-plugin-import"",
+ ""eslint-plugin-jest"",
+ ""eslint-plugin-node"",
+ ""eslint-plugin-prettier"",
+ ""eslint-plugin-promise"",
+ ""eslint-plugin-standard"",
+ ""express"",
+ ""jest"",
+ ""jsonwebtoken"",
+ ""lodash"",
+ ""mock-req-res"",
+ ""mongoose"",
+ ""morgan"",
+ ""nodemon"",
+ ""prettier"",
+ ""rimraf"",
+ ""supertest"",
+ ""validator""
+ ]
+}
+",[],"[""JWT""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 36, ""Endpoint"": 14}",
+nestjs-realworld-example-app,https://github.com/lujakob/nestjs-realworld-example-app,nestjs,granite-code:8b-instruct,raw,success,70238,6552,136,0.0,gemma2:9b,False,True,0.2857,7,2,True,0.0,82,82,True,1.0,0.1765,1.0,0.7255,False,,,,,False,,,,,,,"fabricated_technology,fabricated_technology,missed_framework_or_language,missed_framework_or_language,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service","{
+  ""overview"": ""This repository is a Node.js application that implements the RealWorld API specification. It uses NestJS, TypeORM, and Swagger for the backend, and SQLite for the database. The application provides endpoints for creating, updating, and deleting articles, as well as for getting article feeds and comments. It also includes endpoints for user authentication and profile management."",
+  ""tech_stack"": [
+    ""Node.js"",
+    ""NestJS"",
+    ""TypeORM"",
+    ""SQLite"",
+    ""Swagger""
+  ],
+  ""services"": [
+    ""HTTP server"",
+    ""Background worker""
+  ],
+  ""dependencies"": []
+}
+","[""Framework: nestjs ^7.0.5"", ""Language: typescript"", ""Dependency: @nestjs/common"", ""Dependency: @nestjs/core"", ""Dependency: @nestjs/microservices"", ""Dependency: @nestjs/platform-express"", ""Dependency: @nestjs/swagger"", ""Dependency: @nestjs/testing"", ""Dependency: @nestjs/typeorm"", ""Dependency: @nestjs/websockets"", ""Dependency: argon2"", ""Dependency: class-transformer"", ""Dependency: class-validator"", ""Dependency: crypto"", ""Dependency: crypto-js"", ""Dependency: jsonwebtoken"", ""Dependency: mysql"", ""Dependency: passport-jwt"", ""Dependency: reflect-metadata"", ""Dependency: rxjs"", ""Dependency: slug"", ""Dependency: swagger-ui-express"", ""Dependency: typeorm"", ""Dependency: typescript"", ""Dependency: @types/jest"", ""Dependency: @types/node"", ""Dependency: atob"", ""Dependency: deep-extend"", ""Dependency: extend"", ""Dependency: jest"", ""Dependency: nodemon"", ""Dependency: supertest"", ""Dependency: ts-jest"", ""Dependency: ts-node"", ""Endpoint: GET /"", ""Endpoint: GET /articles"", ""Endpoint: GET /articles/feed"", ""Endpoint: GET /articles/:slug"", ""Endpoint: GET /articles/:slug/comments"", ""Endpoint: POST /articles"", ""Endpoint: PUT /articles/:slug"", ""Endpoint: DELETE /articles/:slug"", ""Endpoint: POST /articles/:slug/comments"", ""Endpoint: DELETE /articles/:slug/comments/:id"", ""Endpoint: POST /articles/:slug/favorite"", ""Endpoint: DELETE /articles/:slug/favorite"", ""Endpoint: GET /profiles/:username"", ""Endpoint: POST /profiles/:username/follow"", ""Endpoint: DELETE /profiles/:username/follow"", ""Endpoint: GET /tags"", ""Endpoint: GET /user"", ""Endpoint: PUT /user"", ""Endpoint: POST /users"", ""Endpoint: DELETE /users/:slug"", ""Endpoint: POST /users/login"", ""Class/Service: AppController"", ""Class/Service: ApplicationModule"", ""Class/Service: ArticleController"", ""Class/Service: ArticleEntity"", ""Class/Service: ArticleModule"", ""Class/Service: ArticleService"", ""Class/Service: Comment"", ""Class/Service: CreateArticleDto"", ""Class/Service: CreateCommentDto"", ""Class/Service: FollowsEntity"", ""Class/Service: ProfileController"", ""Class/Service: ProfileModule"", ""Class/Service: ProfileService"", ""Class/Service: BaseController"", ""Class/Service: ValidationPipe"", ""Class/Service: TagController"", ""Class/Service: TagEntity"", ""Class/Service: TagModule"", ""Class/Service: TagService"", ""Class/Service: AuthMiddleware"", ""Class/Service: CreateUserDto"", ""Class/Service: LoginUserDto"", ""Class/Service: UpdateUserDto"", ""Class/Service: UserController"", ""Class/Service: UserEntity"", ""Class/Service: UserModule"", ""Class/Service: UserService""]","[""SQLite"", ""Background worker""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 32, ""Endpoint"": 21, ""Class/Service"": 27}",
+nestjs-realworld-example-app,https://github.com/lujakob/nestjs-realworld-example-app,nestjs,granite-code:8b-instruct,dependency_graph,success,37625,1602,228,0.0,gemma2:9b,False,True,0.3,10,3,True,0.3537,82,53,True,1.0,0.1765,1.0,0.7255,False,,,,,False,,,,,,,"fabricated_technology,fabricated_technology,fabricated_technology,missed_framework_or_language,missed_framework_or_language,missed_dependency,missed_dependency,missed_dependency,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,over_generic","{
+ ""overview"": ""This repository is a Node.js application that provides a social networking platform for users to create and share articles and follow each other."",
+ ""tech_stack"": [""Node.js"", ""Express"", ""TypeORM"", ""JWT"", ""Swagger"", ""Jest""],
+ ""services"": [""HTTP server"", ""Background worker""],
+ ""dependencies"": [""@nestjs/common"", ""@nestjs/core"", ""@nestjs/microservices"", ""@nestjs/platform-express"", ""@nestjs/swagger"", ""@nestjs/testing"", ""@nestjs/typeorm"", ""@nestjs/websockets"", ""@types/jest"", ""@types/node"", ""argon2"", ""atob"", ""class-transformer"", ""class-validator"", ""crypto"", ""crypto-js"", ""deep-extend"", ""extend"", ""jest"", ""jsonwebtoken"", ""mysql"", ""nodemon"", ""passport-jwt"", ""reflect-metadata"", ""rxjs"", ""slug"", ""supertest"", ""swagger-ui-express"", ""ts-jest"", ""ts-node"", ""typeorm"", ""typescript""]
+}
+","[""Framework: nestjs ^7.0.5"", ""Language: typescript"", ""Dependency: @nestjs/testing"", ""Dependency: @nestjs/websockets"", ""Dependency: crypto-js"", ""Endpoint: GET /"", ""Endpoint: GET /articles"", ""Endpoint: GET /articles/feed"", ""Endpoint: GET /articles/:slug"", ""Endpoint: GET /articles/:slug/comments"", ""Endpoint: POST /articles"", ""Endpoint: PUT /articles/:slug"", ""Endpoint: DELETE /articles/:slug"", ""Endpoint: POST /articles/:slug/comments"", ""Endpoint: DELETE /articles/:slug/comments/:id"", ""Endpoint: POST /articles/:slug/favorite"", ""Endpoint: DELETE /articles/:slug/favorite"", ""Endpoint: GET /profiles/:username"", ""Endpoint: POST /profiles/:username/follow"", ""Endpoint: DELETE /profiles/:username/follow"", ""Endpoint: GET /tags"", ""Endpoint: GET /user"", ""Endpoint: PUT /user"", ""Endpoint: POST /users"", ""Endpoint: DELETE /users/:slug"", ""Endpoint: POST /users/login"", ""Class/Service: AppController"", ""Class/Service: ApplicationModule"", ""Class/Service: ArticleController"", ""Class/Service: ArticleEntity"", ""Class/Service: ArticleModule"", ""Class/Service: ArticleService"", ""Class/Service: Comment"", ""Class/Service: CreateArticleDto"", ""Class/Service: CreateCommentDto"", ""Class/Service: FollowsEntity"", ""Class/Service: ProfileController"", ""Class/Service: ProfileModule"", ""Class/Service: ProfileService"", ""Class/Service: BaseController"", ""Class/Service: ValidationPipe"", ""Class/Service: TagController"", ""Class/Service: TagEntity"", ""Class/Service: TagModule"", ""Class/Service: TagService"", ""Class/Service: AuthMiddleware"", ""Class/Service: CreateUserDto"", ""Class/Service: LoginUserDto"", ""Class/Service: UpdateUserDto"", ""Class/Service: UserController"", ""Class/Service: UserEntity"", ""Class/Service: UserModule"", ""Class/Service: UserService""]","[""Express"", ""TypeORM"", ""Background worker""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 32, ""Endpoint"": 21, ""Class/Service"": 27}",
+nestjs-realworld-example-app,https://github.com/lujakob/nestjs-realworld-example-app,nestjs,granite-code:8b-instruct,knowledge_graph,success,37134,1244,288,0.0,gemma2:9b,False,True,0.2,10,2,True,0.0732,82,76,True,1.0,0.1765,1.0,0.7255,False,,,,,False,,,,,,,"fabricated_technology,fabricated_technology,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service","{
+ ""overview"": ""This repository is a NestJS application that provides an API for managing users, articles, and tags. It includes endpoints for creating, updating, and deleting users and articles, as well as for finding and following profiles."",
+ ""tech_stack"": [
+ ""NestJS"",
+ ""NodeJS"",
+ ""MySQL"",
+ ""JWT"",
+ ""Swagger""
+ ],
+ ""services"": [
+ ""HTTP server"",
+ ""Background worker""
+ ],
+ ""dependencies"": [
+ ""@nestjs/common"",
+ ""@nestjs/core"",
+ ""@nestjs/microservices"",
+ ""@nestjs/platform-express"",
+ ""@nestjs/swagger"",
+ ""@nestjs/testing"",
+ ""@nestjs/typeorm"",
+ ""@nestjs/websockets"",
+ ""@types/jest"",
+ ""@types/node"",
+ ""argon2"",
+ ""atob"",
+ ""class-transformer"",
+ ""class-validator"",
+ ""crypto"",
+ ""crypto-js"",
+ ""deep-extend"",
+ ""extend"",
+ ""jest"",
+ ""jsonwebtoken"",
+ ""mysql"",
+ ""nodemon"",
+ ""passport-jwt"",
+ ""reflect-metadata"",
+ ""rxjs"",
+ ""slug"",
+ ""supertest"",
+ ""swagger-ui-express"",
+ ""ts-jest"",
+ ""ts-node"",
+ ""typeorm"",
+ ""typescript""
+ ]
+}
+","[""Dependency: @nestjs/microservices"", ""Dependency: @nestjs/platform-express"", ""Dependency: @nestjs/testing"", ""Dependency: @nestjs/websockets"", ""Dependency: argon2"", ""Dependency: class-transformer"", ""Dependency: class-validator"", ""Dependency: crypto"", ""Dependency: crypto-js"", ""Dependency: jsonwebtoken"", ""Dependency: mysql"", ""Dependency: passport-jwt"", ""Dependency: reflect-metadata"", ""Dependency: rxjs"", ""Dependency: slug"", ""Dependency: swagger-ui-express"", ""Dependency: typeorm"", ""Dependency: typescript"", ""Dependency: @types/jest"", ""Dependency: @types/node"", ""Dependency: atob"", ""Dependency: deep-extend"", ""Dependency: extend"", ""Dependency: jest"", ""Dependency: nodemon"", ""Dependency: supertest"", ""Dependency: ts-jest"", ""Dependency: ts-node"", ""Endpoint: GET /"", ""Endpoint: GET /articles"", ""Endpoint: GET /articles/feed"", ""Endpoint: GET /articles/:slug"", ""Endpoint: GET /articles/:slug/comments"", ""Endpoint: POST /articles"", ""Endpoint: PUT /articles/:slug"", ""Endpoint: DELETE /articles/:slug"", ""Endpoint: POST /articles/:slug/comments"", ""Endpoint: DELETE /articles/:slug/comments/:id"", ""Endpoint: POST /articles/:slug/favorite"", ""Endpoint: DELETE /articles/:slug/favorite"", ""Endpoint: GET /profiles/:username"", ""Endpoint: POST /profiles/:username/follow"", ""Endpoint: DELETE /profiles/:username/follow"", ""Endpoint: GET /tags"", ""Endpoint: GET /user"", ""Endpoint: PUT /user"", ""Endpoint: POST /users"", ""Endpoint: DELETE /users/:slug"", ""Endpoint: POST /users/login"", ""Class/Service: AppController"", ""Class/Service: ApplicationModule"", ""Class/Service: ArticleController"", ""Class/Service: ArticleEntity"", ""Class/Service: ArticleModule"", ""Class/Service: ArticleService"", ""Class/Service: Comment"", ""Class/Service: CreateArticleDto"", ""Class/Service: CreateCommentDto"", ""Class/Service: FollowsEntity"", ""Class/Service: ProfileController"", ""Class/Service: ProfileModule"", ""Class/Service: ProfileService"", ""Class/Service: BaseController"", ""Class/Service: ValidationPipe"", ""Class/Service: TagController"", ""Class/Service: TagEntity"", ""Class/Service: TagModule"", ""Class/Service: TagService"", ""Class/Service: AuthMiddleware"", ""Class/Service: CreateUserDto"", ""Class/Service: LoginUserDto"", ""Class/Service: UpdateUserDto"", ""Class/Service: UserController"", ""Class/Service: UserEntity"", ""Class/Service: UserModule"", ""Class/Service: UserService""]","[""MySQL"", ""Background worker""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 32, ""Endpoint"": 21, ""Class/Service"": 27}",
+nestjs-prisma-starter,https://github.com/notiz-dev/nestjs-prisma-starter,nestjs,granite-code:8b-instruct,raw,success,66044,6852,165,0.0,gemma2:9b,False,True,0.25,12,3,True,0.2105,76,60,True,1.0,0.1892,1.0,0.7297,False,,,,,False,,,,,,,"fabricated_technology,fabricated_technology,fabricated_technology,missed_framework_or_language,missed_framework_or_language,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_endpoint,missed_endpoint,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service","{
+  ""overview"": ""This repository is a seed project for a NestJS application that includes authentication and authorization using JWT. It also includes a database layer using Prisma."",
+  ""tech_stack"": [
+    ""JavaScript"",
+    ""NestJS"",
+    ""JWT"",
+    ""Prisma""
+  ],
+  ""services"": [
+    ""HTTP server"",
+    ""GraphQL API""
+  ],
+  ""dependencies"": [
+    ""@nestjs/common"",
+    ""@nestjs/config"",
+    ""@nestjs/graphql"",
+    ""@nestjs/passport"",
+    ""@prisma/client"",
+    ""bcrypt"",
+    ""class-validator"",
+    ""graphql-scalars"",
+    ""graphql-tools"",
+    ""jsonwebtoken"",
+    ""passport-jwt"",
+    ""swagger-ui-express""
+  ]
+}
+","[""Framework: nestjs 10.1.0"", ""Language: typescript"", ""Dependency: @apollo/server"", ""Dependency: @devoxa/prisma-relay-cursor-connection"", ""Dependency: @nestjs/apollo"", ""Dependency: @nestjs/core"", ""Dependency: @nestjs/jwt"", ""Dependency: @nestjs/platform-express"", ""Dependency: @nestjs/swagger"", ""Dependency: @nestjs/cli"", ""Dependency: @nestjs/schematics"", ""Dependency: @nestjs/testing"", ""Dependency: @swc/cli"", ""Dependency: @swc/core"", ""Dependency: @types/bcrypt"", ""Dependency: @types/chance"", ""Dependency: @types/express"", ""Dependency: @types/jest"", ""Dependency: @types/node"", ""Dependency: @types/supertest"", ""Dependency: @typescript-eslint/eslint-plugin"", ""Dependency: @typescript-eslint/parser"", ""Dependency: chance"", ""Dependency: eslint"", ""Dependency: eslint-config-prettier"", ""Dependency: eslint-plugin-prettier"", ""Endpoint: GET /"", ""Endpoint: GET /hello/:name"", ""Class/Service: AppController"", ""Class/Service: AppModule"", ""Class/Service: AppResolver"", ""Class/Service: AppService"", ""Class/Service: AuthModule"", ""Class/Service: AuthResolver"", ""Class/Service: AuthService"", ""Class/Service: LoginInput"", ""Class/Service: RefreshTokenInput"", ""Class/Service: SignupInput"", ""Class/Service: GqlAuthGuard"", ""Class/Service: JwtStrategy"", ""Class/Service: Auth"", ""Class/Service: Token"", ""Class/Service: PasswordService"", ""Class/Service: PageInfo"", ""Class/Service: PaginationArgs"", ""Class/Service: GqlConfigService"", ""Class/Service: PostIdArgs"", ""Class/Service: UserIdArgs"", ""Class/Service: CreatePostInput"", ""Class/Service: PostOrder"", ""Class/Service: PostConnection"", ""Class/Service: Post"", ""Class/Service: PostsModule"", ""Class/Service: PostsResolver"", ""Class/Service: ChangePasswordInput"", ""Class/Service: UpdateUserInput"", ""Class/Service: User"", ""Class/Service: UsersModule"", ""Class/Service: UsersResolver"", ""Class/Service: UsersService""]","[""graphql-tools"", ""jsonwebtoken"", ""swagger-ui-express""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 2, ""Class/Service"": 32}",
+nestjs-prisma-starter,https://github.com/notiz-dev/nestjs-prisma-starter,nestjs,granite-code:8b-instruct,dependency_graph,success,62335,2027,371,0.0,gemma2:9b,False,True,0.381,21,8,True,0.3289,76,51,True,1.0,0.1892,1.0,0.7297,False,,,,,False,,,,,,,"fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_endpoint,missed_endpoint,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service","{
+ ""overview"": ""This repository is a Node.js application that uses NestJS and Prisma to manage a user authentication and authorization system."",
+ ""tech_stack"": [""Node.js"", ""NestJS"", ""Prisma"", ""JWT"", ""GraphQL"", ""Apollo Server"", "" chance"", ""bcrypt"", ""class-validator"", ""class-transformer"", ""eslint"", ""prettier""],
+ ""services"": [""HTTP server"", ""GraphQL API""],
+ ""dependencies"": [""@apollo/server"", ""@devoxa/prisma-relay-cursor-connection"", ""@nestjs/apollo"", ""@nestjs/cli"", ""@nestjs/common"", ""@nestjs/config"", ""@nestjs/core"", ""@nestjs/graphql"", ""@nestjs/jwt"", ""@nestjs/passport"", ""@nestjs/platform-express"", ""@nestjs/schematics"", ""@nestjs/swagger"", ""@nestjs/testing"", ""@prisma/client"", ""@swc/cli"", ""@swc/core"", ""@types/bcrypt"", ""@types/chance"", ""@types/express"", ""@types/jest"", ""@types/node"", ""@types/supertest"", ""@typescript-eslint/eslint-plugin"", ""@typescript-eslint/parser"", ""bcrypt"", ""chance"", ""class-transformer"", ""class-validator"", ""eslint"", ""eslint-config-prettier"", ""eslint-plugin-prettier"", ""graphql"", ""graphql-scalars"", ""graphql-subscriptions"", ""jest"", ""nestjs-prisma"", ""passport"", ""passport-jwt"", ""prettier"", ""prisma"", ""prisma-dbml-generator"", ""reflect-metadata"", ""rxjs"", ""supertest"", ""ts-jest"", ""ts-loader"", ""ts-node"", ""tsconfig-paths"", ""typescript""]
+}
+","[""Dependency: @nestjs/cli"", ""Dependency: @nestjs/schematics"", ""Dependency: @nestjs/testing"", ""Dependency: @swc/cli"", ""Dependency: @swc/core"", ""Dependency: @types/bcrypt"", ""Dependency: @types/chance"", ""Dependency: @types/express"", ""Dependency: @types/jest"", ""Dependency: @types/node"", ""Dependency: @types/supertest"", ""Dependency: @typescript-eslint/eslint-plugin"", ""Dependency: @typescript-eslint/parser"", ""Dependency: chance"", ""Dependency: eslint"", ""Dependency: eslint-config-prettier"", ""Dependency: eslint-plugin-prettier"", ""Endpoint: GET /"", ""Endpoint: GET /hello/:name"", ""Class/Service: AppController"", ""Class/Service: AppModule"", ""Class/Service: AppResolver"", ""Class/Service: AppService"", ""Class/Service: AuthModule"", ""Class/Service: AuthResolver"", ""Class/Service: AuthService"", ""Class/Service: LoginInput"", ""Class/Service: RefreshTokenInput"", ""Class/Service: SignupInput"", ""Class/Service: GqlAuthGuard"", ""Class/Service: JwtStrategy"", ""Class/Service: Auth"", ""Class/Service: Token"", ""Class/Service: PasswordService"", ""Class/Service: PageInfo"", ""Class/Service: PaginationArgs"", ""Class/Service: GqlConfigService"", ""Class/Service: PostIdArgs"", ""Class/Service: UserIdArgs"", ""Class/Service: CreatePostInput"", ""Class/Service: PostOrder"", ""Class/Service: PostConnection"", ""Class/Service: Post"", ""Class/Service: PostsModule"", ""Class/Service: PostsResolver"", ""Class/Service: ChangePasswordInput"", ""Class/Service: UpdateUserInput"", ""Class/Service: User"", ""Class/Service: UsersModule"", ""Class/Service: UsersResolver"", ""Class/Service: UsersService""]","[""Prisma"", ""chance"", ""jest"", ""prisma-dbml-generator"", ""ts-jest"", ""ts-loader"", ""ts-node"", ""tsconfig-paths""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 2, ""Class/Service"": 32}",
+nestjs-prisma-starter,https://github.com/notiz-dev/nestjs-prisma-starter,nestjs,granite-code:8b-instruct,knowledge_graph,success,70068,1350,543,0.0,gemma2:9b,False,True,0.1935,31,6,True,1.0,76,0,True,1.0,0.1892,1.0,0.7297,False,,,,,False,,,,,,,"fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology","{
+ ""overview"": ""This repository is a NestJS application that provides authentication and authorization services for a social media platform."",
+ ""tech_stack"": [
+ ""NestJS"",
+ ""JWT"",
+ ""passport-jwt"",
+ ""bcrypt"",
+ "" chance"",
+ ""class-transformer"",
+ ""class-validator"",
+ ""eslint"",
+ ""eslint-config-prettier"",
+ ""eslint-plugin-prettier"",
+ ""graphql"",
+ ""graphql-scalars"",
+ ""graphql-subscriptions"",
+ ""jest"",
+ ""nestjs-prisma"",
+ ""passport"",
+ ""passport-jwt"",
+ ""prettier"",
+ ""prisma"",
+ ""prisma-dbml-generator"",
+ ""reflect-metadata"",
+ ""rxjs"",
+ ""supertest"",
+ ""ts-jest"",
+ ""ts-loader"",
+ ""ts-node"",
+ ""tsconfig-paths"",
+ ""typescript""
+ ],
+ ""services"": [
+ ""HTTP server"",
+ ""GraphQL API"",
+ ""Authentication and authorization services""
+ ],
+ ""dependencies"": [
+ ""@apollo/server"",
+ ""@devoxa/prisma-relay-cursor-connection"",
+ ""@nestjs/apollo"",
+ ""@nestjs/cli"",
+ ""@nestjs/common"",
+ ""@nestjs/config"",
+ ""@nestjs/core"",
+ ""@nestjs/graphql"",
+ ""@nestjs/jwt"",
+ ""@nestjs/passport"",
+ ""@nestjs/platform-express"",
+ ""@nestjs/schematics"",
+ ""@nestjs/swagger"",
+ ""@nestjs/testing"",
+ ""@prisma/client"",
+ ""@swc/cli"",
+ ""@swc/core"",
+ ""@types/bcrypt"",
+ ""@types/chance"",
+ ""@types/express"",
+ ""@types/jest"",
+ ""@types/node"",
+ ""@types/supertest"",
+ ""@typescript-eslint/eslint-plugin"",
+ ""@typescript-eslint/parser"",
+ ""bcrypt"",
+ ""chance"",
+ ""class-transformer"",
+ ""class-validator"",
+ ""eslint"",
+ ""eslint-config-prettier"",
+ ""eslint-plugin-prettier"",
+ ""graphql"",
+ ""graphql-scalars"",
+ ""graphql-subscriptions"",
+ ""jest"",
+ ""nestjs-prisma"",
+ ""passport"",
+ ""passport-jwt"",
+ ""prettier"",
+ ""prisma"",
+ ""prisma-dbml-generator"",
+ ""reflect-metadata"",
+ ""rxjs"",
+ ""supertest"",
+ ""ts-jest"",
+ ""ts-loader"",
+ ""ts-node"",
+ ""tsconfig-paths"",
+ ""typescript""
+ ]
+}
+",[],"[""prisma"", ""prisma-dbml-generator"", ""ts-jest"", ""ts-loader"", ""ts-node"", ""tsconfig-paths""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 2, ""Class/Service"": 32}",
+nestjs-boilerplate,https://github.com/brocoders/nestjs-boilerplate,nestjs,granite-code:8b-instruct,raw,success,68030,6396,191,0.0,gemma2:9b,False,True,0.4545,11,5,True,0.1981,106,85,True,1.0,0.0191,1.0,0.673,False,,,,,False,,,,,,,"fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service","{
+  ""overview"": ""This repository is a NestJS application that provides authentication and authorization services for a web application. It uses a database to store user information and session data, and supports email-based login, social login, and password reset functionality."",
+  ""tech_stack"": [
+    ""JavaScript"",
+    ""NestJS"",
+    ""TypeORM"",
+    ""Mongoose"",
+    ""JWT"",
+    ""bcryptjs"",
+    ""swagger-ui-express""
+  ],
+  ""services"": [
+    ""HTTP server"",
+    ""background worker""
+  ],
+  ""dependencies"": [
+    ""passport"",
+    ""passport-jwt"",
+    ""passport-local"",
+    ""swagger-ui-express"",
+    ""class-validator"",
+    ""class-transformer"",
+    ""bcryptjs"",
+    ""jsonwebtoken"",
+    ""mongoose"",
+    ""swagger-ui-express"",
+    ""swagger-jsdoc""
+  ]
+}
+","[""Dependency: @aws-sdk/client-s3"", ""Dependency: @aws-sdk/s3-request-presigner"", ""Dependency: @nestjs/common"", ""Dependency: @nestjs/config"", ""Dependency: @nestjs/core"", ""Dependency: @nestjs/jwt"", ""Dependency: @nestjs/mongoose"", ""Dependency: @nestjs/passport"", ""Dependency: @nestjs/platform-express"", ""Dependency: @nestjs/swagger"", ""Dependency: @nestjs/typeorm"", ""Dependency: @types/multer-s3"", ""Dependency: @types/prompts"", ""Dependency: apple-signin-auth"", ""Dependency: dotenv"", ""Dependency: google-auth-library"", ""Dependency: handlebars"", ""Dependency: helmet"", ""Dependency: ms"", ""Dependency: multer"", ""Dependency: multer-s3"", ""Dependency: nestjs-i18n"", ""Dependency: nodemailer"", ""Dependency: pg"", ""Dependency: reflect-metadata"", ""Dependency: rimraf"", ""Dependency: rxjs"", ""Dependency: source-map-support"", ""Dependency: typeorm"", ""Dependency: @commitlint/cli"", ""Dependency: @commitlint/config-conventional"", ""Endpoint: POST /auth/email/login"", ""Endpoint: POST /auth/email/register"", ""Endpoint: POST /auth/email/confirm"", ""Endpoint: POST /auth/email/confirm/new"", ""Endpoint: POST /auth/forgot/password"", ""Endpoint: POST /auth/reset/password"", ""Endpoint: GET /auth/me"", ""Endpoint: POST /auth/refresh"", ""Endpoint: POST /auth/logout"", ""Endpoint: PATCH /auth/me"", ""Endpoint: DELETE /auth/me"", ""Endpoint: POST /auth/apple/login"", ""Endpoint: POST /auth/facebook/login"", ""Endpoint: POST /auth/google/login"", ""Endpoint: POST /files/upload"", ""Endpoint: GET /files/:path"", ""Endpoint: GET /"", ""Endpoint: POST /users"", ""Endpoint: GET /users"", ""Endpoint: GET /users/:id"", ""Endpoint: PATCH /users/:id"", ""Endpoint: DELETE /users/:id"", ""Class/Service: AppModule"", ""Class/Service: AuthController"", ""Class/Service: AuthModule"", ""Class/Service: AuthService"", ""Class/Service: EnvironmentVariablesValidator"", ""Class/Service: AuthConfirmEmailDto"", ""Class/Service: AuthEmailLoginDto"", ""Class/Service: AuthForgotPasswordDto"", ""Class/Service: AuthRegisterLoginDto"", ""Class/Service: AuthResetPasswordDto"", ""Class/Service: AuthUpdateDto"", ""Class/Service: LoginResponseDto"", ""Class/Service: RefreshResponseDto"", ""Class/Service: AnonymousStrategy"", ""Class/Service: JwtRefreshStrategy"", ""Class/Service: JwtStrategy"", ""Class/Service: AuthAppleController"", ""Class/Service: AuthAppleModule"", ""Class/Service: AuthAppleService"", ""Class/Service: AuthFacebookController"", ""Class/Service: AuthFacebookModule"", ""Class/Service: AuthFacebookService"", ""Class/Service: AuthGoogleController"", ""Class/Service: AuthGoogleModule"", ""Class/Service: AuthGoogleService"", ""Class/Service: CreateUser1715028537217"", ""Class/Service: MongooseConfigService"", ""Class/Service: SeedModule"", ""Class/Service: UserSeedModule"", ""Class/Service: UserSeedService"", ""Class/Service: RoleSeedModule"", ""Class/Service: RoleSeedService""]","[""TypeORM"", ""Mongoose"", ""passport-local"", ""jsonwebtoken"", ""swagger-jsdoc""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 24, ""Class/Service"": 40}",
+nestjs-boilerplate,https://github.com/brocoders/nestjs-boilerplate,nestjs,granite-code:8b-instruct,dependency_graph,failed,900109,0,0,0.0,gemma2:9b,False,False,0.0,0,0,False,0.0,0,0,True,1.0,0.0191,1.0,0.673,False,,,,,False,,,,,,,malformed_output,,[],[],{},
+nestjs-boilerplate,https://github.com/brocoders/nestjs-boilerplate,nestjs,granite-code:8b-instruct,knowledge_graph,success,117225,4022,618,0.0,gemma2:9b,False,True,0.2222,18,4,True,0.1132,106,94,True,1.0,0.0191,1.0,0.673,False,,,,,False,,,,,,,"fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service,missed_class_or_service","{
+ ""overview"": ""This repository is a NestJS application that provides a file upload and download service using Amazon S3 for storage."",
+ ""tech_stack"": [
+ ""NestJS"",
+ ""AWS S3"",
+ ""JWT"",
+ ""mongoose"",
+ ""passport-anonymous"",
+ ""passport-jwt"",
+ ""swagger-ui-express""
+ ],
+ ""services"": [
+ ""HTTP server"",
+ ""Background worker""
+ ],
+ ""dependencies"": [
+ ""@aws-sdk/client-s3"",
+ ""@aws-sdk/s3-request-presigner"",
+ ""@commitlint/cli"",
+ ""@commitlint/config-conventional"",
+ ""@eslint/eslintrc"",
+ ""@eslint/js"",
+ ""@nestjs/cli"",
+ ""@nestjs/common"",
+ ""@nestjs/config"",
+ ""@nestjs/core"",
+ ""@nestjs/jwt"",
+ ""@nestjs/mongoose"",
+ ""@nestjs/passport"",
+ ""@nestjs/platform-express"",
+ ""@nestjs/schematics"",
+ ""@nestjs/swagger"",
+ ""@nestjs/testing"",
+ ""@nestjs/typeorm"",
+ ""@release-it/conventional-changelog"",
+ ""@swc/cli"",
+ ""@swc/core"",
+ ""@types/bcryptjs"",
+ ""@types/express"",
+ ""@types/jest"",
+ ""@types/ms"",
+ ""@types/multer"",
+ ""@types/multer-s3"",
+ ""@types/node"",
+ ""@types/nodemailer"",
+ ""@types/passport-anonymous"",
+ ""@types/passport-jwt"",
+ ""@types/prompts"",
+ ""@types/supertest"",
+ ""@typescript-eslint/eslint-plugin"",
+ ""@typescript-eslint/parser"",
+ ""apple-signin-auth"",
+ ""bcryptjs"",
+ ""class-transformer"",
+ ""class-validator"",
+ ""dotenv"",
+ ""env-cmd"",
+ ""eslint"",
+ ""eslint-config-prettier"",
+ ""eslint-plugin-prettier"",
+ ""globals"",
+ ""google-auth-library"",
+ ""handlebars"",
+ ""helmet"",
+ ""husky"",
+ ""hygen"",
+ ""is-ci"",
+ ""jest"",
+ ""mongoose"",
+ ""mongoose-autopopulate"",
+ ""ms"",
+ ""multer"",
+ ""multer-s3"",
+ ""nestjs-i18n"",
+ ""nodemailer"",
+ ""passport"",
+ ""passport-anonymous"",
+ ""passport-jwt"",
+ ""pg"",
+ ""prettier"",
+ ""prompts"",
+ ""reflect-metadata"",
+ ""release-it"",
+ ""rimraf"",
+ ""rxjs"",
+ ""source-map-support"",
+ ""supertest"",
+ ""swagger-ui-express"",
+ ""ts-jest"",
+ ""ts-loader"",
+ ""ts-node"",
+ ""tsconfig-paths"",
+ ""tslib"",
+ ""typeorm"",
+ ""typescript""
+ ]
+}
+","[""Dependency: @nestjs/common"", ""Dependency: @nestjs/config"", ""Dependency: @nestjs/core"", ""Dependency: @nestjs/jwt"", ""Dependency: @nestjs/mongoose"", ""Dependency: @nestjs/passport"", ""Dependency: @nestjs/platform-express"", ""Dependency: @nestjs/swagger"", ""Dependency: @nestjs/typeorm"", ""Dependency: @types/multer-s3"", ""Dependency: @types/prompts"", ""Dependency: apple-signin-auth"", ""Dependency: bcryptjs"", ""Dependency: class-transformer"", ""Dependency: class-validator"", ""Dependency: dotenv"", ""Dependency: google-auth-library"", ""Dependency: handlebars"", ""Dependency: helmet"", ""Dependency: mongoose"", ""Dependency: mongoose-autopopulate"", ""Dependency: ms"", ""Dependency: multer"", ""Dependency: multer-s3"", ""Dependency: nestjs-i18n"", ""Dependency: nodemailer"", ""Dependency: passport"", ""Dependency: passport-anonymous"", ""Dependency: passport-jwt"", ""Dependency: pg"", ""Dependency: reflect-metadata"", ""Dependency: rimraf"", ""Dependency: rxjs"", ""Dependency: source-map-support"", ""Dependency: swagger-ui-express"", ""Dependency: typeorm"", ""Dependency: @commitlint/cli"", ""Dependency: @commitlint/config-conventional"", ""Endpoint: POST /auth/email/login"", ""Endpoint: POST /auth/email/register"", ""Endpoint: POST /auth/email/confirm"", ""Endpoint: POST /auth/email/confirm/new"", ""Endpoint: POST /auth/forgot/password"", ""Endpoint: POST /auth/reset/password"", ""Endpoint: GET /auth/me"", ""Endpoint: POST /auth/refresh"", ""Endpoint: POST /auth/logout"", ""Endpoint: PATCH /auth/me"", ""Endpoint: DELETE /auth/me"", ""Endpoint: POST /auth/apple/login"", ""Endpoint: POST /auth/facebook/login"", ""Endpoint: POST /auth/google/login"", ""Endpoint: POST /files/upload"", ""Endpoint: GET /files/:path"", ""Endpoint: GET /"", ""Endpoint: POST /users"", ""Endpoint: GET /users"", ""Endpoint: GET /users/:id"", ""Endpoint: PATCH /users/:id"", ""Endpoint: DELETE /users/:id"", ""Class/Service: AppModule"", ""Class/Service: AuthController"", ""Class/Service: AuthModule"", ""Class/Service: AuthService"", ""Class/Service: EnvironmentVariablesValidator"", ""Class/Service: AuthConfirmEmailDto"", ""Class/Service: AuthEmailLoginDto"", ""Class/Service: AuthForgotPasswordDto"", ""Class/Service: AuthRegisterLoginDto"", ""Class/Service: AuthResetPasswordDto"", ""Class/Service: AuthUpdateDto"", ""Class/Service: LoginResponseDto"", ""Class/Service: RefreshResponseDto"", ""Class/Service: AnonymousStrategy"", ""Class/Service: JwtRefreshStrategy"", ""Class/Service: JwtStrategy"", ""Class/Service: AuthAppleController"", ""Class/Service: AuthAppleModule"", ""Class/Service: AuthAppleService"", ""Class/Service: AuthAppleLoginDto"", ""Class/Service: AuthFacebookController"", ""Class/Service: AuthFacebookModule"", ""Class/Service: AuthFacebookService"", ""Class/Service: AuthFacebookLoginDto"", ""Class/Service: AuthGoogleController"", ""Class/Service: AuthGoogleModule"", ""Class/Service: AuthGoogleService"", ""Class/Service: CreateUser1715028537217"", ""Class/Service: MongooseConfigService"", ""Class/Service: SeedModule"", ""Class/Service: UserSeedModule"", ""Class/Service: UserSeedService"", ""Class/Service: RoleSeedModule"", ""Class/Service: RoleSeedService""]","[""mongoose"", ""passport-anonymous"", ""passport-jwt"", ""swagger-ui-express""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 24, ""Class/Service"": 40}",

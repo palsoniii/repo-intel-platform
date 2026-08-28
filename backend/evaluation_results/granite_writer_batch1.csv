@@ -1,0 +1,360 @@
+repo_name,source_url,framework,model,context_variant,run_status,latency_ms,input_tokens,output_tokens,estimated_cost_usd,judge_model,self_judged,hallucination_judged,hallucination_score,total_claims,unsupported_claims,coverage_judged,coverage_score,total_facts,missing_facts,diagram_scored,diagram_module_f1,diagram_import_f1,diagram_endpoint_f1,diagram_overall_f1,text_overlap_scored,bleu4,rouge_l,meteor,bertscore_f1,quality_judged,quality_mean_score,quality_completeness,quality_conciseness,quality_correctness,quality_cohesiveness,quality_domain_specificity,failure_tags,summary_text,missing_facts_list,unsupported_claims_list,facts_by_category,error
+node-express-sequelize-postgresql,https://github.com/bezkoder/node-express-sequelize-postgresql,express,granite-code:8b-instruct,raw,success,17059,2190,92,0.0,gemma2:9b,False,True,0.0,6,0,True,0.1333,15,13,True,1.0,1.0,1.0,1.0,False,,,,,False,,,,,,,"missed_framework_or_language,missed_framework_or_language,missed_dependency,missed_dependency,missed_dependency,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,over_generic","{
+  ""overview"": ""This repository contains a Node.js application that manages tutorials. It uses a PostgreSQL database and has endpoints for creating, retrieving, updating, and deleting tutorials."",
+  ""tech_stack"": [
+    ""Node.js"",
+    ""Express"",
+    ""Sequelize"",
+    ""PostgreSQL""
+  ],
+  ""services"": [
+    ""HTTP server"",
+    ""RESTful API""
+  ],
+  ""dependencies"": []
+}
+","[""Framework: express ^4.18.2"", ""Language: javascript"", ""Dependency: cors"", ""Dependency: pg"", ""Dependency: pg-hstore"", ""Endpoint: GET /api/tutorials"", ""Endpoint: POST /api/tutorials"", ""Endpoint: GET /api/tutorials/published"", ""Endpoint: GET /api/tutorials/:id"", ""Endpoint: PUT /api/tutorials/:id"", ""Endpoint: DELETE /api/tutorials/:id"", ""Endpoint: DELETE /api/tutorials"", ""Endpoint: GET /""]",[],"{""Framework"": 1, ""Language"": 1, ""Dependency"": 5, ""Endpoint"": 8}",
+node-express-sequelize-postgresql,https://github.com/bezkoder/node-express-sequelize-postgresql,express,granite-code:8b-instruct,dependency_graph,success,11210,517,75,0.0,gemma2:9b,False,True,0.1667,6,1,True,0.3333,15,10,True,1.0,1.0,1.0,1.0,False,,,,,False,,,,,,,"fabricated_technology,missed_framework_or_language,missed_framework_or_language,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,over_generic","{
+ ""overview"": ""This repository is a Node.js application that provides a tutorial service."",
+ ""tech_stack"": [""Node.js"", ""Express"", ""PostgreSQL"", ""Sequelize""],
+ ""services"": [""HTTP server""],
+ ""dependencies"": [""cors"", ""express"", ""pg"", ""pg-hstore"", ""sequelize""]
+}
+","[""Framework: express ^4.18.2"", ""Language: javascript"", ""Endpoint: GET /api/tutorials"", ""Endpoint: POST /api/tutorials"", ""Endpoint: GET /api/tutorials/published"", ""Endpoint: GET /api/tutorials/:id"", ""Endpoint: PUT /api/tutorials/:id"", ""Endpoint: DELETE /api/tutorials/:id"", ""Endpoint: DELETE /api/tutorials"", ""Endpoint: GET /""]","[""PostgreSQL""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 5, ""Endpoint"": 8}",
+node-express-sequelize-postgresql,https://github.com/bezkoder/node-express-sequelize-postgresql,express,granite-code:8b-instruct,knowledge_graph,success,11061,630,92,0.0,gemma2:9b,False,True,0.0,8,0,True,0.3333,15,10,True,1.0,1.0,1.0,1.0,False,,,,,False,,,,,,,"missed_framework_or_language,missed_framework_or_language,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint","{
+ ""overview"": ""This repository is a Node.js application built with the Express framework that provides a RESTful API for managing tutorials."",
+ ""tech_stack"": [""Node.js"", ""Express"", ""cors"", ""pg"", ""pg-hstore"", ""sequelize""],
+ ""services"": [""HTTP server""],
+ ""dependencies"": [""cors"", ""express"", ""pg"", ""pg-hstore"", ""sequelize""]
+}
+","[""Language: javascript"", ""Framework: express ^4.18.2"", ""Endpoint: GET /api/tutorials"", ""Endpoint: POST /api/tutorials"", ""Endpoint: GET /api/tutorials/published"", ""Endpoint: GET /api/tutorials/:id"", ""Endpoint: PUT /api/tutorials/:id"", ""Endpoint: DELETE /api/tutorials/:id"", ""Endpoint: DELETE /api/tutorials"", ""Endpoint: GET /""]",[],"{""Framework"": 1, ""Language"": 1, ""Dependency"": 5, ""Endpoint"": 8}",
+node_passport_login,https://github.com/bradtraversy/node_passport_login,express,granite-code:8b-instruct,raw,success,36212,2047,136,0.0,gemma2:9b,False,True,0.2222,9,2,True,0.5263,19,9,True,1.0,1.0,1.0,1.0,False,,,,,False,,,,,,,"fabricated_technology,fabricated_technology,missed_framework_or_language,missed_dependency,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint","{
+  ""overview"": ""This repository is a Node.js application that uses Express.js, EJS, MongoDB, and Passport.js for user authentication and session management."",
+  ""tech_stack"": [
+    ""JavaScript"",
+    ""Express.js"",
+    ""EJS"",
+    ""MongoDB"",
+    ""Passport.js""
+  ],
+  ""services"": [
+    ""HTTP server"",
+    ""Background worker""
+  ],
+  ""dependencies"": [
+    ""express"",
+    ""express-ejs-layouts"",
+    ""mongoose"",
+    ""passport"",
+    ""connect-flash"",
+    ""express-session"",
+    ""bcryptjs""
+  ]
+}
+","[""Framework: express ^5.2.1"", ""Dependency: nodemon"", ""Endpoint: GET /"", ""Endpoint: GET /dashboard"", ""Endpoint: GET /users/register"", ""Endpoint: GET /users/logout"", ""Endpoint: GET /users/login"", ""Endpoint: POST /users/register"", ""Endpoint: POST /users/login""]","[""MongoDB"", ""Passport.js""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 10, ""Endpoint"": 7}",
+node_passport_login,https://github.com/bradtraversy/node_passport_login,express,granite-code:8b-instruct,dependency_graph,success,17926,518,160,0.0,gemma2:9b,False,True,0.0,11,0,True,0.5263,19,9,True,1.0,1.0,1.0,1.0,False,,,,,False,,,,,,,"missed_framework_or_language,missed_framework_or_language,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint","{
+ ""overview"": ""This repository is a Node.js application that manages user authentication and authorization using bcryptjs, connect-flash, ejs, express, express-ejs-layouts, express-session, mongoose, passport, and passport-local."",
+ ""tech_stack"": [""Node.js"", ""Express"", ""Mongoose"", ""bcryptjs"", ""connect-flash"", ""ejs"", ""express-ejs-layouts"", ""express-session"", ""passport"", ""passport-local""],
+ ""services"": [""HTTP server""],
+ ""dependencies"": [""bcryptjs"", ""connect-flash"", ""ejs"", ""express"", ""express-ejs-layouts"", ""express-session"", ""mongoose"", ""nodemon"", ""passport"", ""passport-local""]
+}
+","[""Framework: express ^5.2.1"", ""Language: javascript"", ""Endpoint: GET /"", ""Endpoint: GET /dashboard"", ""Endpoint: GET /users/register"", ""Endpoint: GET /users/logout"", ""Endpoint: GET /users/login"", ""Endpoint: POST /users/register"", ""Endpoint: POST /users/login""]",[],"{""Framework"": 1, ""Language"": 1, ""Dependency"": 10, ""Endpoint"": 7}",
+node_passport_login,https://github.com/bradtraversy/node_passport_login,express,granite-code:8b-instruct,knowledge_graph,success,12626,608,118,0.0,gemma2:9b,False,True,0.0,10,0,True,0.5263,19,9,True,1.0,1.0,1.0,1.0,False,,,,,False,,,,,,,"missed_framework_or_language,missed_framework_or_language,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,over_generic","{
+ ""overview"": ""This repository is a Node.js Express application for user management."",
+ ""tech_stack"": [""Node.js"", ""Express"", ""bcryptjs"", ""connect-flash"", ""ejs"", ""express-ejs-layouts"", ""express-session"", ""mongoose""],
+ ""services"": [""HTTP server""],
+ ""dependencies"": [""bcryptjs"", ""connect-flash"", ""ejs"", ""express"", ""express-ejs-layouts"", ""express-session"", ""mongoose"", ""nodemon"", ""passport"", ""passport-local""]
+}
+","[""Framework: express ^5.2.1"", ""Language: javascript"", ""Endpoint: GET /"", ""Endpoint: GET /dashboard"", ""Endpoint: GET /users/register"", ""Endpoint: GET /users/logout"", ""Endpoint: GET /users/login"", ""Endpoint: POST /users/register"", ""Endpoint: POST /users/login""]",[],"{""Framework"": 1, ""Language"": 1, ""Dependency"": 10, ""Endpoint"": 7}",
+node-express-boilerplate,https://github.com/hagopj13/node-express-boilerplate,express,granite-code:8b-instruct,raw,success,55112,7071,152,0.0,gemma2:9b,False,True,0.4,10,4,True,0.1754,57,47,True,0.9744,0.125,0.0,0.3665,False,,,,,False,,,,,,,"fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,missed_framework_or_language,missed_framework_or_language,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,over_generic","{
+  ""overview"": ""This repository is a Node.js application boilerplate that provides a basic structure for building RESTful APIs. It includes features such as authentication, authorization, error handling, and logging. The repository also includes a Dockerfile for deploying the application in a production environment."",
+  ""tech_stack"": [
+    ""Node.js"",
+    ""Express"",
+    ""JWT"",
+    ""Bcrypt"",
+    ""Dockerfile""
+  ],
+  ""services"": [
+    ""HTTP server""
+  ],
+  ""dependencies"": [
+    ""express"",
+    ""jsonwebtoken"",
+    ""bcryptjs"",
+    ""dotenv"",
+    ""mongoose"",
+    ""morgan"",
+    ""winston"",
+    ""validator"",
+    ""docker""
+  ]
+}
+","[""Framework: express ^4.17.1"", ""Language: javascript"", ""Dependency: compression"", ""Dependency: cors"", ""Dependency: cross-env"", ""Dependency: express-mongo-sanitize"", ""Dependency: express-rate-limit"", ""Dependency: helmet"", ""Dependency: http-status"", ""Dependency: joi"", ""Dependency: moment"", ""Dependency: nodemailer"", ""Dependency: passport"", ""Dependency: passport-jwt"", ""Dependency: pm2"", ""Dependency: swagger-jsdoc"", ""Dependency: swagger-ui-express"", ""Dependency: coveralls"", ""Dependency: eslint"", ""Dependency: eslint-config-airbnb-base"", ""Dependency: eslint-config-prettier"", ""Dependency: eslint-plugin-import"", ""Dependency: eslint-plugin-jest"", ""Dependency: eslint-plugin-prettier"", ""Dependency: eslint-plugin-security"", ""Dependency: faker"", ""Dependency: husky"", ""Dependency: jest"", ""Dependency: lint-staged"", ""Dependency: node-mocks-http"", ""Dependency: nodemon"", ""Dependency: prettier"", ""Dependency: supertest"", ""Endpoint: OPTIONS *"", ""Endpoint: POST /forgot-password"", ""Endpoint: POST /logout"", ""Endpoint: POST /send-verification-email"", ""Endpoint: POST /login"", ""Endpoint: POST /register"", ""Endpoint: POST /refresh-tokens"", ""Endpoint: POST /reset-password"", ""Endpoint: POST /verify-email"", ""Endpoint: GET /"", ""Endpoint: GET /:userId"", ""Endpoint: PATCH /:userId"", ""Endpoint: DELETE /:userId"", ""Endpoint: POST /""]","[""JWT"", ""Bcrypt"", ""mongoose"", ""docker""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 15}",
+node-express-boilerplate,https://github.com/hagopj13/node-express-boilerplate,express,granite-code:8b-instruct,dependency_graph,success,45171,1714,329,0.0,gemma2:9b,False,True,0.2727,11,3,True,1.0,57,0,True,0.9744,0.125,0.0,0.3665,False,,,,,False,,,,,,,"fabricated_technology,fabricated_technology,fabricated_technology","{
+ ""overview"": ""This repository is a Node.js application that provides a RESTful API for managing users and authentication."",
+ ""tech_stack"": [
+ ""JavaScript"",
+ ""Node.js"",
+ ""Express"",
+ ""JWT"",
+ ""Mongoose"",
+ ""Swagger"",
+ ""Joi""
+ ],
+ ""services"": [
+ ""HTTP server"",
+ ""Authentication service"",
+ ""User management service""
+ ],
+ ""dependencies"": [
+ ""bcryptjs"",
+ ""compression"",
+ ""cors"",
+ ""coveralls"",
+ ""cross-env"",
+ ""dotenv"",
+ ""eslint"",
+ ""eslint-config-airbnb-base"",
+ ""eslint-config-prettier"",
+ ""eslint-plugin-import"",
+ ""eslint-plugin-jest"",
+ ""eslint-plugin-prettier"",
+ ""eslint-plugin-security"",
+ ""express"",
+ ""express-mongo-sanitize"",
+ ""express-rate-limit"",
+ ""faker"",
+ ""helmet"",
+ ""http-status"",
+ ""husky"",
+ ""jest"",
+ ""joi"",
+ ""jsonwebtoken"",
+ ""lint-staged"",
+ ""moment"",
+ ""mongoose"",
+ ""morgan"",
+ ""node-mocks-http"",
+ ""nodemailer"",
+ ""nodemon"",
+ ""passport"",
+ ""passport-jwt"",
+ ""pm2"",
+ ""prettier"",
+ ""supertest"",
+ ""swagger-jsdoc"",
+ ""swagger-ui-express"",
+ ""validator"",
+ ""winston"",
+ ""xss-clean""
+ ]
+",[],"[""Mongoose"", ""JWT"", ""Swagger""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 15}",
+node-express-boilerplate,https://github.com/hagopj13/node-express-boilerplate,express,granite-code:8b-instruct,knowledge_graph,success,38191,1223,304,0.0,gemma2:9b,False,True,0.1053,19,2,True,0.6491,57,20,True,0.9744,0.125,0.0,0.3665,False,,,,,False,,,,,,,"fabricated_technology,fabricated_technology,missed_framework_or_language,missed_framework_or_language,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint","{
+ ""overview"": ""This repository is a Node.js application using the Express framework for building a RESTful API. It includes various modules for handling user authentication, authorization, and data validation."",
+ ""tech_stack"": [""Node.js"", ""Express"", ""JWT"", ""Bcrypt"", ""Moment"", ""Mongoose"", ""Morgan"", ""swagger-jsdoc"", ""swagger-ui-express"", ""validator"", ""winston"", ""xss-clean""],
+ ""services"": [""HTTP server""],
+ ""dependencies"": [""bcryptjs"", ""compression"", ""cors"", ""coveralls"", ""cross-env"", ""dotenv"", ""eslint"", ""eslint-config-airbnb-base"", ""eslint-config-prettier"", ""eslint-plugin-import"", ""eslint-plugin-jest"", ""eslint-plugin-prettier"", ""eslint-plugin-security"", ""express"", ""express-mongo-sanitize"", ""express-rate-limit"", ""faker"", ""helmet"", ""http-status"", ""husky"", ""jest"", ""joi"", ""jsonwebtoken"", ""lint-staged"", ""moment"", ""mongoose"", ""morgan"", ""node-mocks-http"", ""nodemailer"", ""nodemon"", ""passport"", ""passport-jwt"", ""pm2"", ""prettier"", ""supertest"", ""swagger-jsdoc"", ""swagger-ui-express"", ""validator"", ""winston"", ""xss-clean""]
+}
+","[""Framework: express ^4.17.1"", ""Language: javascript"", ""Dependency: express-mongo-sanitize"", ""Dependency: express-rate-limit"", ""Dependency: winston"", ""Dependency: xss-clean"", ""Endpoint: OPTIONS *"", ""Endpoint: POST /forgot-password"", ""Endpoint: POST /logout"", ""Endpoint: POST /send-verification-email"", ""Endpoint: POST /login"", ""Endpoint: POST /register"", ""Endpoint: POST /refresh-tokens"", ""Endpoint: POST /reset-password"", ""Endpoint: POST /verify-email"", ""Endpoint: GET /"", ""Endpoint: GET /:userId"", ""Endpoint: PATCH /:userId"", ""Endpoint: DELETE /:userId"", ""Endpoint: POST /""]","[""JWT"", ""Bcrypt""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 15}",
+express-mongoose-es6-rest-api,https://github.com/kunalkapadia/express-mongoose-es6-rest-api,express,granite-code:8b-instruct,raw,success,40907,4454,101,0.0,gemma2:9b,False,True,0.4,5,2,True,0.0455,44,42,True,1.0,1.0,0.125,0.7083,False,,,,,False,,,,,,,"fabricated_technology,fabricated_technology,missed_framework_or_language,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint","{
+  ""overview"": ""This repository contains configuration files for a Node.js application that uses Express.js, JWT, and Mongoose for authentication and database management. It also includes routes for handling user data and error handling."",
+  ""tech_stack"": [
+    ""JavaScript"",
+    ""Node.js"",
+    ""Express.js"",
+    ""JWT"",
+    ""Mongoose""
+  ],
+  ""services"": [
+    ""HTTP server""
+  ],
+  ""dependencies"": []
+}
+","[""Framework: express 4.16.3"", ""Dependency: bluebird"", ""Dependency: body-parser"", ""Dependency: compression"", ""Dependency: cookie-parser"", ""Dependency: cors"", ""Dependency: debug"", ""Dependency: dotenv"", ""Dependency: express-jwt"", ""Dependency: express-validation"", ""Dependency: express-winston"", ""Dependency: helmet"", ""Dependency: http-status"", ""Dependency: joi"", ""Dependency: jsonwebtoken"", ""Dependency: method-override"", ""Dependency: mongoose"", ""Dependency: morgan"", ""Dependency: winston"", ""Dependency: chai"", ""Dependency: commitizen"", ""Dependency: coveralls"", ""Dependency: cross-env"", ""Dependency: cz-conventional-changelog"", ""Dependency: eslint"", ""Dependency: eslint-config-airbnb-base"", ""Dependency: eslint-plugin-import"", ""Dependency: eslint-watch"", ""Dependency: husky"", ""Dependency: istanbul"", ""Dependency: mocha"", ""Dependency: supertest"", ""Dependency: supertest-as-promised"", ""Dependency: validate-commit-msg"", ""Endpoint: GET /api/health-check"", ""Endpoint: POST /api/auth/login"", ""Endpoint: GET /api/auth/random-number"", ""Endpoint: POST /api/users"", ""Endpoint: GET /api/users"", ""Endpoint: DELETE /api/users/:userId"", ""Endpoint: GET /api/users/:userId"", ""Endpoint: PUT /api/users/:userId""]","[""JWT"", ""Mongoose""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 34, ""Endpoint"": 8}",
+express-mongoose-es6-rest-api,https://github.com/kunalkapadia/express-mongoose-es6-rest-api,express,granite-code:8b-instruct,dependency_graph,success,26537,773,227,0.0,gemma2:9b,False,True,0.375,8,3,True,0.7727,44,10,True,1.0,1.0,0.125,0.7083,False,,,,,False,,,,,,,"fabricated_technology,fabricated_technology,fabricated_technology,missed_framework_or_language,missed_framework_or_language,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,over_generic","{
+ ""overview"": ""This repository is a Node.js application that provides a RESTful API for managing user accounts and authentication."",
+ ""tech_stack"": [""Node.js"", ""Express"", ""JWT"", ""Mocha"", ""Supertest""],
+ ""services"": [""HTTP server""],
+ ""dependencies"": [""bluebird"", ""body-parser"", ""chai"", ""commitizen"", ""compression"", ""cookie-parser"", ""cors"", ""coveralls"", ""cross-env"", ""cz-conventional-changelog"", ""debug"", ""dotenv"", ""eslint"", ""eslint-config-airbnb-base"", ""eslint-plugin-import"", ""eslint-watch"", ""express"", ""express-jwt"", ""express-validation"", ""express-winston"", ""helmet"", ""http-status"", ""husky"", ""istanbul"", ""joi"", ""jsonwebtoken"", ""method-override"", ""mocha"", ""mongoose"", ""morgan"", ""supertest"", ""supertest-as-promised"", ""validate-commit-msg"", ""winston""]
+}
+","[""Framework: express 4.16.3"", ""Language: javascript"", ""Endpoint: GET /api/health-check"", ""Endpoint: POST /api/auth/login"", ""Endpoint: GET /api/auth/random-number"", ""Endpoint: POST /api/users"", ""Endpoint: GET /api/users"", ""Endpoint: DELETE /api/users/:userId"", ""Endpoint: GET /api/users/:userId"", ""Endpoint: PUT /api/users/:userId""]","[""JWT"", ""Mocha"", ""Supertest""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 34, ""Endpoint"": 8}",
+express-mongoose-es6-rest-api,https://github.com/kunalkapadia/express-mongoose-es6-rest-api,express,granite-code:8b-instruct,knowledge_graph,success,34999,817,293,0.0,gemma2:9b,False,True,0.25,12,3,True,0.7727,44,10,True,1.0,1.0,0.125,0.7083,False,,,,,False,,,,,,,"fabricated_technology,fabricated_technology,fabricated_technology,missed_framework_or_language,missed_framework_or_language,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint","{
+ ""overview"": ""This repository is a Node.js application using the Express framework for building a RESTful API. It includes modules for handling authentication, user management, and error handling."",
+ ""tech_stack"": [
+ ""Node.js"",
+ ""Express"",
+ ""JWT"",
+ ""Joi"",
+ ""Mocha"",
+ ""Supertest""
+ ],
+ ""services"": [
+ ""HTTP server""
+ ],
+ ""dependencies"": [
+ ""bluebird"",
+ ""body-parser"",
+ ""chai"",
+ ""commitizen"",
+ ""compression"",
+ ""cookie-parser"",
+ ""cors"",
+ ""coveralls"",
+ ""cross-env"",
+ ""cz-conventional-changelog"",
+ ""debug"",
+ ""dotenv"",
+ ""eslint"",
+ ""eslint-config-airbnb-base"",
+ ""eslint-plugin-import"",
+ ""eslint-watch"",
+ ""express"",
+ ""express-jwt"",
+ ""express-validation"",
+ ""express-winston"",
+ ""helmet"",
+ ""http-status"",
+ ""husky"",
+ ""istanbul"",
+ ""joi"",
+ ""jsonwebtoken"",
+ ""method-override"",
+ ""mocha"",
+ ""mongoose"",
+ ""morgan"",
+ ""supertest"",
+ ""supertest-as-promised"",
+ ""validate-commit-msg"",
+ ""winston""
+ ]
+}
+","[""Framework: express 4.16.3"", ""Language: javascript"", ""Endpoint: GET /api/health-check"", ""Endpoint: POST /api/auth/login"", ""Endpoint: GET /api/auth/random-number"", ""Endpoint: POST /api/users"", ""Endpoint: GET /api/users"", ""Endpoint: DELETE /api/users/:userId"", ""Endpoint: GET /api/users/:userId"", ""Endpoint: PUT /api/users/:userId""]","[""JWT"", ""Mocha"", ""Supertest""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 34, ""Endpoint"": 8}",
+express-rest-boilerplate,https://github.com/danielfsousa/express-rest-boilerplate,express,granite-code:8b-instruct,raw,success,53133,7014,115,0.0,gemma2:9b,False,True,0.25,8,2,True,0.1228,57,50,True,1.0,1.0,1.0,1.0,False,,,,,False,,,,,,,"fabricated_technology,fabricated_technology,missed_framework_or_language,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,over_generic","{
+  ""overview"": ""This repository contains authentication and authorization functionality for a web application."",
+  ""tech_stack"": [
+    ""JavaScript"",
+    ""Express.js"",
+    ""JWT"",
+    ""Bcryptjs"",
+    ""Moment.js""
+  ],
+  ""services"": [
+    ""HTTP server"",
+    ""Authentication"",
+    ""Authorization""
+  ],
+  ""dependencies"": [
+    ""http-status"",
+    ""moment-timezone"",
+    ""lodash"",
+    ""bcryptjs"",
+    ""jwt-simple"",
+    ""uuid""
+  ]
+}
+","[""Framework: express ^4.15.2"", ""Dependency: axios"", ""Dependency: bluebird"", ""Dependency: body-parser"", ""Dependency: compression"", ""Dependency: cors"", ""Dependency: cross-env"", ""Dependency: dotenv-safe"", ""Dependency: email-templates"", ""Dependency: express"", ""Dependency: express-validation"", ""Dependency: helmet"", ""Dependency: joi"", ""Dependency: method-override"", ""Dependency: mongoose"", ""Dependency: morgan"", ""Dependency: nodemailer"", ""Dependency: passport"", ""Dependency: passport-http-bearer"", ""Dependency: passport-jwt"", ""Dependency: pm2"", ""Dependency: pug"", ""Dependency: winston"", ""Dependency: apidoc"", ""Dependency: chai"", ""Dependency: chai-as-promised"", ""Dependency: coveralls"", ""Dependency: eslint"", ""Dependency: eslint-config-airbnb-base"", ""Dependency: eslint-plugin-import"", ""Dependency: husky"", ""Dependency: mocha"", ""Dependency: nodemon"", ""Dependency: nyc"", ""Dependency: opn-cli"", ""Endpoint: POST /v1/auth/login"", ""Endpoint: POST /v1/auth/register"", ""Endpoint: POST /v1/auth/refresh-token"", ""Endpoint: POST /v1/auth/facebook"", ""Endpoint: POST /v1/auth/google"", ""Endpoint: POST /v1/auth/reset-password"", ""Endpoint: POST /v1/auth/send-password-reset"", ""Endpoint: GET /v1/status"", ""Endpoint: PATCH /v1/users/:userId"", ""Endpoint: PUT /v1/users/:userId"", ""Endpoint: DELETE /v1/users/:userId"", ""Endpoint: GET /v1/users/profile"", ""Endpoint: POST /v1/users"", ""Endpoint: GET /v1/users"", ""Endpoint: GET /v1/users/:userId""]","[""JWT"", ""Moment.js""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 15}",
+express-rest-boilerplate,https://github.com/danielfsousa/express-rest-boilerplate,express,granite-code:8b-instruct,dependency_graph,success,36290,1265,256,0.0,gemma2:9b,False,True,0.4545,11,5,True,0.9649,57,2,True,1.0,1.0,1.0,1.0,False,,,,,False,,,,,,,"fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,missed_framework_or_language,missed_framework_or_language,over_generic","{
+ ""overview"": ""This repository is a Node.js application that provides API endpoints for user authentication and management."",
+ ""tech_stack"": [""Node.js"", ""Express"", ""JWT"", ""Mongoose"", ""Mocha"", ""Chai""],
+ ""services"": [""HTTP server""],
+ ""dependencies"": [""apidoc"", ""axios"", ""bcryptjs"", ""bluebird"", ""body-parser"", ""chai"", ""chai-as-promised"", ""compression"", ""cors"", ""coveralls"", ""cross-env"", ""dotenv-safe"", ""email-templates"", ""eslint"", ""eslint-config-airbnb-base"", ""eslint-plugin-import"", ""express"", ""express-validation"", ""helmet"", ""http-status"", ""husky"", ""joi"", ""jwt-simple"", ""lodash"", ""method-override"", ""mocha"", ""moment-timezone"", ""mongoose"", ""morgan"", ""nodemailer"", ""nodemon"", ""nyc"", ""opn-cli"", ""passport"", ""passport-http-bearer"", ""passport-jwt"", ""pm2"", ""pug"", ""sinon"", ""sinon-chai"", ""supertest"", ""uuid"", ""winston""]
+}
+","[""Framework: express ^4.15.2"", ""Language: javascript""]","[""Mongoose"", ""JWT"", ""sinon"", ""sinon-chai"", ""supertest""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 15}",
+express-rest-boilerplate,https://github.com/danielfsousa/express-rest-boilerplate,express,granite-code:8b-instruct,knowledge_graph,success,35071,1169,279,0.0,gemma2:9b,False,True,0.1818,11,2,True,1.0,57,0,True,1.0,1.0,1.0,1.0,False,,,,,False,,,,,,,"fabricated_technology,fabricated_technology","{
+ ""overview"": ""This repository is a Node.js application using the Express framework for building a RESTful API. It includes modules for handling user authentication, authorization, and registration, as well as error handling and logging."",
+ ""tech_stack"": [""Node.js"", ""Express"", ""JWT"", ""Mocha"", ""Sinon"", ""Supertest""],
+ ""services"": [""HTTP server""],
+ ""dependencies"": [""apidoc"", ""axios"", ""bcryptjs"", ""bluebird"", ""body-parser"", ""chai"", ""chai-as-promised"", ""compression"", ""cors"", ""coveralls"", ""cross-env"", ""dotenv-safe"", ""email-templates"", ""eslint"", ""eslint-config-airbnb-base"", ""eslint-plugin-import"", ""express"", ""express-validation"", ""helmet"", ""http-status"", ""husky"", ""joi"", ""jwt-simple"", ""lodash"", ""method-override"", ""mocha"", ""moment-timezone"", ""mongoose"", ""morgan"", ""nodemailer"", ""nodemon"", ""nyc"", ""opn-cli"", ""passport"", ""passport-http-bearer"", ""passport-jwt"", ""pm2"", ""pug"", ""sinon"", ""sinon-chai"", ""supertest"", ""uuid"", ""winston""]
+}
+",[],"[""Sinon"", ""Supertest""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 15}",
+node-express-mongodb-jwt-rest-api-skeleton,https://github.com/davellanedam/node-express-mongodb-jwt-rest-api-skeleton,express,granite-code:8b-instruct,raw,success,57792,6705,135,0.0,gemma2:9b,False,True,0.1,10,1,True,0.2222,63,49,True,1.0,1.0,0.4,0.8,False,,,,,False,,,,,,,"fabricated_technology,missed_framework_or_language,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_dependency,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,over_generic","{
+  ""overview"": ""This repository contains authentication and authorization functionality for a web application."",
+  ""tech_stack"": [
+    ""JavaScript"",
+    ""Express.js"",
+    ""JSON Web Tokens"",
+    ""BCrypt"",
+    ""JWT-decode"",
+    ""UUID"",
+    ""Date-fns"",
+    ""Nodemailer""
+  ],
+  ""services"": [
+    ""HTTP server"",
+    ""Background worker""
+  ],
+  ""dependencies"": [
+    ""express-validator"",
+    ""jsonwebtoken"",
+    ""bcryptjs"",
+    ""jwt-decode"",
+    ""uuid"",
+    ""date-fns"",
+    ""nodemailer""
+  ]
+}
+","[""Framework: express ^4.18.1"", ""Dependency: babel-eslint"", ""Dependency: body-parser"", ""Dependency: compression"", ""Dependency: cors"", ""Dependency: dotenv-safe"", ""Dependency: ejs"", ""Dependency: expeditious-engine-redis"", ""Dependency: express"", ""Dependency: express-expeditious"", ""Dependency: helmet"", ""Dependency: i18n"", ""Dependency: mongoose"", ""Dependency: mongoose-paginate-v2"", ""Dependency: morgan"", ""Dependency: nodemailer-mailgun-transport"", ""Dependency: passport"", ""Dependency: passport-jwt"", ""Dependency: request-ip"", ""Dependency: trim-request"", ""Dependency: validator"", ""Dependency: chai"", ""Dependency: chai-http"", ""Dependency: cross-env"", ""Dependency: eslint"", ""Dependency: eslint-config-formidable"", ""Dependency: eslint-config-prettier"", ""Dependency: eslint-plugin-prettier"", ""Dependency: faker"", ""Dependency: husky"", ""Dependency: istanbul-merge"", ""Dependency: jest"", ""Dependency: lint-staged"", ""Dependency: mocha"", ""Dependency: mongo-seeding"", ""Endpoint: POST /register"", ""Endpoint: POST /verify"", ""Endpoint: POST /forgot"", ""Endpoint: POST /login"", ""Endpoint: POST /reset"", ""Endpoint: GET /token"", ""Endpoint: GET /:id"", ""Endpoint: POST /"", ""Endpoint: PATCH /:id"", ""Endpoint: GET /"", ""Endpoint: GET /all"", ""Endpoint: DELETE /:id"", ""Endpoint: PATCH /"", ""Endpoint: POST /changePassword""]","[""JWT-decode""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 21}",
+node-express-mongodb-jwt-rest-api-skeleton,https://github.com/davellanedam/node-express-mongodb-jwt-rest-api-skeleton,express,granite-code:8b-instruct,dependency_graph,success,73657,5326,319,0.0,gemma2:9b,False,True,0.3125,16,5,True,1.0,63,0,True,1.0,1.0,0.4,0.8,False,,,,,False,,,,,,,"fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,over_generic","{
+ ""overview"": ""This repository is a Node.js application that provides a web-based platform for managing and organizing cities. It includes features such as user authentication, profile management, and city creation/update/deletion."",
+ ""tech_stack"": [""Node.js"", ""Express"", ""JWT"", ""mongoose"", ""Redis"", ""Bcrypt"", ""JWT"", ""validator"", ""eslint"", ""prettier""],
+ ""services"": [""HTTP server"", ""background worker""],
+ ""dependencies"": [""babel-eslint"", ""bcrypt"", ""body-parser"", ""chai"", ""chai-http"", ""compression"", ""cors"", ""cross-env"", ""date-fns"", ""dotenv-safe"", ""ejs"", ""eslint"", ""eslint-config-formidable"", ""eslint-config-prettier"", ""eslint-plugin-prettier"", ""expeditious-engine-redis"", ""express"", ""express-expeditious"", ""express-validator"", ""faker"", ""helmet"", ""husky"", ""i18n"", ""istanbul-merge"", ""jest"", ""jsonwebtoken"", ""lint-staged"", ""mocha"", ""mongo-seeding"", ""mongoose"", ""mongoose-paginate-v2"", ""morgan"", ""nodemailer"", ""nodemailer-mailgun-transport"", ""nodemon"", ""nyc"", ""passport"", ""passport-jwt"", ""prettier"", ""prettier-eslint"", ""remark-cli"", ""request-ip"", ""trim-request"", ""uuid"", ""validator""]
+}
+",[],"[""Redis"", ""nodemon"", ""nyc"", ""prettier-eslint"", ""remark-cli""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 21}",
+node-express-mongodb-jwt-rest-api-skeleton,https://github.com/davellanedam/node-express-mongodb-jwt-rest-api-skeleton,express,granite-code:8b-instruct,knowledge_graph,success,59622,2451,344,0.0,gemma2:9b,False,True,0.1613,31,5,True,0.7619,63,15,True,1.0,1.0,0.4,0.8,False,,,,,False,,,,,,,"fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,fabricated_technology,missed_dependency,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint,missed_endpoint","{
+ ""overview"": ""This repository is a Node.js application using the Express framework for building a web application. It includes modules for handling authentication, profile management, and city data. The application uses MongoDB as the database and has a few external dependencies."",
+ ""tech_stack"": [
+ ""Node.js"",
+ ""Express"",
+ ""MongoDB"",
+ ""bcrypt"",
+ ""body-parser"",
+ ""chai"",
+ ""chai-http"",
+ ""compression"",
+ ""cors"",
+ ""cross-env"",
+ ""date-fns"",
+ ""dotenv-safe"",
+ ""ejs"",
+ ""eslint"",
+ ""eslint-config-formidable"",
+ ""eslint-config-prettier"",
+ ""eslint-plugin-prettier"",
+ ""expeditious-engine-redis"",
+ ""express-expeditious"",
+ ""express-validator"",
+ ""faker"",
+ ""helmet"",
+ ""husky"",
+ ""i18n"",
+ ""istanbul-merge"",
+ ""jest"",
+ ""jsonwebtoken"",
+ ""lint-staged"",
+ ""mocha"",
+ ""mongo-seeding"",
+ ""mongoose"",
+ ""mongoose-paginate-v2"",
+ ""morgan"",
+ ""nodemailer"",
+ ""nodemailer-mailgun-transport"",
+ ""nodemon"",
+ ""nyc"",
+ ""passport"",
+ ""passport-jwt"",
+ ""prettier"",
+ ""prettier-eslint"",
+ ""remark-cli"",
+ ""request-ip"",
+ ""trim-request"",
+ ""uuid"",
+ ""validator""
+ ],
+ ""services"": [
+ ""HTTP server""
+ ],
+ ""dependencies"": []
+}
+","[""Dependency: expeditious-engine-redis"", ""Endpoint: POST /register"", ""Endpoint: POST /verify"", ""Endpoint: POST /forgot"", ""Endpoint: POST /login"", ""Endpoint: POST /reset"", ""Endpoint: GET /token"", ""Endpoint: GET /:id"", ""Endpoint: POST /"", ""Endpoint: PATCH /:id"", ""Endpoint: GET /"", ""Endpoint: GET /all"", ""Endpoint: DELETE /:id"", ""Endpoint: PATCH /"", ""Endpoint: POST /changePassword""]","[""MongoDB"", ""nodemon"", ""nyc"", ""remark-cli"", ""prettier-eslint""]","{""Framework"": 1, ""Language"": 1, ""Dependency"": 40, ""Endpoint"": 21}",
