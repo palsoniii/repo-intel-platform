@@ -56,16 +56,6 @@ export default function AnalyzePage() {
           {error}
         </p>
       )}
-      <p className="mt-6 text-xs text-slate-500 dark:text-slate-400">
-        Want to see the dashboard shell without a live backend? Visit{" "}
-        <a
-          className="underline"
-          href={`/repo/${encodeURIComponent("node-js-getting-started")}/summary`}
-        >
-          the placeholder summary page
-        </a>{" "}
-        directly.
-      </p>
     </div>
   );
 }

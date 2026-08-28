@@ -1,9 +1,9 @@
-import { NavLink, Route, Routes } from "react-router-dom";
+import { NavLink, Route, Routes, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
 import AnalyzePage from "./pages/AnalyzePage";
 import SummaryPage from "./pages/SummaryPage";
 import DiagramPage from "./pages/DiagramPage";
 import ComparisonPage from "./pages/ComparisonPage";
-import { mockAnalysis } from "./lib/mockData";
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
@@ -12,8 +12,35 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
       : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
   }`;
 
+const disabledClass =
+  "rounded-md px-3 py-1.5 text-sm font-medium text-slate-400 cursor-not-allowed " +
+  "dark:text-slate-600";
+
+// The per-repo tabs previously pointed at a hardcoded placeholder repo
+// (heroku/node-js-getting-started), which is not in the evaluation set -- so every tab
+// advertised a repository nobody had analysed. Instead, remember whichever repo the
+// current session is actually looking at, taken from the /repo/:name/... route, and
+// disable the tabs until there is one.
+function useCurrentRepo(): string | null {
+  const location = useLocation();
+  const [repo, setRepo] = useState<string | null>(null);
+
+  useEffect(() => {
+    const m = location.pathname.match(/^\/repo\/([^/]+)\//);
+    if (m) setRepo(m[1]);
+  }, [location.pathname]);
+
+  return repo;
+}
+
 export default function App() {
-  const repoSlug = encodeURIComponent(mockAnalysis.repoName);
+  const repoSlug = useCurrentRepo();
+
+  const perRepoTabs: Array<{ label: string; path: string }> = [
+    { label: "Summary", path: "summary" },
+    { label: "Diagram", path: "diagram" },
+    { label: "Comparison", path: "comparison" },
+  ];
 
   return (
     <div className="mx-auto flex min-h-svh max-w-5xl flex-col">
@@ -21,22 +48,30 @@ export default function App() {
         <div>
           <h1 className="text-lg font-semibold">Repository Intelligence Platform</h1>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Dashboard shell -- fake data, wired to a real backend in Week 2
+            Clone -&gt; tree-sitter parse -&gt; Neo4j -&gt; context -&gt; local LLM. All
+            figures shown are measured; this dashboard displays no sample data.
           </p>
         </div>
         <nav className="flex gap-2">
           <NavLink to="/" end className={navLinkClass}>
             Analyze
           </NavLink>
-          <NavLink to={`/repo/${repoSlug}/summary`} className={navLinkClass}>
-            Summary
-          </NavLink>
-          <NavLink to={`/repo/${repoSlug}/diagram`} className={navLinkClass}>
-            Diagram
-          </NavLink>
-          <NavLink to={`/repo/${repoSlug}/comparison`} className={navLinkClass}>
-            Comparison
-          </NavLink>
+          {perRepoTabs.map(({ label, path }) =>
+            repoSlug ? (
+              <NavLink key={path} to={`/repo/${repoSlug}/${path}`} className={navLinkClass}>
+                {label}
+              </NavLink>
+            ) : (
+              <span
+                key={path}
+                className={disabledClass}
+                title="Analyze a repository first -- these views are per-repository."
+                aria-disabled="true"
+              >
+                {label}
+              </span>
+            ),
+          )}
         </nav>
       </header>
 
