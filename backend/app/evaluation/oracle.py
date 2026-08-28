@@ -272,6 +272,34 @@ _CAND_PATTERNS = [
 ]
 
 
+_EXT = re.compile(r"\.(ts|js|tsx|jsx|json|yml|yaml)$", re.IGNORECASE)
+# "Node.js", "Nest.js", "Next.js", "Vue.js" -- a capitalised single word plus a JS
+# extension. By convention real source files in these repos are lowercase or
+# lowerCamelCase ("app.js", "userModel.ts"), so a leading capital marks prose.
+_PRODUCT_JS = re.compile(r"^[A-Z][a-z]+\.(js|ts)$")
+
+
+def _stoplisted(tok: str) -> bool:
+    """Stoplist check, extended to reject product names written in `Name.js` style.
+
+    Without this the `file` candidate pattern read "Node.js" as a source filename and
+    flagged it as an unsupported identifier. That single gap produced 68 of 89
+    hallucination flags (76%) in the first run -- the metric was measuring a stoplist
+    omission rather than hallucination.
+
+    We deliberately do NOT stoplist bare framework names ("Vue", "Nest"): a summary
+    claiming the wrong framework IS a hallucination worth flagging. Only the
+    `Name.js` prose form is excluded.
+    """
+    t = tok.lower()
+    if t in STOPLIST:
+        return True
+    if _PRODUCT_JS.match(tok):
+        return True
+    stem = _EXT.sub("", t)
+    return stem != t and stem in STOPLIST
+
+
 def extract_candidates(summary: str) -> list[str]:
     out, seen = [], set()
     for pat, _kind in _CAND_PATTERNS:
@@ -279,7 +307,7 @@ def extract_candidates(summary: str) -> list[str]:
             tok = m.group(1).strip().strip("`'\"").rstrip(".,;:)")
             if not tok or len(tok) < 2:
                 continue
-            if tok.lower() in STOPLIST:
+            if _stoplisted(tok):
                 continue
             if tok.lower() not in seen:
                 seen.add(tok.lower())

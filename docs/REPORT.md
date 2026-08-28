@@ -441,7 +441,7 @@ which fails adjacent to `@`, `/` and `.`.
 (backticked spans, route-like paths, PascalCase with >=2 humps, scoped packages, source
 filenames) and checked against the union of all parsed entities. A 160-term stoplist
 excludes generic vocabulary (`API`, `HTTP`, `controller`, `database`, ...) without which the
-extractor is noise. This yields **9.1 checkable identifiers per summary (max 81)** against
+extractor is noise. This yields **8.2 checkable identifiers per summary (max 79)** against
 the LLM judge's 4.78 claims (max 11), resolving the quantization that made the original
 faithfulness measurement underpowered — see §5.5.3, whose "null result" is better described
 as an underpowered instrument.
@@ -880,6 +880,39 @@ sits at 1,569 tokens, 19% of the window. Raw was given more budget and still los
 The honest framing is a compression question: *given a fixed context budget, which lossy
 compression of a repository preserves more answerable facts?* Raw truncation is the
 realistic baseline — it is what a tool without retrieval does.
+
+### 5.7.3 Hallucination: a corrected result and a weak instrument
+
+**A defect found by running the live pipeline, and its correction.** The candidate
+extractor treated `Node.js` as a source filename — the `file` pattern matches
+`<name>.js` — and flagged it as an identifier unsupported by the parse. That single gap
+produced **68 of 89 flags (76%)**. Correcting it (a capitalised stem plus a JS extension
+is prose, not a file reference) reverses the direction of the result:
+
+| Representation | before correction | **after correction** | 95% CI |
+|---|---|---|---|
+| `raw` | 0.2514 | **0.0229** | [0.0000, 0.0583] |
+| `dependency_graph` | 0.2671 | **0.0059** | [0.0000, 0.0173] |
+| `knowledge_graph` | 0.3120 (worst) | **0.0000** (best) | [0.0000, 0.0000] |
+
+The uncorrected numbers would have supported the claim that structured context causes
+*more* hallucination. The corrected numbers point the other way: the knowledge-graph arm
+produced **zero** unsupported identifiers across all 53 summaries, and raw the most —
+consistent with a model that sees a truncated slice of the repository having more room to
+invent. This is the same class of error as §5.6, in our own replacement metric, and we
+report it for the same reason.
+
+**The instrument is nonetheless weak, and no strong claim should rest on it.**
+
+- **77 of 157 summaries (49%) contain zero extractable identifiers**, so the rate is
+  undefined for half the corpus and scored 0.0 by convention.
+- Only **21 unsupported identifiers in 1,286 candidates (1.6%)** across the entire corpus.
+  The between-arm differences are differences between very small counts.
+- Every confidence interval includes zero.
+
+We therefore report the direction as suggestive and explicitly **do not** claim a
+significant hallucination effect. The coverage results (§5.7) carry the argument; this
+metric does not.
 
 ---
 

@@ -60,7 +60,7 @@ MISTRAL JUDGE vs ORACLE -- resolution comparison, same 157 summaries
 ------------------------------------------------------------------------------
 HALLUCINATION ORACLE -- unsupported identifier rate
 ------------------------------------------------------------------------------
-  raw                n= 53 mean=0.2514  95% CI [0.1674, 0.3419]
-  dependency_graph   n= 51 mean=0.2671  95% CI [0.1728, 0.3662]
-  knowledge_graph    n= 53 mean=0.3120  95% CI [0.1988, 0.4315]
+  raw                n= 53 mean=0.0229  95% CI [0.0000, 0.0583]
+  dependency_graph   n= 51 mean=0.0059  95% CI [0.0000, 0.0173]
+  knowledge_graph    n= 53 mean=0.0000  95% CI [0.0000, 0.0000]
 
