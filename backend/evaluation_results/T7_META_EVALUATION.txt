@@ -1,0 +1,84 @@
+====================================================================================
+T7 -- JUDGE META-EVALUATION vs DETERMINISTIC ORACLE
+====================================================================================
+oracle rows=157   fact-level decisions=10062
+
+
+------------------------------------------------------------------------------------
+ROW-LEVEL AGREEMENT WITH THE ORACLE
+------------------------------------------------------------------------------------
+  judge                                          n      rho             95% CI  %at1.0 distinct
+  mistral:7b-instruct (ORIGINAL harness)       154  -0.0019   [-0.136,+0.132]   86.4%       18
+  gemma2:9b (fixed harness)                    157  +0.6611   [+0.500,+0.798]   19.1%       86
+  mistral:7b-instruct (FIXED harness)          155  +0.4746   [+0.321,+0.617]   18.1%      101
+  oracle (reference)                           157       --                 --    0.0%       87
+
+------------------------------------------------------------------------------------
+FACT-LEVEL CONFUSION vs ORACLE  (the human-validation substitute)
+------------------------------------------------------------------------------------
+  Reference = oracle STRICT. Judge 'missing' = fact appears in its missing_facts_list.
+  SENSITIVITY = P(judge says covered | oracle says covered)
+  SPECIFICITY = P(judge says MISSING  | oracle says MISSING)   <-- the decisive one
+
+  judge                                        n_facts      sens        SPEC    balanced
+  mistral:7b-instruct (ORIGINAL harness)          9777    0.9876      0.0934      0.5405
+  gemma2:9b (fixed harness)                      10062    0.8682      0.8032      0.8357
+  mistral:7b-instruct (FIXED harness)             9858    0.7466      0.6540      0.7003
+
+  A judge that calls everything covered scores sens=1.000, SPEC=0.000.
+
+------------------------------------------------------------------------------------
+JUDGE FORMAT COMPLIANCE  (unmatched_verdict_items -- new metric from the T1 fix)
+------------------------------------------------------------------------------------
+  mistral:7b-instruct (ORIGINAL harness)     not recorded (pre-fix harness)
+  gemma2:9b (fixed harness)                  rows with unmatched>0:   5/157   total items: 66
+  mistral:7b-instruct (FIXED harness)        rows with unmatched>0:  52/155   total items: 1211
+
+------------------------------------------------------------------------------------
+PAIRWISE INTER-JUDGE AGREEMENT (Spearman)
+------------------------------------------------------------------------------------
+                                              oracle_cov  mistral:7b  gemma2:9b   mistral:7b
+  oracle_coverage_strict                     1.000       -0.002      0.661       0.475     
+  mistral:7b-instruct (ORIGINAL harness)     -0.002      1.000       -0.142      0.085     
+  gemma2:9b (fixed harness)                  0.661       -0.142      1.000       0.352     
+  mistral:7b-instruct (FIXED harness)        0.475       0.085       0.352       1.000     
+
+  Judge-vs-judge agreement, lowest pair: rho=-0.142
+    mistral:7b-instruct (ORIGINAL harness)
+    gemma2:9b (fixed harness)
+  The judges agree with EACH OTHER (-0.142) LESS than the best judge
+  agrees with the oracle (+0.661). They are not making the same
+  mistake with different calibration -- they are measuring different
+  things. Averaging them into a panel would yield noise, not accuracy.
+  Cf. arXiv 2605.29800 on why panel size does not buy independence.
+
+------------------------------------------------------------------------------------
+SELF-PREFERENCE  (gemma2 is both a writer and a judge)
+------------------------------------------------------------------------------------
+  gemma2:9b (fixed harness)
+    self-judged     n= 51  mean gap = +0.0369
+    non-self-judged n=106  mean gap = +0.0595
+    Mann-Whitney U p=0.2775  -> NO significant self-preference
+
+------------------------------------------------------------------------------------
+DISAGREEMENT SAMPLE -- bounds the oracle's paraphrase blind spot (§6.5)
+------------------------------------------------------------------------------------
+  Facts the JUDGE credited but the ORACLE did not. Each is either genuine
+  paraphrase (oracle limitation) or judge error. Read and classify these.
+
+  gemma2:9b (fixed harness): 1226 such facts
+  -> wrote disagreement_sample.csv (30 rows) for manual classification
+
+     express-rest-boilerplate     dependency_graph Endpoint: PUT /v1/users/:userId
+     awesome-nest-boilerplate     raw              Class/Service: PageMetaDto
+     express-mongoose-es6-rest-ap dependency_graph Endpoint: GET /api/users
+     nestjs-boilerplate           dependency_graph Class/Service: AuthFacebookModule
+     express-rest-boilerplate     dependency_graph Endpoint: POST /v1/auth/register
+     node-express-boilerplate     dependency_graph Endpoint: POST /register
+     awesome-nest-boilerplate     dependency_graph Class/Service: AbstractDto
+     ack-nestjs-boilerplate       dependency_graph Class/Service: DatabaseUtil
+     awesome-nest-boilerplate     dependency_graph Endpoint: GET /auth/me
+     ack-nestjs-boilerplate       dependency_graph Endpoint: GET /health/database
+     nestjs-boilerplate           dependency_graph Endpoint: POST /auth/email/confirm/new
+     nestjs-starter-rest-api      knowledge_graph  Class/Service: AppModule
+

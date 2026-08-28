@@ -1,0 +1,58 @@
+==============================================================================
+RESIDUAL ANALYSIS -- composition of unmatched judge items
+==============================================================================
+Sampled from unmatched_samples (first 5 per row). Row totals are exact;
+composition is estimated from the sample. No GPU, no re-judging.
+
+------------------------------------------------------------------------------
+mistral:7b-instruct (fixed harness)
+------------------------------------------------------------------------------
+  rows judged                : 155
+  total unmatched items      : 1211  (exact)
+  sampled items classified   : 205
+    index        115  (56.1% of sample)
+    fact-like     33  (16.1% of sample)
+    other         57  (27.8% of sample)
+  -> estimated index-notation items overall: 679 of 1211
+  rows whose sampled unmatched are ALL index-shaped: 23
+
+  These rows score too HIGH even after the fix. The judge named the missing
+  facts by index; the canonicaliser cannot resolve those, so they are
+  dropped and counted as covered -- the ORIGINAL defect, in miniature.
+
+  repo                               variant            cov   facts  unmat
+  nestjs-boilerplate                 knowledge_grap   1.000     106     86
+  nestjs-realworld-example-app       raw              1.000      82     82
+  domain-driven-hexagon              dependency_gra   1.000      85     81
+  domain-driven-hexagon              knowledge_grap   1.000      85     73
+  nestjs-realworld-example-app       knowledge_grap   1.000      82     72
+  node-express-mongodb-jwt-rest-api- knowledge_grap   1.000      63     64
+  nestjs-realworld-example-app       knowledge_grap   1.000      82     60
+  express-rest-boilerplate           raw              1.000      57     57
+  express-mongoose-es6-rest-api      raw              1.000      44     44
+  nestjs-prisma-starter              dependency_gra   1.000      76     42
+
+  Upper bound on the residual: if EVERY index item were resolved, these
+  23 rows would lose up to 954 further covered facts.
+
+------------------------------------------------------------------------------
+gemma2:9b (fixed harness)
+------------------------------------------------------------------------------
+  rows judged                : 157
+  total unmatched items      : 66  (exact)
+  sampled items classified   : 17
+    index          0  (0.0% of sample)
+    fact-like     17  (100.0% of sample)
+    other          0  (0.0% of sample)
+  -> estimated index-notation items overall: 0 of 66
+  rows whose sampled unmatched are ALL index-shaped: 0
+
+==============================================================================
+HOW TO REPORT THIS
+==============================================================================
+  The fix recovers most of the lost signal (mistral rho: -0.002 -> +0.475,
+  specificity 0.093 -> 0.654) but is NOT complete. The dominant residual cause is
+  index notation, which is resolvable in principle and which we did not implement.
+  Reporting this measured residual is stronger than claiming a complete fix, and it
+  is only visible because unmatched items are now COUNTED rather than discarded
+  silently -- which is the paper's central methodological point.
