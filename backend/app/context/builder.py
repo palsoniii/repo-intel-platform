@@ -74,7 +74,14 @@ def _query_knowledge_graph(tx: ManagedTransaction, repo_name: str) -> dict:
         """
         MATCH (r:Repository {name: $repo_name})
         OPTIONAL MATCH (r)-[:HAS_MODULE]->(m:Module)
+        OPTIONAL MATCH (m)-[:IMPORTS]->(target:Module)
         OPTIONAL MATCH (m)-[:DEFINES]->(c:Class)
+        WITH r, m,
+             collect(DISTINCT target.path) AS module_imports,
+             collect(DISTINCT c.name) AS module_classes
+        WITH r, collect({
+                 path: m.path, imports: module_imports, classes: module_classes
+             }) AS module_rows
         OPTIONAL MATCH (r)-[:HAS_ENDPOINT]->(e:Endpoint)
         OPTIONAL MATCH (e)-[:HANDLED_BY]->(handler:Function)
         OPTIONAL MATCH (r)-[:DEPENDS_ON]->(dep:ExternalDependency)
@@ -82,8 +89,7 @@ def _query_knowledge_graph(tx: ManagedTransaction, repo_name: str) -> dict:
         OPTIONAL MATCH (r)-[:HAS_DATABASE_ENTITY]->(db:DatabaseEntity)
         RETURN r.detected_framework AS framework,
                r.framework_version AS framework_version,
-               collect(DISTINCT m.path) AS modules,
-               collect(DISTINCT c.name) AS classes,
+               module_rows,
                collect(DISTINCT {method: e.method, path: e.path, handler: handler.name}) AS endpoints,
                collect(DISTINCT dep.name) AS external_dependencies,
                collect(DISTINCT cfg.path) AS config_files,
@@ -99,8 +105,9 @@ def _format_knowledge_graph(data: dict) -> str:
     if not data:
         return "No graph data found for this repository."
 
-    modules = [m for m in data.get("modules", []) if m]
-    classes = [c for c in data.get("classes", []) if c]
+    module_rows = [m for m in data.get("module_rows", []) if m and m.get("path")]
+    module_rows.sort(key=lambda m: m["path"])
+    classes = sorted({c for m in module_rows for c in (m.get("classes") or []) if c})
     endpoints = [e for e in data.get("endpoints", []) if e.get("path")]
     deps = sorted(d for d in data.get("external_dependencies", []) if d)
     configs = sorted(c for c in data.get("config_files", []) if c)
@@ -113,8 +120,23 @@ def _format_knowledge_graph(data: dict) -> str:
     )
     lines.append("")
 
-    lines.append(f"Modules ({len(modules)}):")
-    lines.extend([f"- {m}" for m in modules] or ["(none)"])
+    # Each module carries its own import edges and the classes it defines. Emitting the
+    # relationships (rather than three flat lists) is what makes this variant a superset
+    # of dependency_graph: previously it dropped IMPORTS entirely, so the two arms were
+    # partially disjoint -- knowledge_graph had entity names and no edges, while
+    # dependency_graph had edges and no classes. Comparing them could not measure
+    # "more structure" because neither contained the other.
+    lines.append(f"Modules ({len(module_rows)}):")
+    if module_rows:
+        for m in module_rows:
+            imports = sorted(i for i in (m.get("imports") or []) if i)
+            defines = sorted(c for c in (m.get("classes") or []) if c)
+            lines.append(f"- {m['path']}")
+            lines.append(f"    imports: {', '.join(imports) or '(none)'}")
+            if defines:
+                lines.append(f"    defines: {', '.join(defines)}")
+    else:
+        lines.append("(none)")
     lines.append("")
 
     lines.append(f"Classes ({len(classes)}):")

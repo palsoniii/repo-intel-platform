@@ -111,7 +111,15 @@ RETURN m.path AS module_path,
 // the actual query in app/context/builder.py's _query_knowledge_graph
 MATCH (r:Repository {name: $repo_name})
 OPTIONAL MATCH (r)-[:HAS_MODULE]->(m:Module)
+// IMPORTS is collected per module, so this variant is a strict superset of the
+// dependency_graph one. Without it the two arms are partially disjoint and the
+// ablation cannot measure "more structure" -- see builder.py's formatter comment.
+OPTIONAL MATCH (m)-[:IMPORTS]->(target:Module)
 OPTIONAL MATCH (m)-[:DEFINES]->(c:Class)
+WITH r, m,
+     collect(DISTINCT target.path) AS module_imports,
+     collect(DISTINCT c.name) AS module_classes
+WITH r, collect({path: m.path, imports: module_imports, classes: module_classes}) AS module_rows
 // Two separate OPTIONAL MATCHes, not one chained pattern: chaining
 // (e:Endpoint)-[:HANDLED_BY]->(handler) in a single OPTIONAL MATCH drops the whole
 // pattern -- including `e` -- for endpoints with no handler (e.g. inline handlers),
@@ -124,8 +132,7 @@ OPTIONAL MATCH (r)-[:HAS_CONFIG]->(cfg:ConfigFile)
 OPTIONAL MATCH (r)-[:HAS_DATABASE_ENTITY]->(db:DatabaseEntity)
 RETURN r.detected_framework AS framework,
        r.framework_version AS framework_version,
-       collect(DISTINCT m.path) AS modules,
-       collect(DISTINCT c.name) AS classes,
+       module_rows,
        collect(DISTINCT {method: e.method, path: e.path, handler: handler.name}) AS endpoints,
        collect(DISTINCT dep.name) AS external_dependencies,
        collect(DISTINCT cfg.path) AS config_files,

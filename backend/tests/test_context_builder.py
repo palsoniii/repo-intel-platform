@@ -45,6 +45,41 @@ def test_knowledge_graph_variant_reflects_full_structure(neo4j_driver, sample_pa
     assert "User" in text  # database entity name
 
 
+def test_knowledge_graph_is_a_superset_of_dependency_graph(
+    neo4j_driver, sample_parsed_repository
+):
+    """The ablation treats knowledge_graph as strictly more structured than
+    dependency_graph, so every import edge the dependency_graph arm shows must also
+    reach the knowledge_graph arm. It previously dropped IMPORTS entirely, leaving the
+    two arms partially disjoint -- one had edges and no classes, the other classes and
+    no edges -- so the comparison measured a difference in kind, not in structure."""
+    write_parsed_repository(neo4j_driver, sample_parsed_repository)
+    name = sample_parsed_repository.metadata.name
+    dep = build_context(neo4j_driver, name, ContextVariant.DEPENDENCY_GRAPH)
+    kg = build_context(neo4j_driver, name, ContextVariant.KNOWLEDGE_GRAPH)
+
+    imported = [
+        target
+        for module in sample_parsed_repository.modules
+        for target_id in module.imports
+        for target in [
+            next(
+                (m.path for m in sample_parsed_repository.modules if m.id == target_id),
+                None,
+            )
+        ]
+        if target
+    ]
+    assert imported, "fixture must exercise at least one internal import edge"
+    for path in imported:
+        assert path in dep, f"{path} missing from dependency_graph"
+        assert path in kg, f"{path} missing from knowledge_graph (the superset)"
+
+    # and the richer arm still carries what the leaner one never had
+    assert "UserService" in kg
+    assert "UserService" not in dep
+
+
 def test_knowledge_graph_variant_for_unknown_repo_is_handled_gracefully(neo4j_driver):
     text = build_context(neo4j_driver, "no-such-repo-in-graph", ContextVariant.KNOWLEDGE_GRAPH)
     assert "No graph data found" in text
