@@ -43,6 +43,11 @@ export interface SummarizeResponse {
     tech_stack: string[];
     services: string[];
     dependencies: string[];
+    // Optional: added so coverage can score endpoints and class/service names, which
+    // the original four-key shape had nowhere to express. A model that omits them
+    // still produces a valid summary, so treat them as possibly-absent.
+    endpoints?: string[];
+    components?: string[];
   } | null;
   summaryRawText: string;
   status: "success" | "partial" | "failed";

@@ -18,6 +18,8 @@ export interface RepoSummary {
   techStack: string[];
   services: string[];
   dependencies: string[];
+  endpoints?: string[];
+  components?: string[];
 }
 
 export interface ComparisonRun {

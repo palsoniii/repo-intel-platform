@@ -59,6 +59,8 @@ function RealSummary({
       techStack={real.summary.tech_stack}
       services={real.summary.services}
       dependencies={real.summary.dependencies}
+      endpoints={real.summary.endpoints ?? []}
+      components={real.summary.components ?? []}
     />
   );
 }
@@ -71,6 +73,8 @@ function SummaryLayout({
   techStack,
   services,
   dependencies,
+  endpoints,
+  components,
 }: {
   repoName: string | undefined;
   sourceUrl: string;
@@ -79,6 +83,8 @@ function SummaryLayout({
   techStack: string[];
   services: string[];
   dependencies: string[];
+  endpoints: string[];
+  components: string[];
 }) {
   return (
     <div>
@@ -102,6 +108,16 @@ function SummaryLayout({
         <ListCard title="Services" items={services} />
         <ListCard title="Dependencies" items={dependencies} />
       </div>
+
+      {/* Rendered only when present: a model that predates the endpoints/components
+          fields still returns a valid summary, and an empty card would read as
+          "this repo has no endpoints" rather than "this run did not report any". */}
+      {(endpoints.length > 0 || components.length > 0) && (
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {endpoints.length > 0 && <ListCard title="API endpoints" items={endpoints} />}
+          {components.length > 0 && <ListCard title="Components" items={components} />}
+        </div>
+      )}
     </div>
   );
 }
@@ -113,8 +129,11 @@ function ListCard({ title, items }: { title: string; items: string[] }) {
         {title}
       </h3>
       <ul className="space-y-1 text-sm">
-        {items.map((item) => (
-          <li key={item}>{item}</li>
+        {/* Keyed by position, not by value: local models repeat entries (the same path
+            under two methods, a dependency listed twice), and a value key silently
+            drops the duplicate -- so the card under-reports what the model returned. */}
+        {items.map((item, index) => (
+          <li key={`${index}-${item}`}>{item}</li>
         ))}
       </ul>
     </div>

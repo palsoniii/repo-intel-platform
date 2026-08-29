@@ -40,6 +40,13 @@ from app.schemas.llm_result import ContextVariant, LLMResult, RunStatus
 from app.schemas.parser_schema import ParsedRepository
 
 REQUIRED_SUMMARY_KEYS = {"overview", "tech_stack", "services", "dependencies"}
+# Asked for by the prompt and scored, but NOT required for the output to count as valid.
+# Endpoints and components were added so that coverage can score the ~46% of ground-truth
+# facts (endpoints, classes/services) the earlier four-key shape had nowhere to express --
+# see docs/REPORT.md 5.7. Keeping them optional means an older model that omits them
+# still parses instead of being recorded as a failed run, so the two changes stay
+# separable when reading results.
+OPTIONAL_SUMMARY_KEYS = {"endpoints", "components"}
 
 # Raw-source arm cap. num_ctx is now configurable via OLLAMA_NUM_CTX (see
 # providers/ollama_provider.py) and .env sets it to 8192 tokens; this char cap is
