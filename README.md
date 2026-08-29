@@ -444,6 +444,30 @@ below for how to run them for real.
 
 ### Known gaps in the Phase 6 NestJS parser (same spirit as Phase 1's, above)
 
+- **Constant-reference decorator arguments are not resolved, and fail silently with a
+  wrong path rather than no path.** `_decorator_string_arg()` handles the string,
+  options-object and array forms below; a `member_expression` matches none of them and
+  falls through to `return ""`. Because `creates_endpoint` tests the controller prefix
+  for `None` and `""` is not `None`, the endpoint is still emitted -- so the *count*
+  stays correct while every *path* collapses to `/`. `Sairyss/domain-driven-hexagon`
+  routes entirely this way (`@Controller(routesV1.version)`, `@Post(routesV1.user.root)`,
+  constants in `src/configs/app.routes.ts`), so its three real endpoints
+  (`GET /v1/users`, `POST /v1/users`, `DELETE /v1/users/:id`) are reported as `GET /`,
+  `POST /`, `DELETE /` -- endpoint F1 0.00, see `backend/annotations/README.md`. This is
+  the same class as Phase 1's "mount path is a runtime value" gap: resolving it needs
+  cross-file constant resolution, not a new decorator form. Until then the failure is
+  worse than a miss, because a wrong-but-plausible path is what seeded that repo's
+  annotation in the first place.
+- **GraphQL resolvers are out of scope and are not counted anywhere.**
+  `ROUTE_DECORATORS` lists only the eight HTTP verbs, and `creates_endpoint` additionally
+  requires `@Controller`, which a `@Resolver()` class never has. Both conditions are
+  independently sufficient, so `@Query`/`@Mutation`/`@Subscription`/`@ResolveField`
+  contribute no endpoints. The resolver files are still parsed -- their modules and
+  classes appear -- only the operations are dropped. This matters for dataset selection:
+  `annotations/README.md` states GraphQL-only repos were excluded, but
+  `notiz-dev/nestjs-prisma-starter` is ~87% GraphQL by operation count (13 root
+  operations plus 3 field resolvers) and was included on the strength of two
+  `hello`-world REST routes.
 - `@Module()` metadata (`controllers`/`providers`/`imports` arrays) isn't parsed --
   module-to-controller/service wiring isn't in the graph, only the plain `IMPORTS`
   edges from each file's own `import` statements.

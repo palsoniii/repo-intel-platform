@@ -37,7 +37,25 @@ keyed on -- e.g. `binitghetiya/express-sequelize-api-boilerplate` above becomes
 `express-sequelize-api-boilerplate.json` in both directories, and
 `FrontendMasters/api-design-node-v3` becomes `api-design-node-v3.json`.)
 
-## Status: 18 files, all hand-corrected against real source (expanded from the original 6)
+## Status: 18 files, hand-corrected against real source (expanded from the original 6)
+
+> **Independence audit, 2026-08-29 — one confirmed failure of the rule below, and an
+> unresolved risk.** `domain-driven-hexagon.json` was found still holding its
+> uncorrected seed: its endpoints read `['DELETE /', 'GET /', 'POST /']`, byte-identical
+> to the parser's own (wrong) output. The true endpoints are `/v1/users` and
+> `/v1/users/:id` — the parser collapses them because that repo declares routes by
+> constant reference, a decorator form `nestjs_parser` does not resolve. Its endpoint
+> F1 is corrected from 1.00 to 0.00 in the table below; the file now carries a `notes`
+> field recording the verification.
+>
+> The wider risk is not closed. **12 of the 18 endpoint lists are byte-identical to
+> current parser output**, which is consistent with correct annotation but cannot be
+> distinguished from an uncorrected seed by inspection alone. Seven of those also
+> contain a bare `/` path. A bare `/` is not proof of a defect —
+> `nestjs-prisma-starter`'s `GET /` was checked against source and is genuinely
+> correct — so each remaining file needs verifying against its repository
+> individually. Until that is done, endpoint F1 figures here should be read as an
+> upper bound.
 
 Each file was seeded from the pipeline's own extracted structure, then corrected by
 reading the actual repository. (Scoring against an *uncorrected* seed would score a
@@ -115,7 +133,7 @@ Current diagram-scorer results against all 18 annotations:
 | ack-nestjs-boilerplate | 1.00 | recall only | 1.00 |
 | awesome-nest-boilerplate | 1.00 | 1.00 | 1.00 |
 | clean-architecture-nestJS | 1.00 | 1.00 | 1.00 |
-| domain-driven-hexagon | 1.00 | 1.00 | 1.00 |
+| domain-driven-hexagon | 1.00 | 1.00 | **0.00** |
 | nestjs-recipe | 1.00 | 1.00 | 1.00 |
 | nestjs-starter-rest-api | 1.00 | 1.00 | 1.00 |
 

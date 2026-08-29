@@ -493,8 +493,9 @@
     ]
   ],
   "endpoints": [
-    "DELETE /",
-    "GET /",
-    "POST /"
-  ]
+    "DELETE /v1/users/:id",
+    "GET /v1/users",
+    "POST /v1/users"
+  ],
+  "notes": "Endpoints hand-verified against Sairyss/domain-driven-hexagon at HEAD (2026-08-29): find-users.http.controller.ts (GET), create-user.http.controller.ts (POST), delete-user.http-controller.ts (DELETE). This file previously read ['DELETE /', 'GET /', 'POST /'] -- byte-identical to the parser's own output, so the endpoint F1 of 1.00 reported in README.md was the pipeline agreeing with itself; true F1 against the old annotation was 0.00. The parser collapses these paths because the repo declares routes by constant reference (@Controller(routesV1.version), @Post(routesV1.user.root)); nestjs_parser._decorator_string_arg handles string, options-object and array forms only, and returns '' for a member_expression. Not counted here, being outside the REST scope stated in annotations/README.md: 2 GraphQL root operations, 1 @MessagePattern handler, 1 nestjs-console @Command."
 }
