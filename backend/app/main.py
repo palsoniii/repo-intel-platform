@@ -144,6 +144,20 @@ class ComparisonRun(BaseModel):
     missing_facts: int = 0
     judge_model: str | None = None
     self_judged: bool = False  # generator == judge (exclude when analysing)
+    # Deterministic parser-grounded scores for the same summary -- no model involved,
+    # so unlike the judge fields above these are never null on a successful run and
+    # never vary between runs. Reported alongside the judge, not instead of it: the
+    # oracle matches identifiers and so cannot credit paraphrase, while the judge can
+    # but is unreliable in both directions. `oracle_coverage_strict` is the headline
+    # figure in docs/REPORT.md 5.7; the lenient tier bounds surface-form variation.
+    oracle_scored: bool = False
+    oracle_coverage_strict: float | None = None
+    oracle_coverage_lenient: float | None = None
+    oracle_facts_covered: int = 0
+    oracle_total_facts: int = 0
+    oracle_unsupported_rate: float | None = None
+    oracle_unsupported_identifiers: int = 0
+    oracle_total_identifiers: int = 0
     # Text-overlap against reference_summaries/<repo>.json's overview -- null when no
     # reference file exists for this repo. BERTScore is intentionally excluded from
     # the live endpoint (see pipeline.ScoredResult's docstring); only the batch
@@ -253,6 +267,8 @@ def _comparison_run(scored) -> "ComparisonRun":
     h = scored.hallucination
     c = scored.coverage
     t = scored.text_overlap
+    oc = scored.oracle_coverage
+    oh = scored.oracle_hallucination
     judge_model = h.judge_model if h else (c.judge_model if c else None)
     return ComparisonRun(
         model=r.model,
@@ -273,6 +289,14 @@ def _comparison_run(scored) -> "ComparisonRun":
         missing_facts=(len(c.missing_facts) if c else 0),
         judge_model=judge_model,
         self_judged=(bool(judge_model and judge_model == r.model)),
+        oracle_scored=(oc is not None),
+        oracle_coverage_strict=(oc.coverage_strict if oc else None),
+        oracle_coverage_lenient=(oc.coverage_lenient if oc else None),
+        oracle_facts_covered=(oc.covered_strict if oc else 0),
+        oracle_total_facts=(oc.total_facts if oc else 0),
+        oracle_unsupported_rate=(oh.unsupported_identifier_rate if oh else None),
+        oracle_unsupported_identifiers=(oh.unsupported if oh else 0),
+        oracle_total_identifiers=(oh.total_candidates if oh else 0),
         text_overlap_scored=(t is not None),
         bleu4=(t.bleu4 if t else None),
         rouge_l=(t.rouge_l if t else None),

@@ -21,6 +21,13 @@ interface NormalizedRun {
   rougeL: number | null;
   meteor: number | null;
   failureTags: string[];
+  // Deterministic parser-grounded coverage. Absent on any run that failed; present on
+  // every successful one, since no model has to cooperate for it to be computed.
+  oracleScored: boolean;
+  oracleCoverageStrict: number | null;
+  oracleCoverageLenient: number | null;
+  oracleFactsCovered: number;
+  oracleTotalFacts: number;
 }
 
 export default function ComparisonPage() {
@@ -64,6 +71,11 @@ export default function ComparisonPage() {
     rougeL: "rougeL" in r ? r.rougeL : null,
     meteor: "meteor" in r ? r.meteor : null,
     failureTags: "failureTags" in r ? r.failureTags : [],
+    oracleScored: "oracleScored" in r ? r.oracleScored : false,
+    oracleCoverageStrict: "oracleCoverageStrict" in r ? r.oracleCoverageStrict : null,
+    oracleCoverageLenient: "oracleCoverageLenient" in r ? r.oracleCoverageLenient : null,
+    oracleFactsCovered: "oracleFactsCovered" in r ? r.oracleFactsCovered : 0,
+    oracleTotalFacts: "oracleTotalFacts" in r ? r.oracleTotalFacts : 0,
   }));
 
   const hallucinationAverages = representationAverages(runs, "hallucinationScore", "min");
@@ -78,7 +90,11 @@ export default function ComparisonPage() {
         question is about. Each summary is graded on several axes: hallucination
         (0 = fully grounded -- lower is better) and coverage (1.0 = mentions every
         fact the parser found -- higher is better) are grounded LLM-as-judge scores
-        against the parser's own static-analysis output; BLEU-4/ROUGE-L/METEOR (when
+        against the parser's own static-analysis output; the second coverage column is
+        the same question answered deterministically, by matching the parser's
+        identifiers against the summary with no model involved -- it cannot credit
+        paraphrase, so it reads low where the judge credits a correct restatement, and
+        a large gap between the two columns is itself the finding; BLEU-4/ROUGE-L/METEOR (when
         a reference summary exists for the repo) measure text overlap against a
         human-reviewable reference; and failure tags flag the specific way a summary
         went wrong (fabricated claim, missed fact, over-generic phrasing) when it did.
@@ -145,7 +161,14 @@ export default function ComparisonPage() {
                 <span className="block text-[10px] font-normal text-slate-400">output / input</span>
               </th>
               <th className="px-4 py-2 font-medium">Hallucination</th>
-              <th className="px-4 py-2 font-medium">Coverage</th>
+              <th className="px-4 py-2 font-medium">
+                Coverage
+                <span className="block text-[10px] font-normal text-slate-400">judge (LLM)</span>
+              </th>
+              <th className="px-4 py-2 font-medium">
+                Coverage
+                <span className="block text-[10px] font-normal text-slate-400">oracle (rule-based)</span>
+              </th>
               <th className="px-4 py-2 font-medium">
                 Text overlap
                 <span className="block text-[10px] font-normal text-slate-400">BLEU / ROUGE / METEOR</span>
@@ -180,6 +203,7 @@ export default function ComparisonPage() {
                     )}
                   </td>
                   <td className="px-4 py-2">{renderScore(run.coverageScore, run.status)}</td>
+                  <td className="px-4 py-2">{renderOracleCoverage(run)}</td>
                   <td className="px-4 py-2 font-mono text-xs">{renderTextOverlap(run)}</td>
                   <td className="px-4 py-2">{renderFailureTags(run.failureTags)}</td>
                 </tr>
@@ -248,6 +272,31 @@ function renderScore(score: number | null, status?: string): string {
   if (typeof score === "number") return score.toFixed(2);
   if (status === "failed") return "failed";
   return "—"; // em dash: no score (run failed, or the judge's own output didn't parse)
+}
+
+// The deterministic score, with the facts it is built from ("0.58" over "43/74") and
+// the lenient tier on hover. Unlike the judge column this is never blank on a run that
+// succeeded -- no model is involved, so there is no verdict that can fail to parse.
+function renderOracleCoverage(run: NormalizedRun) {
+  if (!run.oracleScored || run.oracleCoverageStrict === null) {
+    return <span>{run.status === "failed" ? "failed" : "—"}</span>;
+  }
+  const lenient =
+    run.oracleCoverageLenient === null ? null : run.oracleCoverageLenient.toFixed(2);
+  return (
+    <span
+      title={
+        lenient
+          ? `strict ${run.oracleCoverageStrict.toFixed(2)} / lenient ${lenient} — lenient also accepts camelCase splits, path-parameter wildcards and scope-stripped package names`
+          : undefined
+      }
+    >
+      {run.oracleCoverageStrict.toFixed(2)}
+      <span className="block text-[10px] text-slate-400">
+        {run.oracleFactsCovered}/{run.oracleTotalFacts} facts
+      </span>
+    </span>
+  );
 }
 
 // "0.12 / 0.34 / 0.28" or an em dash when no reference summary exists yet for this

@@ -22,6 +22,12 @@ from app.db.neo4j_client import get_driver
 from app.evaluation.coverage import CoverageResult, score_coverage
 from app.evaluation.failure_analysis import FailureTag, analyze_failures
 from app.evaluation.hallucination import HallucinationResult, score_summary
+from app.evaluation.oracle import (
+    OracleCoverage,
+    OracleHallucination,
+    score_coverage_oracle,
+    score_hallucination_oracle,
+)
 from app.evaluation.text_overlap import TextOverlapResult, extract_overview, score_text_overlap
 from app.graph.builder import ensure_constraints, write_parsed_repository
 from app.graph.diagram import generate_architecture_diagram
@@ -308,11 +314,20 @@ class ScoredResult(BaseModel):
     without --no-bertscore): it downloads and loads a model on first use, which would
     make an interactive dashboard comparison unpredictably slow. `failure_tags` is
     always populated when the run succeeded -- it costs no extra judge call, since it's
-    derived entirely from the hallucination/coverage signals already computed above."""
+    derived entirely from the hallucination/coverage signals already computed above.
+
+    `oracle_coverage`/`oracle_hallucination` are the deterministic, parser-grounded
+    scores for the same summary -- no model involved, so they cost no judge call and
+    cannot vary between runs. They are reported ALONGSIDE the judge scores rather than
+    instead of them: the oracle cannot credit paraphrase (it matches identifiers), while
+    the judge can but is unreliable in both directions. Showing both is what makes the
+    disagreement visible, which is the point (see docs/REPORT.md 5.8)."""
 
     result: LLMResult
     hallucination: HallucinationResult | None = None
     coverage: CoverageResult | None = None
+    oracle_coverage: OracleCoverage | None = None
+    oracle_hallucination: OracleHallucination | None = None
     text_overlap: TextOverlapResult | None = None
     failure_tags: list[FailureTag] = []
 
@@ -357,9 +372,15 @@ def run_scored_ablation(
     for result in results:
         hallucination = None
         coverage = None
+        oracle_coverage = None
+        oracle_hallucination = None
         text_overlap = None
         failure_tags: list[FailureTag] = []
         if result.status == RunStatus.SUCCESS:
+            # Deterministic scores first: pure CPU, no model call, so they are always
+            # present even if a judge call later fails or its verdict won't parse.
+            oracle_coverage = score_coverage_oracle(parsed, result.output.raw_text)
+            oracle_hallucination = score_hallucination_oracle(parsed, result.output.raw_text)
             hallucination = score_summary(
                 provider,
                 parsed,
@@ -398,6 +419,8 @@ def run_scored_ablation(
                 result=result,
                 hallucination=hallucination,
                 coverage=coverage,
+                oracle_coverage=oracle_coverage,
+                oracle_hallucination=oracle_hallucination,
                 text_overlap=text_overlap,
                 failure_tags=failure_tags,
             )

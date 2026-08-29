@@ -115,6 +115,16 @@ export interface ComparisonRunResponse {
   missingFacts: number;
   judgeModel: string | null;
   selfJudged: boolean;
+  // Deterministic parser-grounded scores -- no model involved, so these are present
+  // on every successful run and identical between runs on the same summary.
+  oracleScored: boolean;
+  oracleCoverageStrict: number | null;
+  oracleCoverageLenient: number | null;
+  oracleFactsCovered: number;
+  oracleTotalFacts: number;
+  oracleUnsupportedRate: number | null;
+  oracleUnsupportedIdentifiers: number;
+  oracleTotalIdentifiers: number;
   // Text-overlap against this repo's reference summary -- null when no
   // reference_summaries/<repo>.json exists for it. BERTScore isn't computed live
   // (see backend ScoredResult docstring); only BLEU/ROUGE/METEOR are cheap enough
@@ -168,6 +178,14 @@ export async function compareModels(
       missing_facts: number;
       judge_model: string | null;
       self_judged: boolean;
+      oracle_scored: boolean;
+      oracle_coverage_strict: number | null;
+      oracle_coverage_lenient: number | null;
+      oracle_facts_covered: number;
+      oracle_total_facts: number;
+      oracle_unsupported_rate: number | null;
+      oracle_unsupported_identifiers: number;
+      oracle_total_identifiers: number;
       text_overlap_scored: boolean;
       bleu4: number | null;
       rouge_l: number | null;
@@ -199,6 +217,14 @@ export async function compareModels(
       missingFacts: r.missing_facts,
       judgeModel: r.judge_model,
       selfJudged: r.self_judged,
+      oracleScored: r.oracle_scored,
+      oracleCoverageStrict: r.oracle_coverage_strict,
+      oracleCoverageLenient: r.oracle_coverage_lenient,
+      oracleFactsCovered: r.oracle_facts_covered,
+      oracleTotalFacts: r.oracle_total_facts,
+      oracleUnsupportedRate: r.oracle_unsupported_rate,
+      oracleUnsupportedIdentifiers: r.oracle_unsupported_identifiers,
+      oracleTotalIdentifiers: r.oracle_total_identifiers,
       textOverlapScored: r.text_overlap_scored,
       bleu4: r.bleu4,
       rougeL: r.rouge_l,
