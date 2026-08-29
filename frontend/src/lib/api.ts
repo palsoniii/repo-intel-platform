@@ -148,7 +148,13 @@ export interface CompareResponse {
 // the provider default (qwen2.5-coder:7b), which IS a generator -- so the qwen arm
 // would grade its own summaries. REPORT.md 6.1 documents that self-judging reverses
 // the ranking of representations, so it is a correctness issue, not a preference.
-export const DEFAULT_JUDGE_MODEL = "mistral:7b-instruct";
+// Must be a model that is actually pulled AND is not one of the generators, or every
+// quality metric silently comes back null: an unknown tag makes the judge call fail,
+// which BaseLLMProvider turns into an empty result, which the verdict parser reports as
+// "not judged" -- while the run itself still says success. This previously read
+// "mistral:7b-instruct", a tag no machine here has ever had. gemma2:9b is the judge the
+// study uses (docs/REPORT.md 5.5.1) and is never a generator, so no arm is self-judged.
+export const DEFAULT_JUDGE_MODEL = "gemma2:9b";
 
 export async function compareModels(
   url: string,
