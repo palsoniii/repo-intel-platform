@@ -211,6 +211,28 @@ def _canon(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip()
 
 
+_INDEX_REF = re.compile(r"^(?:fact|item|no|number|#)?\s*[#.)]?\s*(\d{1,3})\s*[.)]?$")
+
+
+def _resolve_index(item: str, facts: list[str]) -> Optional[str]:
+    """Resolve a bare positional reference ('7', '#7', 'fact 7') to its fact.
+
+    The prompt presents the fact list numbered from 1 (see score_coverage), so a judge
+    that answers with positions rather than text is giving a correct, resolvable answer
+    in a different notation -- previously it was counted as unmatched and the miss was
+    lost. Out-of-range positions stay unmatched rather than being clamped: a number the
+    list cannot justify is not evidence of anything.
+
+    A bare integer is unambiguous here because every generated fact carries a category
+    prefix ('Endpoint: ...', 'Dependency: ...'), so no real fact is a lone number.
+    """
+    m = _INDEX_REF.match(item.strip().strip("`'\" ").lower())
+    if m is None:
+        return None
+    n = int(m.group(1))
+    return facts[n - 1] if 1 <= n <= len(facts) else None
+
+
 def _build_fact_index(facts: list[str]) -> dict[str, str]:
     """Two keys per fact -> the canonical fact string.
 
@@ -260,7 +282,7 @@ def _parse_coverage_verdict(
     seen: list[str] = []
     unmatched: list[str] = []
     for item in missing:
-        fact = idx.get(_canon(str(item)))
+        fact = idx.get(_canon(str(item))) or _resolve_index(str(item), facts)
         if fact is None:
             unmatched.append(str(item)[:120])
         elif fact not in seen:

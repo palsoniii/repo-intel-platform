@@ -150,6 +150,47 @@ def test_invented_fact_is_dropped_not_trusted():
     assert result.missing_facts == ["Endpoint: GET /users"]
 
 
+def test_judge_answering_with_fact_numbers_resolves_to_facts():
+    """The prompt numbers the fact list, and judges routinely answer with those
+    positions instead of the fact text. Those are correct answers in a different
+    notation -- they must resolve, not be discarded as unmatched (which scored the
+    miss as covered and was the dominant residual failure mode)."""
+    facts = build_coverable_facts(_parsed_repo())
+    provider = _provider_returning('{"missing_facts": [1, 3]}')
+    result = score_coverage(provider, _parsed_repo(), "summary", ContextVariant.RAW)
+    assert result.missing_facts == [facts[0], facts[2]]
+    assert result.unmatched_verdict_items == 0
+    assert result.coverage_score == (len(facts) - 2) / len(facts)
+
+
+def test_index_notation_variants_resolve():
+    facts = build_coverable_facts(_parsed_repo())
+    for rendering in ('"2"', '"#2"', '"fact 2"', '"2."'):
+        provider = _provider_returning('{"missing_facts": [%s]}' % rendering)
+        result = score_coverage(provider, _parsed_repo(), "summary", ContextVariant.RAW)
+        assert result.missing_facts == [facts[1]], rendering
+
+
+def test_out_of_range_fact_number_stays_unmatched():
+    """A position the list cannot justify is not evidence. It must be counted as
+    unmatched rather than clamped to the nearest fact."""
+    facts = build_coverable_facts(_parsed_repo())
+    provider = _provider_returning('{"missing_facts": [%d, 0]}' % (len(facts) + 5))
+    result = score_coverage(provider, _parsed_repo(), "summary", ContextVariant.RAW)
+    assert result.missing_facts == []
+    assert result.unmatched_verdict_items == 2
+    assert result.coverage_score == 1.0
+
+
+def test_fact_text_still_wins_over_index_resolution():
+    """Verbatim text must resolve by text. Index resolution is a fallback only, so a
+    judge that answers correctly in words is unaffected by this path."""
+    provider = _provider_returning('{"missing_facts": ["Endpoint: POST /users"]}')
+    result = score_coverage(provider, _parsed_repo(), "summary", ContextVariant.RAW)
+    assert result.missing_facts == ["Endpoint: POST /users"]
+    assert result.unmatched_verdict_items == 0
+
+
 def test_no_ground_truth_facts_is_vacuously_fully_covered():
     provider = _provider_returning('{"missing_facts": []}')
     result = score_coverage(provider, _empty_repo(), "", ContextVariant.RAW)
