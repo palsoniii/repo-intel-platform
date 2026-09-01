@@ -147,6 +147,35 @@ Place all `.db` and `.csv` files in `backend/evaluation_results/` locally.
 
 ---
 
+## Step 5.5 — LOCAL → PORTAL: upload the parse cache before rejudge
+
+The rejudge jobs need to call `analyze_repository()` on each of the 18 repos in their
+parse phase. That function clones from GitHub — which may be **BLOCKED** on the cluster.
+
+The parse cache (18 JSON files, one per repo) already exists locally from previous runs.
+Upload it so the rejudge parse phase finds all repos cached and skips cloning entirely.
+
+**LOCAL** — zip the cache:
+
+```bash
+cd /path/to/repo-intel-platform/backend
+zip -r parse_cache.zip evaluation_results/parse_cache/
+```
+
+**PORTAL** — upload `parse_cache.zip` via **+Upload** into `/data/$USER/`, then unzip:
+
+```bash
+mkdir -p /data/$USER/evaluation_results/parse_cache
+unzip /data/$USER/parse_cache.zip -d /data/$USER/
+# Result: /data/$USER/evaluation_results/parse_cache/<18 .json files>
+```
+
+Without this step, the rejudge parse phase will attempt to clone 18 repos from GitHub.
+If GitHub is unreachable from the cluster node, those rows will be skipped and the
+rejudge output will be empty.
+
+---
+
 ## Step 6 — PORTAL: submit the two rejudge jobs
 
 Submit `hpc/run_rejudge.sh` **twice**, once per secondary judge. Same form
