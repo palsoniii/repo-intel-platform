@@ -364,6 +364,21 @@ def run_scored_ablation(
     provider = provider or OllamaProvider()
     judge_model = judge_model or provider.default_model
 
+    # Refuse to grade a generator with itself. REPORT.md 6.2 records that self-judging
+    # reverses the ranking of representations, so a run where the judge is also a writer
+    # produces numbers that look fine and are wrong -- the failure mode this project
+    # exists to document. Fail loudly rather than emit them: the per-row `self_judged`
+    # flag marks the condition after the fact, but by then the run has already cost
+    # minutes and the reader has a plausible table in front of them.
+    requested_models = models if models is not None else _default_comparison_models()
+    if judge_model in requested_models:
+        raise AnalysisError(
+            f"Judge model {judge_model!r} is also one of the generators "
+            f"({', '.join(requested_models)}), so that arm would grade its own output. "
+            "Pass a judge_model that is not in the generator list, or change "
+            "OLLAMA_MODEL_PRIMARY/FALLBACK/DIVERSITY so they do not include it."
+        )
+
     try:
         parsed, results = run_representation_ablation(
             url, models=models, max_size_mb=max_size_mb, driver=driver, provider=provider
