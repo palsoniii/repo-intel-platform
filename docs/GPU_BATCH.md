@@ -1,136 +1,165 @@
-# Running the battery on a job-scheduled GPU
+# Running the battery on the SVKM AI/ML cluster
 
-For an H100 reached through a job portal, where a container is submitted, runs, and
-exits. Written for someone who has the portal open and wants the run started.
+For the H100 reached through Altair Access at `https://10.126.1.10:4443`.
 
-## Why the whole backend is not the container
+## What you actually get
 
-The stack is four long-running services (Neo4j, Ollama, FastAPI, the dashboard). A job
-portal runs a process that starts, works, and exits — that fits inference, not services.
-And of the pipeline, only generation wants a GPU:
+One compute node: 2× Xeon Gold 6438Y+ (32 cores), 512 GB RAM, 2× H100 80 GB.
+
+The cards are **MIG-partitioned into four ~40 GB slices**, and a job gets one slice —
+not a whole H100. That is still ample: a 7B 4-bit model needs about 6 GB, so it sits
+entirely in VRAM with no CPU offload, which is where nearly all the speedup over the
+laptop comes from. But four slices serve the whole university, so expect to queue.
+
+Scheduler is PBS Professional; you never write PBS directives, the portal form sets
+resources for you.
+
+## Two form fields that will kill the job
+
+| Field | Default | Set it to |
+|---|---|---|
+| **Amount of Memory (MB)** | `10` | `32000` |
+| **Number of Processors per Node** | `1` | `8` |
+
+Ten megabytes is not a typo in this document — it is the portal's default, and the job
+dies immediately. One CPU core survives generation (which is GPU-bound) but makes
+everything around it crawl.
+
+## Why the pipeline is split
+
+Of the pipeline, only generation wants a GPU:
 
 | Stage | Needs | Cost |
 |---|---|---|
 | clone, tree-sitter parse | network, CPU | seconds |
 | Neo4j write, context render | a database, CPU | seconds |
-| **generation** | **GPU** | **hours** |
+| **generation + judging** | **GPU** | **hours** |
 | oracle scoring | CPU only | under a minute |
 
-Putting the first two on the GPU node buys nothing and costs allocation — and compute
-nodes frequently have no route to `github.com` and nowhere to run a database anyway.
+There is no Neo4j on the cluster and the compute node may have no route to `github.com`,
+so the first two stages cannot run there anyway. Instead you build a **context pack**
+off-cluster — one file holding, per repository, the parse plus all three rendered
+contexts — and the job reads that. A packed run is also exactly reproducible, which a
+run from URLs is not: upstream repositories move.
 
-So the split is: **render the prompts where the network and the database live, ship the
-file, let the GPU do nothing but generate.**
+The pack is tiny. Measured on the current 18 repositories it is ~1.5 MB; 50 repositories
+would be ~4 MB.
 
-A *context pack* is that file: for every repository, the parse plus all three rendered
-contexts. Because it stores the rendered text rather than re-deriving it, a packed run
-is also exactly reproducible — upstream repos move, and `main` today is not `main` last
-week.
+## Why Ollama, not PyTorch or vLLM
 
-## Why Ollama and not PyTorch or vLLM
+Ollama serves **4-bit quantized** weights, and every result so far came from those. vLLM
+or HF in fp16 would use the H100 far better and produce *different text from the same
+model* — a different experimental condition, under which none of the existing 157
+summaries remain comparable.
 
-The image is built on `ollama/ollama`, not a `pytorch/` or `tensorflow/` base. Ollama
-ships its own CUDA runtime, so a torch base would be several GB of unused layer.
+That is a study-design decision, not a performance one. If you want native precision
+later, add it as a separate arm and report the quantization gap as a finding. Do not
+silently swap the engine.
 
-The real reason is comparability. **Ollama serves 4-bit quantized weights.** Every
-result reported so far came from those weights. vLLM or HF in fp16 would use an H100
-far better and produce *different text from the same model* — a different experimental
-condition, under which none of the existing 157 summaries remain comparable.
+## First time: build your image
 
-Keeping Ollama underuses the GPU and is still dramatically faster than the 4GB laptop
-card the batteries were run on. If you later want native precision, add it as a separate
-arm and report the quantization gap as a finding — do not silently swap the engine.
+Altair does not take an image built on your laptop. You start from a stock image,
+customise it in Jupyter, and save the result.
 
-## One-time setup
+1. **Applications → Jupyter**, Container Image `pytorch_pbs:23.06-py3`, and the two
+   corrected fields above.
+2. Open the Jupyter URL, upload and run [`hpc/00_setup_gpu_image.ipynb`](../hpc/00_setup_gpu_image.ipynb).
+   It diagnoses the environment (including whether this node has internet), installs
+   Ollama, installs the Python dependencies, stages the models onto `/data`, and runs a
+   smoke test.
+3. **Custom Actions → Save Docker Container**, name it `repo-intel-gpu`, working
+   directory `/data`.
 
-**1. Build the pack** — needs network and Neo4j, so do it on a laptop or a login node:
+Models and the repository live on `/data`, deliberately **not** inside the image: they
+are ~15 GB, they change independently of the code, and every job can see `/data` anyway.
+
+## Every run after that
+
+Build the pack off-cluster, where the network and Neo4j are:
 
 ```bash
 cd backend
-python -m scripts.build_context_pack $(cat ../18_repo_urls.txt) \
-  --out evaluation_results/context_pack.json \
-  --notes "18-repo candidate set"
+python -m scripts.build_context_pack $(cat ../18_repo_urls.txt) --out ../context_pack.json
 ```
 
-It prints each repo and its three context sizes. A repo that fails to clone or parse is
-skipped and reported, not fatal.
+Upload it to `/data/<you>/context_pack.json`, then submit **three jobs**, one per
+generator, with Container Image `repo-intel-gpu`, job script
+[`hpc/run_battery.sh`](../hpc/run_battery.sh), and the model as the script argument:
 
-**2. Stage the model weights.** ~15GB, and the compute node may not be able to pull
-them. Somewhere with network, against the directory you will mount:
+```
+qwen2.5-coder:7b
+codellama:7b-instruct
+gemma2:9b
+```
+
+Three jobs on three slices finish in roughly the wall-clock of one. This is the single
+biggest win over the laptop, which could only hold one model at a time. It also means
+one model failing does not take the other two with it.
+
+The script refuses to start if the judge equals the generator, if a model is not staged,
+or if there is no GPU — each of which otherwise produces a plausible-looking wrong
+result or wastes the slot.
+
+Then score locally; the oracle needs no GPU:
 
 ```bash
-OLLAMA_MODELS=/shared/ollama ollama pull qwen2.5-coder:7b
+python -m scripts.run_oracle && python -m scripts.stats_oracle
 ```
 
-Repeat for `codellama:7b-instruct` and the judge `gemma2:9b`. Mount that directory at
-`/root/.ollama` in the job. The entrypoint checks for each requested model up front and
-exits before spending any allocation if one is missing.
+## Can it handle 50 repositories?
 
-**3. Build and push the image** — `--platform linux/amd64` is not optional:
+**The compute, comfortably. The annotations are the real question.**
 
-```bash
-docker build --platform linux/amd64 -f backend/Dockerfile.gpu -t <registry>/repo-intel-gpu:1 backend
-```
+Per generator, a battery is 3 generations and 6 judge calls per repository:
 
-The dev machines here are Apple Silicon (arm64) and every H100 host is x86_64. Without
-the flag, `docker build` produces an arm64 image the cluster cannot execute — and the
-failure appears only when the job finally starts, after the queue wait. Verify before
-pushing:
+| Repositories | Calls per generator | All three generators |
+|---|---:|---:|
+| 18 | 162 | 486 |
+| 50 | 450 | 1,350 |
 
-```bash
-docker image inspect <registry>/repo-intel-gpu:1 --format '{{.Architecture}}'
-```
+Measured baseline on the RTX 3050 with CPU offload: **88 s mean per call**. Fully
+resident on a 40 GB slice, expect **5–15× faster** — so roughly 30 minutes to 2 hours
+per generator for 50 repositories, and all three run concurrently. Even the pessimistic
+end fits in one sitting.
 
-It must print `amd64`. On a Mac this cross-builds under emulation: slower to build,
-native speed to run.
+Nothing else strains: the pack is ~4 MB, ground-truth facts grow from ~1,184 to ~3,300,
+and the oracle scores the lot in under a minute on a laptop.
 
-## Running a job
+**What does not scale is the ground truth.** Every repository needs a hand-verified
+annotation and a reference summary. You have 18, and the audit in
+`backend/annotations/README.md` found that **12 of those 18 endpoint lists are
+byte-identical to the parser's own output** — one confirmed wrong, one confirmed right,
+ten unknown. Going to 50 without fixing that process turns a known problem into a bigger
+one, and "we evaluated 50 repositories" is worth nothing if a reviewer finds the ground
+truth was seeded from the tool being evaluated.
 
-```bash
-docker run --rm --gpus all \
-  -v /shared/ollama:/root/.ollama \
-  -v /shared/repo-intel/evaluation_results:/app/evaluation_results \
-  -v /shared/repo-intel/annotations:/app/annotations:ro \
-  -e CONTEXT_PACK=/app/evaluation_results/context_pack.json \
-  -e MODEL=qwen2.5-coder:7b \
-  -e JUDGE_MODEL=gemma2:9b \
-  -e ANNOTATIONS_DIR=/app/annotations \
-  <registry>/repo-intel-gpu:1
-```
+Three watch-items if you do scale:
 
-Outputs land in the mounted `evaluation_results` as `battery_<model>.csv` and `.db`.
+- **Verify the existing 18 first.** Fixing a broken process before multiplying it by
+  three is cheaper than auditing 50 later.
+- **Very large repositories break models.** `ack-nestjs-boilerplate` (601 modules) cost
+  rows across four models at 8192 context. A 40 GB slice removes the memory pressure but
+  not the context limit — expect a few failures and let the harness record them.
+- **Two held-back repositories** are still unselected. Pick them before the run, not
+  after, or they are no longer held back.
 
-**One generator per job.** Not a memory limit on an 80GB H100 — it keeps execution
-conditions identical to the runs this will be pooled with. Submit three jobs, one per
-generator, and combine the CSVs.
+The honest recommendation: **30–35 well-verified repositories beats 50 half-verified
+ones.** The compute is free now; annotator attention is not.
 
-**The judge must not be the generator.** The entrypoint refuses when they match, and so
-does `run_scored_ablation()`. Self-judging reverses the ranking of representations
-(`REPORT.md` §6.2), and the resulting table looks entirely plausible.
+## Latency, and what not to pool
 
-## After the run
+Timings from this cluster cannot be combined with the RTX 3050 figures in `REPORT.md`
+§5.7.1 — different hardware, and MIG slices are shared, so a neighbouring job affects
+your numbers. Token counts are hardware-independent and can be pooled.
 
-Bring the CSV/DB back and score locally — the deterministic oracle is pure CPU and needs
-no GPU:
+If latency is going in the paper, re-run every arm here and report this machine, with
+the MIG slice size stated.
 
-```bash
-python -m scripts.run_oracle    # 10,062 fact-level decisions, under a minute
-python -m scripts.stats_oracle
-```
+## First-job checklist
 
-## Checks worth making on the first job
-
-- `nvidia-smi` output appears at the top of the log. If it says the tool is missing, the
-  job is not on a GPU and every latency figure is meaningless.
-- The staged-model list shows both models before generation starts.
-- Wall-clock from `time` roughly matches the summed per-row latencies. A large gap is
-  scheduler overhead, which must not be reported as generation time.
-
-## What is not solved here
-
-- **Latency comparability.** Figures from this H100 cannot be pooled with the RTX 3050
-  numbers in `REPORT.md` §5.7.1. Token counts are hardware-independent and can be.
-- **The judge is still a model call**, so it runs inside the GPU job. Only the oracle is
-  free to run anywhere.
-- **`OLLAMA_NUM_CTX` is pinned to 8192** in the image, matching the study. Changing it
-  changes what every arm sees and breaks comparability with everything already run.
+- `nvidia-smi` output appears at the top of the log, showing a ~40 GB MIG slice.
+- Both models listed as staged before generation starts.
+- Smoke test is seconds, not a minute, and `nvidia-smi` shows GPU memory in use. If it
+  is slow with idle GPU memory, the model is on CPU — fix that before a full battery.
+- Wall clock from `time` roughly matches the summed per-row latencies. A large gap is
+  scheduler and model-load overhead, not generation time.
