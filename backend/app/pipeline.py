@@ -290,6 +290,26 @@ def run_representation_ablation(
         ContextVariant.KNOWLEDGE_GRAPH: knowledge_graph_context,
     }
 
+    return parsed, generate_across_contexts(parsed, contexts, models, provider)
+
+
+def generate_across_contexts(
+    parsed: ParsedRepository,
+    contexts: dict[ContextVariant, str],
+    models: list[str] | None = None,
+    provider: BaseLLMProvider | None = None,
+) -> list[LLMResult]:
+    """The generation half of the ablation: every model x every already-built context.
+
+    Split out from run_representation_ablation() because this is the only part that
+    needs a GPU. Acquisition, parsing and the Neo4j round-trip that produce `contexts`
+    are CPU work and can happen anywhere -- which is what lets the batch run on a
+    job-scheduled GPU node that has neither a Neo4j nor a route to github.com. See
+    scripts/build_context_pack.py.
+    """
+    models = models or _default_comparison_models()
+    provider = provider or OllamaProvider()
+
     results: list[LLMResult] = []
     for model in models:
         for variant, context in contexts.items():
@@ -306,7 +326,7 @@ def run_representation_ablation(
                 )
             results.append(result)
 
-    return parsed, results
+    return results
 
 
 class ScoredResult(BaseModel):

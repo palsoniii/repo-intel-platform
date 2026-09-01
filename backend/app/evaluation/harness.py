@@ -29,6 +29,7 @@ from neo4j import Driver
 from pydantic import BaseModel
 
 from app.db.neo4j_client import get_driver
+from app.evaluation.context_pack import ContextPack, PackedRepository
 from app.evaluation.coverage import build_coverable_facts, categorize_facts, score_coverage
 from app.evaluation.hallucination import score_summary
 from app.evaluation.diagram_score import (
@@ -40,7 +41,12 @@ from app.evaluation.diagram_score import (
 from app.evaluation.failure_analysis import analyze_failures
 from app.evaluation.quality_judge import QualityJudgeResult, score_summary_quality
 from app.evaluation.text_overlap import TextOverlapResult, extract_overview, score_text_overlap
-from app.pipeline import AnalysisError, PipelineInfrastructureError, run_representation_ablation
+from app.pipeline import (
+    AnalysisError,
+    PipelineInfrastructureError,
+    generate_across_contexts,
+    run_representation_ablation,
+)
 from app.providers.base import BaseLLMProvider
 from app.providers.ollama_provider import OllamaProvider
 from app.schemas.llm_result import LLMResult, RunStatus
@@ -137,6 +143,7 @@ def run_evaluation(
     bert_scorer=None,
     driver: Optional[Driver] = None,
     provider: Optional[BaseLLMProvider] = None,
+    context_pack: Optional["ContextPack"] = None,
 ) -> list[EvaluationRow]:
     """One shared Neo4j driver and provider across the whole batch (created here if
     not injected). A single repo failing -- bad URL, unsupported framework, Neo4j
@@ -158,9 +165,19 @@ def run_evaluation(
     successful summary -- OFF by default because it multiplies judge calls by 5 (one
     per criterion) on top of the hallucination/coverage judges already running.
     `quality_judge_host` defaults to OLLAMA_HOST (see quality_judge.py) and is only
-    used when this is enabled."""
-    owns_driver = driver is None
-    driver = driver or get_driver()
+    used when this is enabled.
+
+    If `context_pack` is given, `repo_urls` is ignored and no Neo4j driver is opened:
+    contexts and parses are read from the pack instead of being rebuilt. This is what
+    lets the batch run on a job-scheduled GPU node with no database and no route to
+    github.com -- see scripts/build_context_pack.py. Scoring is unchanged, because it
+    scores against the parsed repository, which the pack carries."""
+    # A packed run must not open a driver: the whole point is that no Neo4j exists on
+    # the node. get_driver() is lazy about connecting, but constructing it here would
+    # still fail on a host with no bolt route configured at all.
+    owns_driver = driver is None and context_pack is None
+    if context_pack is None:
+        driver = driver or get_driver()
     provider = provider or OllamaProvider()
     judge_model = judge_model or provider.default_model
     if reference_summaries_dir is not None and bert_scorer is None:
@@ -169,16 +186,27 @@ def run_evaluation(
         bert_scorer = default_bert_scorer
 
     rows: list[EvaluationRow] = []
+    work: list[tuple[str, Optional["PackedRepository"]]] = (
+        [(r.source_url, r) for r in context_pack.repositories]
+        if context_pack is not None
+        else [(u, None) for u in repo_urls]
+    )
     try:
-        for url in repo_urls:
+        for url, packed in work:
             try:
-                parsed, results = run_representation_ablation(
-                    url,
-                    models=models,
-                    max_size_mb=max_size_mb,
-                    driver=driver,
-                    provider=provider,
-                )
+                if packed is not None:
+                    parsed = packed.parsed
+                    results = generate_across_contexts(
+                        parsed, packed.context_map(), models=models, provider=provider
+                    )
+                else:
+                    parsed, results = run_representation_ablation(
+                        url,
+                        models=models,
+                        max_size_mb=max_size_mb,
+                        driver=driver,
+                        provider=provider,
+                    )
             except (AnalysisError, PipelineInfrastructureError) as e:
                 rows.append(_failure_row(url, judge_model, str(e)))
                 continue
@@ -200,7 +228,7 @@ def run_evaluation(
                     )
                 )
     finally:
-        if owns_driver:
+        if owns_driver and driver is not None:
             driver.close()
     return rows
 
@@ -451,7 +479,16 @@ def main() -> None:
     load_dotenv()  # standalone script -- pick up .env (Neo4j creds, Ollama host, models)
 
     parser = argparse.ArgumentParser(description="Run the evaluation battery over repos.")
-    parser.add_argument("urls", nargs="+", help="GitHub repo URLs to evaluate")
+    parser.add_argument(
+        "urls", nargs="*", help="GitHub repo URLs to evaluate (omit when using --context-pack)"
+    )
+    parser.add_argument(
+        "--context-pack",
+        default=None,
+        help="Read contexts and parses from a pack built by scripts/build_context_pack.py "
+        "instead of cloning and querying Neo4j. Required on a GPU node with no database "
+        "or no network; URLs are ignored when this is set.",
+    )
     parser.add_argument(
         "--models", nargs="*", default=None, help="Models to compare (default: the .env comparison models)"
     )
@@ -499,6 +536,17 @@ def main() -> None:
         def bert_scorer(references: list[str], hypotheses: list[str]) -> list[float]:
             return [0.0] * len(hypotheses)  # placeholder -- BLEU/ROUGE/METEOR still score normally
 
+    pack = None
+    if args.context_pack:
+        pack = ContextPack.read(args.context_pack)
+        print(
+            f"Loaded context pack: {len(pack.repositories)} repositories, built "
+            f"{pack.built_at}, max_raw_chars={pack.max_raw_chars}"
+            + (f" -- {pack.notes}" if pack.notes else "")
+        )
+    elif not args.urls:
+        parser.error("give repo URLs, or --context-pack")
+
     rows = run_evaluation(
         args.urls,
         models=args.models,
@@ -508,6 +556,7 @@ def main() -> None:
         bert_scorer=bert_scorer,
         enable_quality_judge=args.quality_judge,
         quality_judge_host=args.quality_judge_host,
+        context_pack=pack,
     )
     write_csv(rows, args.out)
     if args.sqlite:
