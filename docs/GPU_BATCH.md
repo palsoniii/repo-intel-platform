@@ -66,11 +66,23 @@ Repeat for `codellama:7b-instruct` and the judge `gemma2:9b`. Mount that directo
 `/root/.ollama` in the job. The entrypoint checks for each requested model up front and
 exits before spending any allocation if one is missing.
 
-**3. Build and push the image:**
+**3. Build and push the image** — `--platform linux/amd64` is not optional:
 
 ```bash
-docker build -f backend/Dockerfile.gpu -t <registry>/repo-intel-gpu:1 backend
+docker build --platform linux/amd64 -f backend/Dockerfile.gpu -t <registry>/repo-intel-gpu:1 backend
 ```
+
+The dev machines here are Apple Silicon (arm64) and every H100 host is x86_64. Without
+the flag, `docker build` produces an arm64 image the cluster cannot execute — and the
+failure appears only when the job finally starts, after the queue wait. Verify before
+pushing:
+
+```bash
+docker image inspect <registry>/repo-intel-gpu:1 --format '{{.Architecture}}'
+```
+
+It must print `amd64`. On a Mac this cross-builds under emulation: slower to build,
+native speed to run.
 
 ## Running a job
 

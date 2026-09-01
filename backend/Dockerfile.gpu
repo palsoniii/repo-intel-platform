@@ -14,7 +14,16 @@
 # torch does still arrive via bert-score, pinned to the CPU wheel: BERTScore is not
 # run in the batch path (--no-bertscore), and pulling the CUDA build would add ~2GB
 # for an import that never executes.
-FROM ollama/ollama:latest
+# BUILD FOR amd64 EXPLICITLY. The dev machines here are Apple Silicon (arm64); every
+# H100 host is x86_64. `docker build` defaults to the architecture of the machine doing
+# the building, so an image built on a Mac without --platform produces an arm64 image
+# that the cluster cannot execute -- and the error surfaces only when the job starts,
+# after the queue wait. Build with:
+#
+#   docker build --platform linux/amd64 -f backend/Dockerfile.gpu -t <tag> backend
+#
+# (On a Mac this cross-builds under emulation: slower to build, native speed to run.)
+FROM --platform=$TARGETPLATFORM ollama/ollama:latest
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
