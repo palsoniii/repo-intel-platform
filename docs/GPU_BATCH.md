@@ -95,12 +95,43 @@ at the cost of reproducibility is a bad trade in a study.
 fit in 4 GB of VRAM. At 40 GB it is fully resident, and that alone accounts for most of
 the 5–15× improvement.
 
+## Which base image
+
+Confirmed present on the cluster (`srv-svkmmastermum:5000/...`):
+
+| Image | Size | Age | Use? |
+|---|---|---|---|
+| `pytorch_pbs:25.12-py3` | 19.9 GB | 7 mo | **start here** |
+| `pytorch_pbs:25.10-py3` | 19.8 GB | 10 mo | equivalent alternative |
+| `pytorch_pbs:23.06-py3` | 19.7 GB | 3 yr | fallback if 25.12 misbehaves |
+| `tensorflow:25.03-tf2-py3` | 18 GB | 7 mo | no reason to prefer it |
+| `nvidia/cuda:12.4.1-devel-ubuntu22.04` | 7.3 GB | 2 yr | lean, but no Jupyter — avoid |
+
+We use the image for **Python and Jupyter, not for PyTorch.** Inference runs through
+Ollama, which ships its own CUDA runtime and talks to the host driver directly. Nothing
+in this project imports torch at run time: BERTScore is the only thing that would, it is
+lazily imported (`text_overlap.default_bert_scorer`), and it is disabled for the battery.
+
+Two consequences worth knowing:
+
+- **The container's CUDA version barely matters.** The usual "new NGC image needs a new
+  driver" problem applies to the container's torch, which we never call. If Ollama does
+  see the GPU on 25.12, nothing else matters; if it does not, drop to `23.06-py3`, built
+  against a CUDA that pairs with the driver in the manual (535.86.10 / CUDA 12.2).
+- **Ignore `torch.cuda.is_available()`.** It can be False and the run will still be
+  perfectly fine. The only check that counts is whether Ollama uses the GPU — the
+  notebook tests exactly that.
+
+The lean `nvidia/cuda` image is tempting at a third of the size, but the portal launches
+Jupyter into the container and that image has neither Jupyter nor a guaranteed Python.
+Not worth the debugging.
+
 ## First time: build your image
 
 Altair does not take an image built on your laptop. You start from a stock image,
 customise it in Jupyter, and save the result.
 
-1. **Applications → Jupyter**, Container Image `pytorch_pbs:23.06-py3`, and the two
+1. **Applications → Jupyter**, Container Image `pytorch_pbs:25.12-py3`, and the two
    corrected fields above.
 2. Open the Jupyter URL, upload and run [`hpc/00_setup_gpu_image.ipynb`](../hpc/00_setup_gpu_image.ipynb).
    It diagnoses the environment (including whether this node has internet), installs
