@@ -10,7 +10,9 @@ export const CONTEXT_VARIANTS: { value: ContextVariant; label: string }[] = [
   { value: "knowledge_graph", label: "Full Neo4j context" },
 ];
 
-export const MODELS = ["qwen2.5-coder:7b", "codellama:7b-instruct", "gemma2:9b"] as const;
+// Generators only. gemma2:9b is deliberately absent: it is the judge, and a model that
+// both writes and grades inverts the representation ranking (REPORT.md 6.2).
+export const MODELS = ["qwen2.5-coder:7b", "codellama:7b-instruct", "gpt-oss:20b"] as const;
 export type ModelName = (typeof MODELS)[number];
 
 export interface RepoSummary {

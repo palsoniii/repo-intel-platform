@@ -359,9 +359,13 @@ class ScoredResult(BaseModel):
     failure_tags: list[FailureTag] = []
 
 
-# Relative to the backend's working directory (matches the harness's own
-# --reference-summaries-dir convention and docker-compose.yml's volume mount).
-DEFAULT_REFERENCE_SUMMARIES_DIR = Path("reference_summaries")
+# OFF by default. Reference summaries feed only BLEU-4/ROUGE-L/METEOR, and those were
+# measured at ~0.015 correlation with no discriminative power (REPORT.md 5.5.4) -- a
+# negative result already reported, and one that does not need re-collecting per repo.
+# They were also the only part of the ground truth requiring a human to write prose, so
+# dropping them removes the annotation burden that scaled worst with dataset size.
+# Pass --reference-summaries-dir explicitly to re-enable for a specific run.
+DEFAULT_REFERENCE_SUMMARIES_DIR = None
 
 
 def run_scored_ablation(

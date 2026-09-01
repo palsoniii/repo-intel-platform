@@ -45,6 +45,24 @@ run from URLs is not: upstream repositories move.
 The pack is tiny. Measured on the current 18 repositories it is ~1.5 MB; 50 repositories
 would be ~4 MB.
 
+## Models: who writes, who judges
+
+| Role | Model | Why |
+|---|---|---|
+| Generator | `qwen2.5-coder:7b` | code-specialised; in every battery so far |
+| Generator | `codellama:7b-instruct` | code-specialised; in every battery so far |
+| Generator | `gpt-oss:20b` | the roadmap's original third model, restored |
+| **Judge** | `gemma2:9b` | **judge only, never a generator** |
+
+`gpt-oss:20b` was specified in the original plan and dropped because it needs ~13 GB of
+weights and the dev laptop had 16 GB total. `gemma2:9b` was substituted as the third
+generator — which quietly created a self-judging collision, since gemma2 is also the
+judge. A 40 GB slice fixes both at once: the planned roster is restored, and gemma2 goes
+back to judging only, so no arm grades its own output (`REPORT.md` §6.2).
+
+Verify the tag resolves before a full run — `ollama pull gpt-oss:20b`. If it does not,
+find the exact tag on ollama.com and use that.
+
 ## Why Ollama, not PyTorch or vLLM
 
 Ollama serves **4-bit quantized** weights, and every result so far came from those. vLLM
@@ -55,6 +73,27 @@ summaries remain comparable.
 That is a study-design decision, not a performance one. If you want native precision
 later, add it as a separate arm and report the quantization gap as a finding. Do not
 silently swap the engine.
+
+## Getting the GPU actually working for you
+
+Three settings, and one of them matters far more than the rest.
+
+**Keep the generator and the judge loaded together** (`OLLAMA_MAX_LOADED_MODELS=2`).
+The battery makes two judge calls per generation, so with one model resident every
+single row pays for an evict-and-reload. On the 16 GB laptop that thrash moved ~15 GB
+through a 9.7 GB budget per row and dominated the run. `gpt-oss:20b` (~13 GB) plus
+`gemma2:9b` (~6 GB) is under half a 40 GB slice, so it simply disappears. This is purely
+a scheduling change — same weights, same context size, same deterministic decoding — so
+outputs are unaffected.
+
+**Leave `OLLAMA_NUM_PARALLEL=1`.** Raising it batches concurrent requests, which changes
+the order of floating-point reductions and can therefore change generated text. You
+already get throughput from running three generators as three parallel jobs; buying more
+at the cost of reproducibility is a bad trade in a study.
+
+**The real speedup is free.** On the laptop the model ran 58% on CPU because it did not
+fit in 4 GB of VRAM. At 40 GB it is fully resident, and that alone accounts for most of
+the 5–15× improvement.
 
 ## First time: build your image
 
@@ -71,7 +110,8 @@ customise it in Jupyter, and save the result.
    directory `/data`.
 
 Models and the repository live on `/data`, deliberately **not** inside the image: they
-are ~15 GB, they change independently of the code, and every job can see `/data` anyway.
+are ~25 GB with `gpt-oss:20b` included, they change independently of the code, and every
+job can see `/data` anyway.
 
 ## Every run after that
 
@@ -89,8 +129,11 @@ generator, with Container Image `repo-intel-gpu`, job script
 ```
 qwen2.5-coder:7b
 codellama:7b-instruct
-gemma2:9b
+gpt-oss:20b
 ```
+
+The judge (`gemma2:9b`) is not in that list — it is not a generator, and the script
+refuses to run if you make it one.
 
 Three jobs on three slices finish in roughly the wall-clock of one. This is the single
 biggest win over the laptop, which could only hold one model at a time. It also means
@@ -125,8 +168,11 @@ end fits in one sitting.
 Nothing else strains: the pack is ~4 MB, ground-truth facts grow from ~1,184 to ~3,300,
 and the oracle scores the lot in under a minute on a laptop.
 
-**What does not scale is the ground truth.** Every repository needs a hand-verified
-annotation and a reference summary. You have 18, and the audit in
+**What does not scale is the ground truth.** Reference summaries are now dropped
+entirely — they fed only BLEU/ROUGE/METEOR, measured at ~0.015 correlation with no
+discriminative power, so per-repo prose writing is no longer part of the cost. What
+remains is the structural annotation, which is the only independent check that the
+parser is right. You have 18, and the audit in
 `backend/annotations/README.md` found that **12 of those 18 endpoint lists are
 byte-identical to the parser's own output** — one confirmed wrong, one confirmed right,
 ten unknown. Going to 50 without fixing that process turns a known problem into a bigger

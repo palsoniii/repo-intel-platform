@@ -33,8 +33,23 @@ RUN_TAG="$(echo "$MODEL" | tr ':/' '__')"
 export OLLAMA_MODELS="${OLLAMA_MODELS:-${DATA}/ollama}"
 export OLLAMA_HOST="http://127.0.0.1:11434"
 export OLLAMA_NUM_CTX="${OLLAMA_NUM_CTX:-8192}"   # pinned: changing it invalidates comparability
-export OLLAMA_MAX_LOADED_MODELS=1                 # generator and judge never co-resident
+# Keep the generator AND the judge resident at once. This is the single biggest
+# speedup available here and it is purely a scheduling change -- same weights, same
+# num_ctx, same deterministic decoding, so outputs are unaffected.
+#
+# On the 16GB laptop this had to be 1: every generation->judge transition evicted one
+# model and loaded the other, moving ~15GB through a 9.7GB budget for EVERY row. The
+# battery makes two judge calls per generation, so that thrash dominated the run.
+# A 40GB MIG slice holds both comfortably -- gpt-oss:20b (~13GB) plus gemma2:9b (~6GB)
+# is under half the slice -- so the reload disappears entirely.
+export OLLAMA_MAX_LOADED_MODELS=2
+# Left at 1 deliberately. Raising it batches concurrent requests, which changes the
+# order of floating-point reductions and so can change generated text. Throughput is
+# already won by running the three generators as three parallel jobs; buying more of it
+# at the cost of reproducibility is a bad trade for a study.
 export OLLAMA_NUM_PARALLEL=1
+# Do not let a model be evicted between rows just because it went briefly idle.
+export OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-30m}
 
 echo "=== configuration ==="
 printf '  %-14s %s\n' generator "$MODEL" judge "$JUDGE_MODEL" pack "$PACK" out "$OUT_DIR" models "$OLLAMA_MODELS"
@@ -90,6 +105,9 @@ ARGS=(--context-pack "$PACK"
       --no-bertscore
       --out "$OUT_DIR/battery_${RUN_TAG}.csv"
       --sqlite "$OUT_DIR/battery_${RUN_TAG}.db")
+# Reference summaries are deliberately not passed: they feed only BLEU/ROUGE/METEOR,
+# measured at ~0.015 correlation with no discriminative power (REPORT.md 5.5.4).
+# --no-bertscore above additionally avoids a model download on first use.
 [[ -d "$PROJ/backend/annotations" ]] && ARGS+=(--annotations-dir "$PROJ/backend/annotations")
 
 echo "=== running: $MODEL judged by $JUDGE_MODEL ==="
