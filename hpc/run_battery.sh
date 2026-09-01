@@ -11,7 +11,10 @@
 #   Amount of Memory (MB)         32000      <- the form defaults to 10, which is 10 MB
 #   Queue                         workq
 #
-# Pass the generator in "Job Script Arguments":  qwen2.5-coder:7b
+# Final generator roster (pass one of these in "Job Script Arguments"):
+#   codellama:13b-instruct   -- cross-org comparison anchor (~8 GB Q4_K_M)
+#   qwen2.5-coder:14b        -- scale-matched vs codellama:13b (~9 GB Q4_K_M)
+#   qwen2.5-coder:32b        -- two-point within-family check (~20 GB Q4_K_M)
 #
 # Submit this three times, once per generator, rather than looping over models here.
 # Three jobs run on three of the four MIG slices at once and finish in roughly the time
@@ -20,7 +23,7 @@
 set -euo pipefail
 
 MODEL="${1:-${MODEL:-}}"
-: "${MODEL:?usage: run_battery.sh <generator-model>   e.g. qwen2.5-coder:7b}"
+: "${MODEL:?usage: run_battery.sh <generator-model>   e.g. qwen2.5-coder:14b}"
 JUDGE_MODEL="${JUDGE_MODEL:-gemma2:9b}"
 
 USER_NAME="${USER:-$(id -un)}"
@@ -28,7 +31,15 @@ DATA="${DATA:-/data/${USER_NAME}}"
 PROJ="${PROJ:-${DATA}/repo-intel-platform}"
 PACK="${PACK:-${DATA}/context_pack.json}"
 OUT_DIR="${OUT_DIR:-${DATA}/evaluation_results}"
-RUN_TAG="$(echo "$MODEL" | tr ':/' '__')"
+# Map canonical model names to clean output-file slugs so battery outputs land in
+# battery_codellama13b.{csv,db}, battery_qwen14b.{csv,db}, battery_qwen32b.{csv,db}.
+# Unknown model names fall back to the tr-escaped form for forward compatibility.
+case "$MODEL" in
+  codellama:13b-instruct) RUN_TAG="codellama13b" ;;
+  qwen2.5-coder:14b)      RUN_TAG="qwen14b" ;;
+  qwen2.5-coder:32b)      RUN_TAG="qwen32b" ;;
+  *)                      RUN_TAG="$(echo "$MODEL" | tr ':/' '__')" ;;
+esac
 
 export OLLAMA_MODELS="${OLLAMA_MODELS:-${DATA}/ollama}"
 export OLLAMA_HOST="http://127.0.0.1:11434"
@@ -40,8 +51,9 @@ export OLLAMA_NUM_CTX="${OLLAMA_NUM_CTX:-8192}"   # pinned: changing it invalida
 # On the 16GB laptop this had to be 1: every generation->judge transition evicted one
 # model and loaded the other, moving ~15GB through a 9.7GB budget for EVERY row. The
 # battery makes two judge calls per generation, so that thrash dominated the run.
-# A 40GB MIG slice holds both comfortably -- gpt-oss:20b (~13GB) plus gemma2:9b (~6GB)
-# is under half the slice -- so the reload disappears entirely.
+# A 40GB MIG slice holds all three generators alongside the judge comfortably:
+#   qwen2.5-coder:32b (~20 GB) + gemma2:9b (~6 GB) = ~26 GB  <-- worst case, still <40 GB
+#   codellama:13b-instruct (~8 GB) + gemma2:9b (~6 GB) = ~14 GB
 export OLLAMA_MAX_LOADED_MODELS=2
 # Left at 1 deliberately. Raising it batches concurrent requests, which changes the
 # order of floating-point reductions and so can change generated text. Throughput is

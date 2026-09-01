@@ -61,8 +61,8 @@ def _alarm(signum, frame):
     raise RowTimeout()
 
 
-def load_rows():
-    c = sqlite3.connect(SRC_DB)
+def load_rows(src_db):
+    c = sqlite3.connect(src_db)
     c.row_factory = sqlite3.Row
     rows = [
         dict(r)
@@ -76,15 +76,15 @@ def load_rows():
 
 
 # ---------------------------------------------------------------- phase: parse
-def phase_parse(rows):
-    os.makedirs(CACHE_DIR, exist_ok=True)
+def phase_parse(rows, cache_dir):
+    os.makedirs(cache_dir, exist_ok=True)
     repos = {}
     for r in rows:
         repos.setdefault(r["repo_name"], r["source_url"])
     log("PARSE PHASE -- %d unique repos" % len(repos))
 
     for i, (name, url) in enumerate(sorted(repos.items()), 1):
-        path = os.path.join(CACHE_DIR, name + ".json")
+        path = os.path.join(cache_dir, name + ".json")
         if os.path.exists(path) and os.path.getsize(path) > 0:
             log("  [%d/%d] %s: cached, skip" % (i, len(repos), name))
             continue
@@ -104,12 +104,12 @@ def phase_parse(rows):
                 else:
                     time.sleep(10 * attempt)
 
-    have = len([f for f in os.listdir(CACHE_DIR) if f.endswith(".json")])
+    have = len([f for f in os.listdir(cache_dir) if f.endswith(".json")])
     log("PARSE PHASE DONE -- %d/%d repos cached" % (have, len(repos)))
 
 
-def load_parsed(name):
-    path = os.path.join(CACHE_DIR, name + ".json")
+def load_parsed(name, cache_dir):
+    path = os.path.join(cache_dir, name + ".json")
     if not os.path.exists(path):
         return None
     with open(path, encoding="utf-8") as fh:
@@ -117,10 +117,18 @@ def load_parsed(name):
 
 
 # ---------------------------------------------------------------- phase: judge
-def phase_judge(rows, judge):
+def phase_judge(rows, judge, out_dir, src_stem):
     slug = judge.replace(":", "_").replace("/", "_").replace(".", "_")
-    out_db = os.path.join(RESULTS, "rejudge_%s.db" % slug)
-    out_csv = os.path.join(RESULTS, "rejudge_%s.csv" % slug)
+    cache_dir = os.path.join(out_dir, "parse_cache")
+    # When src_stem is set (--src-db was given explicitly), incorporate it into
+    # the output filename so multiple source DBs don't clobber each other.
+    if src_stem:
+        out_db  = os.path.join(out_dir, "rejudge_%s_%s.db"  % (slug, src_stem))
+        out_csv = os.path.join(out_dir, "rejudge_%s_%s.csv" % (slug, src_stem))
+    else:
+        # Backward-compat: old naming used by t7_meta.py / make_figures.py.
+        out_db  = os.path.join(out_dir, "rejudge_%s.db"  % slug)
+        out_csv = os.path.join(out_dir, "rejudge_%s.csv" % slug)
 
     conn = sqlite3.connect(out_db)
     conn.execute("CREATE TABLE IF NOT EXISTS rejudged (%s)"
@@ -169,7 +177,7 @@ def phase_judge(rows, judge):
         )
 
         if name not in parse_cache:
-            p = load_parsed(name)
+            p = load_parsed(name, cache_dir)
             if p is None:
                 rec["error"] = "no cached parse"
                 log("  %s: SKIP (no cached parse)" % tag)
@@ -292,14 +300,34 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--judge", required=True)
     ap.add_argument("--phase", choices=["parse", "judge", "all"], default="all")
+    ap.add_argument(
+        "--src-db", default=None,
+        help=(
+            "Source battery DB to read summaries from. "
+            "Default: battery_v2.db (backward-compat). "
+            "When set, output files are named rejudge_<judge>_<src_stem>.{db,csv} "
+            "and placed alongside the source DB."
+        ),
+    )
     a = ap.parse_args()
 
-    rows = load_rows()
-    log("loaded %d successful rows with summary_text from %s" % (len(rows), SRC_DB))
+    if a.src_db is None:
+        src_db  = SRC_DB
+        out_dir = RESULTS
+        src_stem = None   # use old naming (backward-compat)
+    else:
+        src_db   = os.path.abspath(a.src_db)
+        out_dir  = os.path.dirname(src_db)
+        src_stem = os.path.splitext(os.path.basename(src_db))[0]  # e.g. battery_codellama13b
+
+    cache_dir = os.path.join(out_dir, "parse_cache")
+
+    rows = load_rows(src_db)
+    log("loaded %d successful rows with summary_text from %s" % (len(rows), src_db))
     if a.phase in ("parse", "all"):
-        phase_parse(rows)
+        phase_parse(rows, cache_dir)
     if a.phase in ("judge", "all"):
-        phase_judge(rows, a.judge)
+        phase_judge(rows, a.judge, out_dir, src_stem)
     return 0
 
 
