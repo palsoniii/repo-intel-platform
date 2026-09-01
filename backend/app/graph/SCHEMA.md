@@ -20,6 +20,15 @@ relationship type, so the Week 2 build has an unambiguous target.
 
 ## Relationship types
 
+> **Populated vs declared (measured across all 18 evaluation repos, 2026-08-29).**
+> `IMPORTS` 3,861 · `DEFINES` 1,684 functions + 839 classes · `HAS_METHOD` 1,398 ·
+> `DEPENDS_ON` 837 · `HANDLED_BY` 188 · `IMPLEMENTS` 144 · `HAS_CONFIG` 58.
+> **`CALLS`, `RELATES_TO` and `HAS_DATABASE_ENTITY` are 0 — never once written.**
+> All three have working `MERGE` statements in `graph/builder.py` that have never fired,
+> because no parser populates `FunctionNode.calls`, `DatabaseEntity.related_function_ids`
+> or `database_entities`. Treat them as designed-but-unbuilt, not as available signal.
+
+
 | Relationship | From -> To | Source |
 |---|---|---|
 | `HAS_MODULE` | `Repository` -> `Module` | implicit (every module belongs to the parsed repo) |
@@ -88,8 +97,12 @@ will query against:
 - **`raw`** -- doesn't touch the graph at all; uses the repo's raw source text.
 - **`dependency_graph`** -- queries only `Module`/`IMPORTS` (+ `Repository`/`DEPENDS_ON`/
   `ExternalDependency`) -- the shallowest structured representation.
-- **`knowledge_graph`** -- queries the full schema above (modules, classes, functions,
-  endpoints, calls, database entities, config) -- the richest representation.
+- **`knowledge_graph`** -- modules with their `IMPORTS` edges and the classes each
+  defines, plus endpoints (with handler name), external dependencies, config files and
+  database entities. **It does NOT query functions or `CALLS`** -- only an endpoint's
+  `HANDLED_BY` handler name. Import edges were added by `e2e2bd8` (2026-08-29); before
+  that this variant contained no edges at all, which made it *disjoint from* rather than
+  a superset of `dependency_graph` — see `docs/REPORT.md` Errata E3.
 
 Example queries for each are in `schema.cypher`'s "Representation queries" section --
 these are the literal Cypher the Structured Context Builder (Week 2, Phase 3) will

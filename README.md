@@ -1,5 +1,33 @@
 # AI-Powered Repository Intelligence Platform
 
+> ## Current status (2026-08-29) — read this before the rest of the file
+>
+> The build log below is accurate about *what was built* but stale about *status*. It
+> stops at Week 4 and predates all evaluation results. Current sources of truth:
+>
+> | For | Read |
+> |---|---|
+> | Results, methodology, threats to validity | `docs/REPORT.md` |
+> | What to do next | `CLAUDE.md` |
+> | Dataset and annotation caveats | `backend/annotations/README.md` |
+>
+> **Three batteries have been run** against live Ollama/Neo4j on 18 repositories:
+> `battery.db` (108 rows), `battery_v2.db` (162/157), and
+> `battery_v3_granite_gemma2judge.db` (54/53, granite writer). The re-run that earlier
+> drafts called the highest-priority task is **done**.
+>
+> **The headline finding is now a methodology result**, not the representation effect:
+> the coverage harness discarded judge verdicts that did not match byte-for-byte and
+> scored each discarded miss as *covered*, producing chance-level accuracy over 9,777
+> decisions (`REPORT.md` §5.6). Coverage is now measured deterministically by
+> `app/evaluation/oracle.py`.
+>
+> **Retracted below:** the "raw-code context took ~4x longer" signal in the next
+> paragraph does not hold across the full set — see `evaluation_results/RESULTS.md`.
+> The model roster in the setup instructions (Llama 3.1 / gpt-oss:20b) is also
+> superseded; the configured roster is in `backend/.env.example`.
+
+
 ## Status: Full pipeline + 3-way ablation + diagrams, all working end-to-end
 
 This project is being built incrementally, module by module, per the build order below.
@@ -152,7 +180,7 @@ kind of trend the research question is about.
 - Model list defaults to `.env`'s `OLLAMA_MODEL_PRIMARY`/`FALLBACK`/`DIVERSITY`,
   read lazily (not a module-level constant) to avoid an import-order dependency on
   `load_dotenv()`.
-- Raw-source context is capped at 8000 characters by default -- these 7-8B models
+- Raw-source context is capped at 24,000 characters by default (`DEFAULT_MAX_RAW_CHARS`) -- these 7-8B models
   commonly default to a 2-4K token context window (`num_ctx` isn't configured
   anywhere in this pipeline yet, a known follow-up), so this is deliberately
   conservative rather than assuming a larger window.
@@ -193,7 +221,7 @@ tests/test_main.py:: (5 tests, CORS-header-on-error + diagram/compare mapping) P
 tests/test_hallucination.py:: (8 tests, mocked judge) PASSED
 tests/test_harness.py:: (5 tests, mocked ablation + scorer) PASSED
 tests/test_diagram_score.py:: (9 tests, pure logic) PASSED
-======= 89 passed total (offline + neo4j-gated + integration, with Neo4j up) =======
+======= 168 test functions (149 offline, 19 infra-gated) (offline + neo4j-gated + integration, with Neo4j up) =======
 
 # plus real, manual, no-mocks runs against the running backend + browser:
 POST /summarize {"url": "https://github.com/heroku/node-js-getting-started"}
@@ -214,7 +242,7 @@ python -m app.evaluation.harness <url> --models qwen2.5-coder:7b mistral:7b --ju
    question predicts would need larger, context-window-straining repos to surface)
 ```
 
-The 16 `neo4j`-marked tests SKIP (not fail) when no Neo4j is reachable -- see Setup
+The 17 `neo4j`-marked tests SKIP (not fail) when no Neo4j is reachable -- see Setup
 below for how to run them for real.
 
 **Phase 2 (Neo4j knowledge graph, built):**
@@ -420,20 +448,21 @@ below for how to run them for real.
   filesystem loop (`` router.use(`/${routeFile}`, require(`./${routeFile}`)) ``), as
   `node-express-mongodb-jwt-rest-api-skeleton` does -- those routes keep
   router-relative paths.
-- Mount-prefix resolution is only **one level deep**: it correctly composes a router's
-  own prefix from whoever mounts it, but doesn't transitively propagate that prefix
-  onto routers *that router itself* further mounts. `express-rest-boilerplate` mounts
-  `v1/index.js` at `/v1`, which in turn mounts `user.route.js` at `/users` -- the
-  result is reported as `GET /users` instead of the true `GET /v1/users`. Needs a
-  mount-prefix graph (transitive parent-mount resolution) instead of the current flat
-  per-module dict; found via `backend/annotations/README.md`'s dataset expansion,
-  2026-08-24.
+- ~~Mount-prefix resolution is only one level deep.~~ **FIXED in `34d0c08`.** It used
+  to compose a router's own prefix from whoever mounted it without propagating that
+  prefix transitively, so `express-rest-boilerplate` (which mounts `v1/index.js` at
+  `/v1`, which mounts `user.route.js` at `/users`) reported `GET /users` instead of
+  `GET /v1/users`. `_resolve_mount_chain` now resolves the full chain; regression test
+  `test_multi_hop_mount_prefix_composes_fully`. Retained here because the paper's
+  defect log (`REPORT.md` §5.4a) cites it.
 - The Express parser only resolves CommonJS `require()` -- ES `import`/`export`
   (`import userRouter from './routes/user'`) is a different AST node entirely and is
   invisible to both the internal-import-edge resolver and the mount-prefix resolver.
   A repo wired entirely with ES modules (e.g. `api-design-node-v3`) silently loses
   both its dependency-graph edges and its endpoint prefixes. Significant gap for any
-  modern Express+Babel/ts-node repo; found 2026-08-24, not yet fixed.
+  modern Express+Babel/ts-node repo; found 2026-08-24. **FIXED in `34d0c08`** --
+  `express_parser.py` now walks `import_statement` nodes; regression test
+  `test_es_module_imports_are_resolved`.
 - Two false-positive route-detection bugs were found and fixed while expanding the
   evaluation dataset (2026-08-24), both regression-tested in `test_express_parser.py`:
   `app.get('port')` (Express's single-argument app-*settings* getter, not a route

@@ -20,62 +20,60 @@ only (no paid commercial APIs), a 3-way representation ablation (not 5-way).
 
 ## Current status / what to do next
 
-**As of 2026-08-24** (dataset + metrics expansion for IEEE-publication readiness):
-the evaluation dataset grew from 6 to **18 repositories** (9 Express, 9 NestJS,
-hand-verified annotations + LLM-drafted reference summaries for all 18 --
-`backend/annotations/README.md`), and five new evaluation modules were added --
-`text_overlap.py` (BLEU-4/ROUGE-L/METEOR/BERTScore), `quality_judge.py` (G-Eval
-rubric scoring), `calibration.py` (logprob-based confidence), `stats.py` (paired
-Wilcoxon significance testing), `failure_analysis.py` (failure taxonomy) -- all
-wired into the harness except `calibration.py` (needs a follow-up to expose the
-generation prompt; runs standalone for now). Two more real Express parser bugs
-were found and fixed while building the new annotations (see the Express parser's
-Known gaps note below). 129 tests passing (16 skipped, live-infra-gated).
-**Nothing in this expansion has been run against live Ollama/Neo4j yet** -- that
-needs to happen on the designated evaluation machine before any new numbers go in
-the paper; see `docs/REPORT.md` Appendix A for the run command.
+**As of 2026-08-29.** All 8 build phases are done and **three full evaluation
+batteries have been run** against live Ollama/Neo4j. The dataset is **18 repositories**
+(9 Express, 9 NestJS) with hand-verified annotations and reference summaries --
+`backend/annotations/README.md`. 168 test functions, of which 19 are infra-gated
+(17 `@pytest.mark.neo4j`, 2 `@pytest.mark.integration`) and skip without Neo4j.
 
-As of the merge before that (branches `anjali` @ 2026-08-14 and `eval-annotations` @
-2026-08-11 combined), all 8 build phases (Weeks 1-4) are done: both framework
-parsers (Express parser now combines chained-route support from `anjali` with
-mount-prefix resolution from `eval-annotations` -- see the Express parser's Known
-gaps note below), the Neo4j graph builder, the context builder, the Ollama
-orchestration layer, Mermaid diagram generation (rendered visually via mermaid.js,
-not raw text), the 3-way representation ablation, the LLM-as-judge hallucination
-scorer plus its companion coverage/recall scorer (`app/evaluation/coverage.py` --
-how much of the parser's ground truth a summary actually mentions, not just
-whether its claims are true), the diagram graph-diff scorer, the batch evaluation
-harness, and all 4 dashboard pages wired to real backend endpoints -- all
-validated against live infrastructure (not just mocks), not just unit tests.
-`README.md`'s "What exists right now" section has the detailed, phase-by-phase log
-of what was built, what broke, and what got fixed -- read that before assuming
-something isn't implemented.
+| Battery | Writers | Judge | Rows |
+|---|---|---|---|
+| `battery.db` | qwen2.5-coder:7b, codellama:7b-instruct | gemma2:9b | 108 / 108 |
+| `battery_v2.db` | qwen2.5-coder:7b, codellama:7b-instruct, gemma2:9b | mistral:7b-instruct | 162 / 157 |
+| `battery_v3_granite_gemma2judge.db` | granite-code:8b-instruct | gemma2:9b | 54 / 53 |
 
-**The first full evaluation battery has been run** (54 rows: 3 models x 3
-representations x 6 repos, zero failures) using `gemma2:9b` as an independent 4th
-judge so no arm is self-judged. Results, methodology, and threats to validity are
-in `backend/evaluation_results/RESULTS.md`; the report draft is `docs/REPORT.md`.
+**The re-run called for by earlier drafts is done.** Do not redo it. `docs/REPORT.md`
+§7.1 records what it closed.
 
-**Highest-priority task: re-run the battery.** That run predates the three parser
-defect fixes merged from `eval-annotations` (see `docs/REPORT.md` §5.4a) --
-most importantly a path-normalisation bug that silently dropped **every** internal
-import edge, leaving the `dependency_graph` arm nearly empty -- *and* predates
-`anjali`'s chained-route (`app.route(...).get(...)`) support being merged in, which
-changes what the Express arm extracts too. The reported numbers are stale on both
-counts. Both RESULTS.md and REPORT.md carry staleness banners; don't quote those
-figures until the battery is regenerated.
+**The headline finding changed.** The paper is now primarily a methodology result
+about LLM-as-judge failure (`REPORT.md` §5.6): the harness discarded any judge verdict
+that did not match the fact list byte-for-byte and scored each discarded miss as
+*covered*, giving 86.4% perfect scores and chance-level accuracy over 9,777 decisions.
+Re-scoring the same summaries with the same model under a corrected parser moves rank
+correlation from -0.002 to +0.475. The representation effect is contribution four of
+six, and §6.6 disclaims novelty on its direction.
 
-Run one generator at a time -- this is a 16GB laptop that throttles under sustained
-multi-model load:
+**Coverage is measured deterministically.** `app/evaluation/oracle.py` scores against
+parser-extracted facts with no model involved -- 10,062 fact-level decisions, under a
+minute, reproducible. It runs on the live `/compare` endpoint alongside the LLM judge;
+both are reported, because the oracle cannot credit paraphrase and the judge is
+unreliable in both directions.
+
+**Known measurement limits, all quantified, all open:**
+- Ground truth is **51% npm dependency names** (600 of 1,184 facts). Endpoints are 238,
+  class/service names 310.
+- `database_entities`, `CALLS` and `RELATES_TO` are declared in the schema and **never
+  populated** -- 0 edges across all 18 repos.
+- **12 of 18 endpoint annotations are byte-identical to parser output.** One was
+  confirmed wrong (`domain-driven-hexagon`, F1 corrected 1.00 -> 0.00), one confirmed
+  right. The rest are unverified; treat endpoint F1 as an upper bound.
+
+Run one generator at a time -- a 16GB laptop throttles under sustained multi-model load:
 
 ```bash
-python -m app.evaluation.harness <6 repo urls> --models qwen2.5-coder:7b \
-  --judge-model gemma2:9b --annotations-dir ./annotations \
-  --out clean_qwen.csv --sqlite study_clean.db
+python -m app.evaluation.harness $(cat ../18_repo_urls.txt) \
+  --models qwen2.5-coder:7b --judge-model gemma2:9b \
+  --annotations-dir ./annotations --out clean_qwen.csv --sqlite study_clean.db
 ```
 
+**The judge must not be one of the generators.** `run_scored_ablation()` now refuses
+the run if it is, because self-judging reverses the ranking of representations
+(`REPORT.md` §6.2). Note `.env.example` lists `gemma2:9b` as `OLLAMA_MODEL_DIVERSITY`,
+so a dashboard set up from it collides with the default judge -- change one of the two
+before running `/compare`.
+
 **Blocked on team decisions, not code:**
-- The 6-repo evaluation set is a *candidate* set (vetted and annotated in
+- The 18-repo evaluation set is a *candidate* set (vetted and annotated in
   `backend/annotations/`), not yet ratified by the team. The 2 "held-back" repos
   (untouched by anyone until demo day, to prove genuine generalization) still
   haven't been chosen -- don't pick these yourself, and note the repos used for
@@ -85,15 +83,22 @@ python -m app.evaluation.harness <6 repo urls> --models qwen2.5-coder:7b \
   set since they've already been extensively exercised.
 - The "designated evaluation machine" (roadmap Section 1's Day-0 step, for
   response-time comparisons to be meaningful) -- the user designated this machine
-  on 2026-08-11, which also makes the Mistral-for-gpt-oss:20b substitution final,
-  but confirm that still holds across the team before reporting latency figures.
+  on 2026-08-11, but the batteries were then run on a different machine (an RTX 3050,
+  4GB VRAM, under CPU offload -- `REPORT.md` §5.5.1), so confirm which machine counts
+  before reporting latency figures. Token figures are hardware-independent and do not
+  carry this caveat.
   Latency figures still need re-measuring under controlled conditions -- the
   existing ones come from chunked runs with varying thermal state.
 - Related work (`docs/REPORT.md` §2) is deliberately an empty scaffold: it needs a
   genuine literature review. Do not populate it with unverified citations.
-- Report drafting (methodology/related-work were supposed to start in Week 3;
-  results/discussion needs the evaluation battery above), slides, and demo
-  rehearsal haven't started.
+- Report drafting: `REPORT.md` is substantially written, but §2 Related Work is still
+  an empty scaffold, and one citation in §6.6 (SE-Jury, arXiv 2505.20854) is cited for
+  the opposite of what it argues -- it is a positive result about judge ensembles.
+  Slides and demo rehearsal haven't started.
+- The granite arm (`battery_v3`) is reported in `evaluation_results/GRANITE_ARM_RESULTS.txt`
+  but appears nowhere in `REPORT.md`. Its replication table also compares main-study
+  *oracle* scores against granite *judge* scores; oracle-to-oracle is the valid
+  comparison and is tighter (dependency_graph 0.5765 vs 0.5768).
 
 See `README.md`'s "Known limitations" and the two "Known gaps" sections (Express
 parser, NestJS parser) for specific, real (not hypothetical) limitations already

@@ -47,6 +47,90 @@ release the oracle, the fact-level decisions, and all three judge runs.
 
 ---
 
+---
+
+## Errata — verified against the code and databases, 2026-08-29
+
+Confirmed factual defects in this draft. Each was checked against the source or the
+result databases, not against another document. **Nothing below is fixed in the prose
+yet**; this block exists so no figure is quoted in error before it is.
+
+**E1 — §4.3 misstates judge independence for the main corpus (CRITICAL).** §4.3 says the
+judge "is `gemma2:9b` — a fourth model that is **not** among the generators" and that
+"zero rows are self-judged". `battery_v2.db`, the source of all 157 summaries used in
+§5.6–§5.8, has writers qwen2.5-coder / codellama / **gemma2** and judge
+**mistral:7b-instruct**. §5.8.5 states the opposite of §4.3 ("gemma2 is both a writer
+(51 rows) and a judge"). The per-battery `self_judged` flag is false throughout, so no
+individual row was self-graded — but the configuration §4.3 describes is not the one
+that produced §5.6–§5.8.
+
+**E2 — the raw cap is 24,000 characters, not 8,000.** `pipeline.py`'s
+`DEFAULT_MAX_RAW_CHARS = 24000`. Corrected inline above in three places; §5.7.2 already
+used the right figure, so the report previously contradicted itself. §6.3's threat-to-
+validity argument is built on the wrong number and needs rewriting, not just a find-and-
+replace.
+
+**E3 — the `knowledge_graph` arm contained no import edges when every result was
+produced (CRITICAL).** `_query_knowledge_graph` never matched `IMPORTS` until commit
+`e2e2bd8` (2026-08-29). The two structured arms were therefore *partially disjoint*, not
+nested: `dependency_graph` carried the import edges and no classes, `knowledge_graph`
+carried classes and no edges. §5.5.2's "dependency_graph, not knowledge_graph, is the
+best-performing arm" and §5.7's "honest null … the full knowledge graph buys nothing
+measurable" both compare an arm against one it does not contain. The code now includes
+the edges, so it no longer matches the code that produced these numbers either.
+
+**E4 — the generator could not name endpoints or components (CRITICAL).** All 157
+summaries were produced under a four-key output shape
+(`overview`/`tech_stack`/`services`/`dependencies`). `Endpoint` and `Class/Service`
+facts are **45.2% of the 10,062 scored decisions** and had no field to appear in.
+Commit `9a8d502` added `endpoints` and `components`, so any re-run is not comparable to
+these figures.
+
+**E5 — the granite arm is missing entirely.** `battery_v3_granite_gemma2judge.db` (54
+rows, 53 successful, writer `granite-code:8b-instruct`, judge `gemma2:9b`, 18 repos) and
+`GRANITE_ARM_RESULTS.txt` are not referenced anywhere in these 1,346 lines. It is the
+confound-removal replication — all-code writers, judge selected on measured rho. When
+importing it, use that file's **oracle-on-granite** block (0.1341 / 0.5768 / 0.5800);
+its "REPLICATION CHECK" table compares main-study *oracle* against granite *judge* and
+should not be reproduced.
+
+**E6 — the index-notation residual is fixed, not outstanding.** §5.6.6, §7.2 and §8
+describe 23 rows that "still score 1.000 because the judge answered with fact indices we
+still do not resolve". `coverage.py:_resolve_index()` (commit `9665cd2`) resolves them;
+measured recovery is 120 of 205 sampled unmatched mistral items across 24 rows.
+
+**E7 — three counts do not reproduce.** §5.6.2's "0 in 141/157 rows, otherwise 41–60" is
+wrong twice: it is 133 of 154 judged rows, and 11 of the 21 nonzero values fall below 41,
+so the "bail-out cliff" is softer than stated. §5.8.3's "12 of 110 rows disagree by more
+than 0.5" recomputes to 17 of 157 (10.8%); the "roughly 11%" conclusion stands, the
+fraction does not. §4.7's "4.78 claims" recomputes to 4.870.
+
+**E8 — §3.4's pipeline diagram shows `deepseek-coder:6.7b-instruct` as a factor level.**
+It produced zero rows in any database; §5.5.1 documents its exclusion. The diagram also
+omits `gemma2:9b`, an actual writer of the 157-summary corpus, while asserting it is
+"accurate to the actual code … not aspirational".
+
+**E9 — two rows of §4.1's repository table predate the parser fixes.**
+`hagopj13/node-express-boilerplate` is listed 50 modules / 10 endpoints; the annotation
+has 38 / 14. `brocoders/nestjs-boilerplate` is listed 178 / 24; the annotation has
+157 / 22. The other four rows verify exactly.
+
+**E10 — no endpoint-F1 caveat.** `backend/annotations/README.md` now records that 12 of
+18 endpoint lists are byte-identical to parser output and that `domain-driven-hexagon`'s
+F1 is corrected 1.00 → 0.00. §5.4's diagram-accuracy table carries no such warning.
+
+**E11 — `num_ctx=8192` is not reproducible from the repo.** §5.5.1 and §6.6 state the
+study fixed it; `.env.example` ships `OLLAMA_NUM_CTX=` empty, and the provider leaves it
+unset, so a reviewer following Appendix A gets the model's default instead. §5.5.1 also
+cites "§4.5" for holding it constant; §4.5 does not mention `num_ctx`.
+
+**E12 — §2 Related Work is an empty scaffold, and one §6.6 citation is inverted.**
+SE-Jury (arXiv 2505.20854) is cited as prior art on judge *unreliability*; it is a
+positive result proposing a judge ensemble with higher human correlation. The other four
+§6.6 citations were verified real and correctly characterised.
+
+---
+
 ## 1. Introduction
 
 ### 1.1 Motivation
@@ -150,11 +234,11 @@ is the only variable that changes between arms.
 
 | Representation | Content | Produced by |
 |---|---|---|
-| `raw` | Concatenated source text, capped at 8000 characters | `pipeline._read_raw_source()` |
+| `raw` | Concatenated source text, capped at 24,000 characters | `pipeline._read_raw_source()` |
 | `dependency_graph` | Modules and their import relationships | `context/builder.py` (Cypher over Neo4j) |
-| `knowledge_graph` | Modules, imports, classes, functions, endpoints, external dependencies, config | `context/builder.py` (Cypher over Neo4j) |
+| `knowledge_graph` | Modules, class ownership, endpoints, external dependencies, config (**no functions, no `CALLS`; import edges were absent for every result in this report** — see Errata E3) | `context/builder.py` (Cypher over Neo4j) |
 
-The 8000-character cap on `raw` is a deliberate concession to the context windows of
+The 24,000-character cap on `raw` is a deliberate concession to the context windows of
 7–8B models, which commonly default to 2–4K tokens. It is also a **confound** we return
 to in §6.3: it pins raw's token count near a ceiling while the graph representations
 scale with repository size.
@@ -526,7 +610,7 @@ Structured representations consume roughly **half the input tokens** of raw sour
 run modestly faster. The token reduction is the robust part of this finding; the latency
 difference is small relative to measurement noise on a thermally constrained machine.
 
-This result must be read alongside a design confound. Raw context is capped at 8000
+This result must be read alongside a design confound. Raw context is capped at 24,000
 characters, so its token count is pinned near a ceiling, while graph contexts scale with
 repository size. On the largest repository (`brocoders/nestjs-boilerplate`) the ordering
 **inverts**: the structured contexts are larger and slower (≈3300 tokens) than the
@@ -1077,7 +1161,7 @@ in this class of experiment.
   scores therefore carry a positive bias and must not be read as "N % of claims were
   fabricated." Only *relative* comparisons between representations are meaningful, and
   the bias applies uniformly across arms.
-- **The 8000-character raw cap** (§5.3) makes raw's token cost roughly constant while
+- **The 24,000-character raw cap** (§5.3) makes raw's token cost roughly constant while
   structured contexts scale, confounding the efficiency comparison in a
   size-dependent way.
 - **Unparsed judge verdicts.** 2 of 54 rows were recorded as 0.0 with

@@ -1,5 +1,24 @@
 # repo-intel-platform — full handoff
 
+> ## ⚠️ Superseded in three places (2026-08-29)
+>
+> 1. **The branch table and "push to `battery-followup`" are dead.** That branch no
+>    longer exists locally or on the remote. Everything it held — along with
+>    `god_saviour`, `dishank`, `anjali` and `eval-annotations` — is merged into
+>    **`main`**, which is the branch to work on and push to. Every commit this document
+>    tells you to cherry-pick (`884baad`, `3574290`, `38ed0a6`, `b61b290`) is already an
+>    ancestor of `main`.
+> 2. **`granite-code:8b-instruct` was NOT "downloaded, never used".** It ran as a
+>    *writer* — `battery_v3_granite_gemma2judge.db`, 54 rows / 53 successful across 18
+>    repos, judged by `gemma2:9b` (commit `5808f5f`). Task 4 below describes granite as a
+>    prospective second *judge*; that is not what happened.
+> 3. **Task 3 (human validation) is superseded, not outstanding.** The 24-row human
+>    sample was replaced by 10,062 deterministic fact-level decisions from
+>    `app/evaluation/oracle.py` — `REPORT.md` §7.1.
+>
+> The machine notes, model footprints, Docker/WSL setup and the deepseek diagnosis below
+> remain accurate and useful.
+
 Written for an agentic AI picking this project up cold. Everything here is verified
 against the machine and the repository, not recalled. Dates are 2026.
 

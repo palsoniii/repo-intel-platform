@@ -5,26 +5,33 @@ evaluation set. **These are candidate-set results — the team has not yet ratif
 6 fixed repos or the 2 held-back repos, so treat this as the first full battery, not
 the final reported study.**
 
-> ## ⚠️ SUPERSEDED BY PARSER FIXES — RE-RUN REQUIRED
+> ## ⚠️ SUPERSEDED — THIS FILE IS A HISTORICAL RECORD, NOT CURRENT RESULTS
 >
-> These 54 rows were generated **before** the parser fixes landed. At the time, the
-> parser recovered **zero internal import edges** on every repository (a path-
-> normalisation bug: candidate paths were `.resolve()`d while the lookup table was
-> keyed on unresolved paths, so on macOS every lookup missed). It also dropped Express
-> router-mount prefixes and NestJS object-form `@Controller({ path })` prefixes.
+> These 54 rows are the **6-repo pilot**, run before the parser fixes. Everything below
+> is retained for provenance only. **Do not quote any figure from this file.**
 >
-> That directly changes the inputs to two of the three arms:
-> - **`dependency_graph`** was built almost entirely from import edges — of which there
->   were none. That arm was close to structurally empty, which plausibly explains why
->   it failed to outperform raw source. It now carries 6–414 real edges per repo.
-> - **`knowledge_graph`** gains those edges plus corrected endpoint paths.
+> The re-run it called for has since happened three times, on **18 repositories**:
 >
-> **The headline result below (knowledge_graph > raw, p = 0.002) was therefore measured
-> against a degraded dependency_graph arm and partially incorrect endpoints.** The
-> efficiency figures are also affected, since the structured contexts are now larger.
-> The battery must be re-run before any of this is reported as a finding. The
-> diagram-scorer figures in the last section have already been superseded — see
-> `../annotations/README.md` for current values.
+> | Battery | Writers | Judge | Rows |
+> |---|---|---|---|
+> | `battery.db` | qwen2.5-coder:7b, codellama:7b-instruct | gemma2:9b | 108 / 108 |
+> | `battery_v2.db` | qwen2.5-coder:7b, codellama:7b-instruct, gemma2:9b | mistral:7b-instruct | 162 / 157 |
+> | `battery_v3_granite_gemma2judge.db` | granite-code:8b-instruct | gemma2:9b | 54 / 53 |
+>
+> **Current results live in `../../docs/REPORT.md`** (§5.5 onward), with per-battery
+> summaries in `BATTERY_V2_RESULTS.txt`, `GRANITE_ARM_RESULTS.txt`, `ORACLE_STATS.txt`
+> and `T7_META_EVALUATION.txt`.
+>
+> Three specific claims below are now known false:
+> - **The headline "knowledge_graph > raw, p = 0.002" does not replicate.** Later runs
+>   report a faithfulness null; the coverage effect survives only under the
+>   deterministic oracle, and the paper's headline is now the judge-disagreement
+>   finding (`REPORT.md` §5.6).
+> - **"Raw is capped at 8000 chars"** — `DEFAULT_MAX_RAW_CHARS` is **24,000**. The
+>   efficiency arithmetic in this file is against a value 3x off.
+> - **"Import F1 0.00 on every repo / recovers no internal imports"** — the
+>   path-normalisation fix landed; the parse now yields 3,861 import edges across 18
+>   repos.
 
 ## Setup
 
