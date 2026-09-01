@@ -1,5 +1,12 @@
 # HPC Instructions — repo-intel-platform final scaling run
 
+**Altair Access portal**: `https://10.126.1.10:4443/`
+**Cluster username**: `mpstme-dishank`
+**Your persistent storage on the cluster**: `/data/mpstme-dishank/`
+
+> **Security note**: Your password is never stored in this file or any file in
+> this repository. Do not add it. Use the portal's login page directly.
+
 Everything below is **step-by-step and in order**. Each step is labeled
 **PORTAL** (done inside Altair Access, on the cluster) or **LOCAL** (done on
 your own machine, off-cluster). Do not mix them up — the portal jobs have no
@@ -29,13 +36,17 @@ If you already have `context_pack.json` from a prior run, skip this step.
 Otherwise, run from the repo root on your own machine:
 
 ```bash
-cd /path/to/repo-intel-platform/backend
+cd /path/Downloads/repo-intel-platform/backend
 python -m scripts.build_context_pack $(cat ../18_repo_urls.txt) \
     --out ../context_pack.json
 ```
 
-The resulting `context_pack.json` is ~5–10 MB. Upload it to the cluster in
-Step 3 alongside the repo zip.
+> This step needs Neo4j running locally and a GitHub connection.
+> It produces all three representations (raw / dependency_graph / knowledge_graph)
+> and freezes them into `context_pack.json` — the cluster never needs Neo4j or
+> GitHub after this point.
+
+The resulting `context_pack.json` is ~5–10 MB. Upload it to the cluster in Step 3.
 
 ---
 
@@ -44,16 +55,16 @@ Step 3 alongside the repo zip.
 > Skip to Step 3 if you already have a saved `repo-intel-gpu` image with all
 > models pulled. Check via **Altair Access → My Images**.
 
-**Submit a Jupyter job:**
+**Open the portal**: `https://10.126.1.10:4443/`
+Log in as `mpstme-dishank`. Go to **Applications → Jupyter** and submit:
 
 | Field | Value |
 |---|---|
-| Application | Jupyter |
 | Container Image | `pytorch_pbs:25.12-py3` |
 | Number of Nodes | 1 |
-| Number of Processors per Node | **8** |
+| Number of Processors per Node | **8** (default is 1 — change it) |
 | Number of GPUs per Node | **1** |
-| Amount of Memory (MB) | **32000** |
+| Amount of Memory (MB) | **32000** (default is 10 MB — change it) |
 | Queue | `workq` |
 
 Open the notebook `hpc/00_setup_gpu_image.ipynb` from inside the Jupyter
@@ -62,14 +73,14 @@ session and run all cells **in order**:
 1. **Section 1** — confirms GPU/RAM/network. Read the output before continuing.
 2. **Section 2** — installs Ollama (needs GitHub; use the fallback cell if blocked).
 3. **Section 3** — uploads/clones the project and installs Python deps.
-4. **Section 4** — pulls all models onto `/data/$USER/ollama/`.
-   - Pulls generators: `codellama:13b-instruct`, `qwen2.5-coder:14b`, `qwen2.5-coder:32b`
-   - Pulls primary judge: `gemma2:9b`
-   - Pulls secondary judges: `mistral:7b-instruct`, `gemma2:27b`
-   - This cell takes 20–40 minutes if pulling ~55 GB cold.
+4. **Section 4** — pulls all models onto `/data/mpstme-dishank/ollama/`.
+   - Generators: `codellama:13b-instruct`, `qwen2.5-coder:14b`, `qwen2.5-coder:32b`
+   - Primary judge: `gemma2:9b`
+   - Secondary judges: `mistral:7b-instruct`, `gemma2:27b`
+   - This cell takes 20–40 minutes pulling ~55 GB cold.
 5. **Section 5** — smoke test with `qwen2.5-coder:14b`. Must print `OK` and show
-   GPU memory in use. If GPU memory stays near 0, the model is on CPU — stop and
-   investigate before proceeding.
+   GPU memory > 0. If GPU memory stays near 0, the model is on CPU — stop and
+   fix before proceeding.
 6. **Section 6** — save the container as `repo-intel-gpu` via **Custom Actions
    → Save Docker Container**. Set Working Directory to `/data`.
 
@@ -77,23 +88,25 @@ session and run all cells **in order**:
 
 ## Step 3 — PORTAL: upload files
 
-In Altair Access, use **+Upload** to copy these files into `/data/$USER/`:
+Go to `https://10.126.1.10:4443/` → **+Upload** and copy these files into
+`/data/mpstme-dishank/`:
 
 - `context_pack.json` (built in Step 1)
-- `repo-intel-platform.zip` (or clone via git if GitHub is reachable)
+- `repo-intel-platform.zip` (zip of the repo root, or clone via git if reachable)
 
-Unzip if needed:
+Unzip if needed (run in a Jupyter terminal or Shell job):
 
 ```bash
-unzip /data/$USER/repo-intel-platform.zip -d /data/$USER/
+unzip /data/mpstme-dishank/repo-intel-platform.zip -d /data/mpstme-dishank/
 ```
 
 ---
 
 ## Step 4 — PORTAL: submit the three battery jobs
 
-Submit `hpc/run_battery.sh` **three times**, once per generator. Use
-**Applications → Batch or Shell Script**.
+Go to `https://10.126.1.10:4443/` → **Applications → Batch or Shell Script**.
+
+Submit `hpc/run_battery.sh` **three times**, once per generator.
 
 **Form fields (same for all three jobs):**
 
@@ -105,23 +118,19 @@ Submit `hpc/run_battery.sh` **three times**, once per generator. Use
 | Number of GPUs per Node | **1** |
 | Amount of Memory (MB) | **32000** |
 | Queue | `workq` |
-| Job Script | `run_battery.sh` |
+| Job Script | `run_battery.sh` (upload from `hpc/run_battery.sh`) |
 
 **Job Script Arguments** — change this for each of the three submissions:
 
-| Submission | Job Script Arguments |
-|---|---|
-| 1st | `codellama:13b-instruct` |
-| 2nd | `qwen2.5-coder:14b` |
-| 3rd | `qwen2.5-coder:32b` |
+| Submission | Job Script Arguments | Output files |
+|---|---|---|
+| 1st | `codellama:13b-instruct` | `battery_codellama13b.{csv,db}` |
+| 2nd | `qwen2.5-coder:14b` | `battery_qwen14b.{csv,db}` |
+| 3rd | `qwen2.5-coder:32b` | `battery_qwen32b.{csv,db}` |
 
-Each job writes to `/data/$USER/evaluation_results/`:
-- `battery_codellama13b.{csv,db}`
-- `battery_qwen14b.{csv,db}`
-- `battery_qwen32b.{csv,db}`
-
+All output lands in `/data/mpstme-dishank/evaluation_results/`.
 Existing `battery.db`, `battery_v2.db`, and all prior output files are **never
-touched** by this job.
+touched**.
 
 Expected wall time per job: ~1–3 hours depending on MIG slice allocation.
 
@@ -129,7 +138,8 @@ Expected wall time per job: ~1–3 hours depending on MIG slice allocation.
 
 ## Step 5 — LOCAL: download battery results
 
-Once all three jobs show status **Completed**, download from `/data/$USER/evaluation_results/`:
+Once all three jobs show **Completed** in the portal, download from
+`/data/mpstme-dishank/evaluation_results/`:
 
 ```
 battery_codellama13b.csv
@@ -143,43 +153,61 @@ ollama_qwen14b.log
 ollama_qwen32b.log
 ```
 
-Place all `.db` and `.csv` files in `backend/evaluation_results/` locally.
+Place all `.db` and `.csv` files in:
+
+```
+/path/Downloads/repo-intel-platform/backend/evaluation_results/
+```
 
 ---
 
 ## Step 5.5 — LOCAL → PORTAL: upload the parse cache before rejudge
 
-The rejudge jobs need to call `analyze_repository()` on each of the 18 repos in their
-parse phase. That function clones from GitHub — which may be **BLOCKED** on the cluster.
+The rejudge jobs' parse phase calls `analyze_repository()`, which clones from
+GitHub — and GitHub **may be blocked** on the cluster node.
 
-The parse cache (18 JSON files, one per repo) already exists locally from previous runs.
-Upload it so the rejudge parse phase finds all repos cached and skips cloning entirely.
+All 18 parse-cache JSON files already exist locally. Upload them so the rejudge
+parse phase finds every repo cached and skips cloning entirely.
 
 **LOCAL** — zip the cache:
 
 ```bash
-cd /path/to/repo-intel-platform/backend
+cd /path/Downloads/repo-intel-platform/backend
 zip -r parse_cache.zip evaluation_results/parse_cache/
 ```
 
-**PORTAL** — upload `parse_cache.zip` via **+Upload** into `/data/$USER/`, then unzip:
+**PORTAL** — upload `parse_cache.zip` via **+Upload** into `/data/mpstme-dishank/`,
+then unzip (Jupyter terminal or Shell job):
 
 ```bash
-mkdir -p /data/$USER/evaluation_results/parse_cache
-unzip /data/$USER/parse_cache.zip -d /data/$USER/
-# Result: /data/$USER/evaluation_results/parse_cache/<18 .json files>
+mkdir -p /data/mpstme-dishank/evaluation_results/parse_cache
+unzip /data/mpstme-dishank/parse_cache.zip -d /data/mpstme-dishank/
+# Result: /data/mpstme-dishank/evaluation_results/parse_cache/<18 .json files>
 ```
 
-Without this step, the rejudge parse phase will attempt to clone 18 repos from GitHub.
-If GitHub is unreachable from the cluster node, those rows will be skipped and the
-rejudge output will be empty.
+Without this step, the rejudge parse phase will attempt to clone 18 repos from
+GitHub. If GitHub is unreachable, those rows will be skipped and rejudge output
+will be empty.
 
 ---
 
 ## Step 6 — PORTAL: submit the two rejudge jobs
 
-Submit `hpc/run_rejudge.sh` **twice**, once per secondary judge. Same form
-fields as Step 4.
+Go to `https://10.126.1.10:4443/` → **Applications → Batch or Shell Script**.
+
+Submit `hpc/run_rejudge.sh` **twice**, once per secondary judge.
+
+**Form fields (same for both jobs — identical to battery jobs):**
+
+| Field | Value |
+|---|---|
+| Container Image | `repo-intel-gpu` |
+| Number of Nodes | 1 |
+| Number of Processors per Node | **8** |
+| Number of GPUs per Node | **1** |
+| Amount of Memory (MB) | **32000** |
+| Queue | `workq` |
+| Job Script | `run_rejudge.sh` (upload from `hpc/run_rejudge.sh`) |
 
 **Job Script Arguments** — change for each submission:
 
@@ -188,8 +216,8 @@ fields as Step 4.
 | 1st | `mistral:7b-instruct` |
 | 2nd | `gemma2:27b` |
 
-Each job reads the three battery DBs from Step 4, runs the secondary judge
-over every stored summary, and writes:
+Each job reads the three battery DBs, re-scores all stored summaries with one
+secondary judge, and writes six output files:
 
 ```
 rejudge_mistral__7b-instruct_battery_codellama13b.{csv,db}
@@ -200,9 +228,9 @@ rejudge_gemma2__27b_battery_qwen14b.{csv,db}
 rejudge_gemma2__27b_battery_qwen32b.{csv,db}
 ```
 
-> The rejudge job requires the battery DBs to already be in `$OUT_DIR`.
-> If a battery DB is missing the job prints a WARNING and skips that arm;
-> if all three are missing it exits with FATAL.
+> The rejudge job requires the three battery DBs to already be in
+> `/data/mpstme-dishank/evaluation_results/`. If a DB is missing the job
+> prints a WARNING and skips that arm; if all three are missing it exits FATAL.
 
 Expected wall time: 2–5 hours per job.
 
@@ -210,42 +238,43 @@ Expected wall time: 2–5 hours per job.
 
 ## Step 7 — LOCAL: download rejudge results
 
-Download all `rejudge_*.{csv,db}` files from `/data/$USER/evaluation_results/`
-into `backend/evaluation_results/`.
+Download all `rejudge_*.{csv,db}` files from
+`/data/mpstme-dishank/evaluation_results/` into:
+
+```
+/path/Downloads/repo-intel-platform/backend/evaluation_results/
+```
 
 ---
 
 ## Step 8 — LOCAL: run the master report
 
-From `backend/`:
-
 ```bash
-cd /path/to/repo-intel-platform/backend
+cd /path/Downloads/repo-intel-platform/backend
 python -m scripts.build_paper_report
 ```
 
 Output: `evaluation_results/PAPER_REPORT.md` and per-table CSVs alongside it.
 
 The script runs cleanly even if rejudge results are not yet downloaded — those
-table cells print `PENDING — awaiting cluster run` and the rest of the report
-is complete. Re-run after downloading rejudge results to fill them in.
+table cells print `PENDING — awaiting cluster run`. Re-run after Step 7 to fill
+them in.
 
 ---
 
 ## Step 9 — LOCAL: export the human-validation sample
 
 ```bash
-cd /path/to/repo-intel-platform/backend
+cd /path/Downloads/repo-intel-platform/backend
 python -m scripts.export_human_validation
 ```
 
 Output: `evaluation_results/human_validation_sample_final.csv` — N=40,
 fixed seed=42, stratified across model × representation cells, with blank
 `human_coverage_verdict`, `human_hallucination_verdict`, and `notes` columns
-for the hand-scorer to fill in.
+for hand-scoring.
 
-This does **not** overwrite the existing `human_validation_sample.csv`
-(drawn from the old Run 2 data).
+Does **not** overwrite the existing `human_validation_sample.csv` (old Run 2 data).
 
 ---
 
@@ -253,8 +282,10 @@ This does **not** overwrite the existing `human_validation_sample.csv`
 
 | Symptom | Fix |
 |---|---|
-| Battery job exits with `FATAL: model not in $OLLAMA_MODELS` | Re-run Step 2 (save the image after pulling models); the saved image bakes in Ollama + deps but **not** the model weights — those live on `/data`. If `/data` was wiped, re-pull. |
-| Smoke test shows GPU memory near 0 | Ollama is not using the GPU. Check that `nvidia-smi` sees the device and that Ollama's CUDA runtime matches the driver. |
-| Rejudge job says `WARNING: battery_X.db not found` | The battery job for that arm hasn't finished yet or its output wasn't uploaded. Finish/upload it and resubmit the rejudge job. |
-| `build_paper_report.py` shows all new tables as PENDING | The new battery DBs are not yet in `evaluation_results/`. Download them from the cluster first. |
-| `qwen2.5-coder:32b` pull fails / tag not found | Check `https://ollama.com/library/qwen2.5-coder` for the exact tag. Do **not** substitute `qwen3-coder:30b`. |
+| Can't reach `https://10.126.1.10:4443/` | You must be on the SVKM campus network or VPN. |
+| Battery job exits `FATAL: model not in $OLLAMA_MODELS` | Models live on `/data/mpstme-dishank/ollama/` — not inside the image. If `/data` was wiped, re-pull via Step 2 Section 4. |
+| Smoke test shows GPU memory near 0 | Ollama is not using the GPU. Check `nvidia-smi` output in Section 1. Try the fallback base image `pytorch_pbs:23.06-py3`. |
+| Rejudge job: `WARNING: battery_X.db not found` | That battery arm hasn't finished yet or its DB wasn't uploaded to `/data/mpstme-dishank/evaluation_results/`. Complete Step 4–5 first. |
+| Rejudge parse phase fails for all repos | Upload `parse_cache.zip` (Step 5.5) — GitHub is likely blocked on that node. |
+| `build_paper_report.py` shows all new tables as PENDING | Download the battery `.db` files into `backend/evaluation_results/` first (Step 5). |
+| `qwen2.5-coder:32b` pull fails / tag not found | Check `https://ollama.com/library/qwen2.5-coder`. Do **not** substitute `qwen3-coder:30b`. |
