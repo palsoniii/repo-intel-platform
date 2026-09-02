@@ -26,7 +26,12 @@ import sys
 import time
 import traceback
 
-sys.path.insert(0, "/app")
+# Ensure the backend/ directory is on sys.path regardless of cwd.
+# When invoked as `python -m scripts.rejudge` from backend/, Python adds backend/
+# automatically. When invoked as a script directly, we need to add it ourselves.
+_BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _BACKEND_DIR not in sys.path:
+    sys.path.insert(0, _BACKEND_DIR)
 
 from app.evaluation.coverage import score_coverage
 from app.evaluation.hallucination import score_summary
@@ -35,8 +40,11 @@ from app.providers.ollama_provider import OllamaProvider
 from app.schemas.llm_result import ContextVariant
 from app.schemas.parser_schema import ParsedRepository
 
-RESULTS = "/app/evaluation_results"
-SRC_DB = os.path.join(RESULTS, "battery_v2.db")
+# Default fallback paths (overridden by --src-db / --out-dir / --cache-dir args).
+# These are relative to backend/ so the script is portable across environments.
+_DEFAULT_RESULTS = os.path.join(_BACKEND_DIR, "evaluation_results")
+RESULTS  = _DEFAULT_RESULTS
+SRC_DB   = os.path.join(RESULTS, "battery_v2.db")
 CACHE_DIR = os.path.join(RESULTS, "parse_cache")
 ROW_TIMEOUT_S = 300
 

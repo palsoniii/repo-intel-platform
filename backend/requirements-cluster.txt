@@ -1,13 +1,9 @@
-# Cluster-runtime requirements — minimal subset needed by the evaluation harness
-# and the rejudge script on the GPU cluster.
-#
-# Does NOT include:
-#   neo4j, tree-sitter-*, fastapi, uvicorn  — not called on the cluster
-#   bert-score                              -- excluded via --no-bertscore flag
-#   torch, numpy, scipy                    -- already in the pytorch_pbs base image
-#
-# Installed at job-start to /data/<user>/site-packages/ and added to PYTHONPATH,
-# so packages download once and are reused across all jobs.
+# Cluster-runtime requirements — minimal subset actually needed at runtime.
+# neo4j, tree-sitter*, python-dotenv are NOT listed here because their imports
+# in pipeline.py / harness.py / parsers/ have been made lazy (TYPE_CHECKING
+# guards and deferred imports inside functions that are never called on cluster).
+# torch/numpy/scipy already in pytorch_pbs base image.
+# bert-score excluded via --no-bertscore flag.
 
 pydantic==2.10.4
 gitpython==3.1.44

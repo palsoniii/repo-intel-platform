@@ -23,9 +23,11 @@ import csv
 import json
 import sqlite3
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
-from neo4j import Driver
+if TYPE_CHECKING:  # never imported at runtime -- neo4j is not installed on the cluster
+    from neo4j import Driver
+
 from pydantic import BaseModel
 
 from app.db.neo4j_client import get_driver

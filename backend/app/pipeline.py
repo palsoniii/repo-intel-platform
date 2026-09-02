@@ -10,15 +10,15 @@ import re
 import json
 import os
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from neo4j import Driver
-from neo4j.exceptions import DriverError, Neo4jError
+if TYPE_CHECKING:  # never imported at runtime on the cluster
+    from neo4j import Driver
+    from neo4j.exceptions import DriverError, Neo4jError
 
 from pydantic import BaseModel
 
 from app.acquisition.clone import AcquiredRepo, CloneFailedError, InvalidRepoUrlError, RepoTooLargeError, clone_repository
-from app.context.builder import build_context
-from app.db.neo4j_client import get_driver
 from app.evaluation.coverage import CoverageResult, score_coverage
 from app.evaluation.failure_analysis import FailureTag, analyze_failures
 from app.evaluation.hallucination import HallucinationResult, score_summary
@@ -29,15 +29,16 @@ from app.evaluation.oracle import (
     score_hallucination_oracle,
 )
 from app.evaluation.text_overlap import TextOverlapResult, extract_overview, score_text_overlap
-from app.graph.builder import ensure_constraints, write_parsed_repository
-from app.graph.diagram import generate_architecture_diagram
 from app.parsers.base import UnsupportedFrameworkError
-from app.parsers.registry import parse_repository
 from app.providers.base import BaseLLMProvider
 from app.providers.ollama_provider import OllamaProvider
 from app.providers.prompts import SUMMARY_PROMPT_TEMPLATE
 from app.schemas.llm_result import ContextVariant, LLMResult, RunStatus
 from app.schemas.parser_schema import ParsedRepository
+
+# Heavy infrastructure imports (neo4j, tree-sitter, graph builders, context builder)
+# are deferred to inside the functions that need them.  generate_across_contexts() --
+# the only function called on the cluster -- never touches any of them.
 
 REQUIRED_SUMMARY_KEYS = {"overview", "tech_stack", "services", "dependencies"}
 # Asked for by the prompt and scored, but NOT required for the output to count as valid.
@@ -71,6 +72,7 @@ def analyze_repository(url: str, max_size_mb: int = 200) -> ParsedRepository:
     acquired: AcquiredRepo | None = None
     try:
         acquired = clone_repository(url, max_size_mb=max_size_mb)
+        from app.parsers.registry import parse_repository  # deferred: not needed on cluster
         parsed = parse_repository(acquired.local_path)
         parsed.metadata.source_url = url
         parsed.metadata.commit_sha = acquired.commit_sha
@@ -99,6 +101,11 @@ def generate_repository_summary(
     parsed = analyze_repository(url, max_size_mb=max_size_mb)
 
     owns_driver = driver is None
+    # Deferred: these are never called on the cluster (context_pack path bypasses this fn)
+    from app.db.neo4j_client import get_driver
+    from app.graph.builder import ensure_constraints, write_parsed_repository
+    from app.context.builder import build_context
+    from neo4j.exceptions import DriverError, Neo4jError
     driver = driver or get_driver()
     provider = provider or OllamaProvider()
     try:
@@ -140,6 +147,10 @@ def generate_repository_diagram(
     parsed = analyze_repository(url, max_size_mb=max_size_mb)
 
     owns_driver = driver is None
+    from app.db.neo4j_client import get_driver  # deferred: not needed on cluster
+    from app.graph.builder import ensure_constraints, write_parsed_repository
+    from app.graph.diagram import generate_architecture_diagram
+    from neo4j.exceptions import DriverError, Neo4jError
     driver = driver or get_driver()
     try:
         try:
@@ -253,6 +264,7 @@ def run_representation_ablation(
     acquired: AcquiredRepo | None = None
     try:
         acquired = clone_repository(url, max_size_mb=max_size_mb)
+        from app.parsers.registry import parse_repository  # deferred: not needed on cluster
         parsed = parse_repository(acquired.local_path)
         parsed.metadata.source_url = url
         parsed.metadata.commit_sha = acquired.commit_sha
@@ -264,6 +276,10 @@ def run_representation_ablation(
             acquired.cleanup()
 
     owns_driver = driver is None
+    from app.db.neo4j_client import get_driver  # deferred: not needed on cluster
+    from app.graph.builder import ensure_constraints, write_parsed_repository
+    from app.context.builder import build_context
+    from neo4j.exceptions import DriverError, Neo4jError
     driver = driver or get_driver()
     provider = provider or OllamaProvider()
     try:
@@ -384,6 +400,7 @@ def run_scored_ablation(
     passes. The judge reads ground-truth facts from the ParsedRepository, so scoring
     needs no Neo4j and happens after the driver is released."""
     owns_driver = driver is None
+    from app.db.neo4j_client import get_driver  # deferred: not needed on cluster
     driver = driver or get_driver()
     provider = provider or OllamaProvider()
     judge_model = judge_model or provider.default_model
