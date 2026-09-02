@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # Secondary-judge rejudging pass. Upload as the "Job Script" in Altair Access
-# (Applications -> Batch or Shell Script) with the same image used for the battery.
+# (Applications -> Batch or Shell Script).
+#
+# No custom saved image required -- submit with the standard pytorch_pbs image.
+# The script bootstraps Ollama and Python deps from /data/<user>/ at start.
 #
 # Resources (same form fields as run_battery.sh):
 #
-#   Container Image               repo-intel-gpu
+#   Container Image               pytorch_pbs:25.12-py3   (standard image, NOT custom)
 #   Number of Nodes               1
 #   Number of Processors per Node 8
 #   Number of GPUs per Node       1
@@ -40,11 +43,20 @@ DATA="${DATA:-/data/${USER_NAME}}"
 PROJ="${PROJ:-${DATA}/repo-intel-platform}"
 OUT_DIR="${OUT_DIR:-${DATA}/evaluation_results}"
 JUDGE_SLUG="$(echo "$JUDGE" | tr ':.' '__' | tr '/' '_')"
-# Ollama may be in /usr/local/bin (root install) or in one of two non-root locations:
-# - $DATA/bin/ollama        (legacy single-binary install)
-# - $DATA/ollama-dist/bin/  (current tarball install, includes GPU libs)
 export PATH="${DATA}/ollama-dist/bin:${DATA}/bin:/usr/local/bin:${PATH}"
 export LD_LIBRARY_PATH="${DATA}/ollama-dist/lib/ollama:${LD_LIBRARY_PATH:-}"
+
+# --- Python deps bootstrap ---------------------------------------------------------------
+PIP_TARGET="${DATA}/site-packages"
+PIP_CACHE="${DATA}/pip-cache"
+REQ="${PROJ}/backend/requirements-cluster.txt"
+mkdir -p "$PIP_TARGET" "$PIP_CACHE"
+echo "=== installing Python deps to $PIP_TARGET ==="
+pip install --quiet --target "$PIP_TARGET" --cache-dir "$PIP_CACHE" -r "$REQ" \
+  >> /tmp/pip_install.log 2>&1 \
+  || { echo "FATAL: pip install failed. See /tmp/pip_install.log" >&2; exit 5; }
+export PYTHONPATH="${PIP_TARGET}:${PYTHONPATH:-}"
+echo "Python deps ready."
 
 export OLLAMA_MODELS="${OLLAMA_MODELS:-${DATA}/ollama}"
 export OLLAMA_HOST="http://127.0.0.1:11434"

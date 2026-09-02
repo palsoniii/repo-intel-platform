@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # One generator's battery, on one MIG slice. Upload as the "Job Script" in Altair
-# Access (Applications -> Batch or Shell Script) after saving the repo-intel-gpu image.
+# Access (Applications -> Batch or Shell Script).
+#
+# No custom saved image required -- submit with the standard pytorch_pbs image.
+# The script bootstraps Ollama and Python deps from /data/<user>/ at start.
 #
 # Resources come from the submission form, not from here. Set them to:
 #
-#   Container Image               repo-intel-gpu
+#   Container Image               pytorch_pbs:25.12-py3   (standard image, NOT custom)
 #   Number of Nodes               1
 #   Number of Processors per Node 8          <- the form defaults to 1
 #   Number of GPUs per Node       1
@@ -45,6 +48,21 @@ case "$MODEL" in
   qwen2.5-coder:32b)      RUN_TAG="qwen32b" ;;
   *)                      RUN_TAG="$(echo "$MODEL" | tr ':/' '__')" ;;
 esac
+
+# --- Python deps bootstrap ---------------------------------------------------------------
+# The pytorch_pbs base image does not have the project's Python deps pre-installed.
+# Install them to a persistent directory on /data/ so only the first job ever downloads
+# from PyPI; every subsequent job finds them already on disk and installs in ~10 seconds.
+PIP_TARGET="${DATA}/site-packages"
+PIP_CACHE="${DATA}/pip-cache"
+REQ="${PROJ}/backend/requirements-cluster.txt"
+mkdir -p "$PIP_TARGET" "$PIP_CACHE"
+echo "=== installing Python deps to $PIP_TARGET ==="
+pip install --quiet --target "$PIP_TARGET" --cache-dir "$PIP_CACHE" -r "$REQ" \
+  >> /tmp/pip_install.log 2>&1 \
+  || { echo "FATAL: pip install failed. See /tmp/pip_install.log" >&2; exit 5; }
+export PYTHONPATH="${PIP_TARGET}:${PYTHONPATH:-}"
+echo "Python deps ready."
 
 export OLLAMA_MODELS="${OLLAMA_MODELS:-${DATA}/ollama}"
 export OLLAMA_HOST="http://127.0.0.1:11434"

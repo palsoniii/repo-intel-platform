@@ -50,10 +50,11 @@ The resulting `context_pack.json` is ~5–10 MB. Upload it to the cluster in Ste
 
 ---
 
-## Step 2 — PORTAL: build the saved cluster image (one-time setup)
+## Step 2 — PORTAL: one-time setup (install Ollama + pull models + warm pip cache)
 
-> Skip to Step 3 if you already have a saved `repo-intel-gpu` image with all
-> models pulled. Check via **Altair Access → My Images**.
+> Skip to Step 3 if `/data/mpstme-dishank/ollama-dist/bin/ollama` already exists,
+> all 6 models are in `/data/mpstme-dishank/ollama/`, and
+> `/data/mpstme-dishank/site-packages/` is populated.
 
 **Open the portal**: `https://10.126.1.10:4443/`
 Log in as `mpstme-dishank`. Go to **Applications → Jupyter** and submit:
@@ -71,18 +72,23 @@ Open the notebook `hpc/00_setup_gpu_image.ipynb` from inside the Jupyter
 session and run all cells **in order**:
 
 1. **Section 1** — confirms GPU/RAM/network. Read the output before continuing.
-2. **Section 2** — installs Ollama (needs GitHub; use the fallback cell if blocked).
-3. **Section 3** — uploads/clones the project and installs Python deps.
+2. **Section 2** — installs Ollama to `/data/mpstme-dishank/ollama-dist/`.
+   Detects root vs non-root automatically.
+3. **Section 3** — clones/uploads the project and installs Python deps.
 4. **Section 4** — pulls all models onto `/data/mpstme-dishank/ollama/`.
    - Generators: `codellama:13b-instruct`, `qwen2.5-coder:14b`, `qwen2.5-coder:32b`
    - Primary judge: `gemma2:9b`
    - Secondary judges: `mistral:7b-instruct`, `gemma2:27b`
-   - This cell takes 20–40 minutes pulling ~55 GB cold.
+   - This cell takes 20–60 minutes pulling ~55 GB cold.
 5. **Section 5** — smoke test with `qwen2.5-coder:14b`. Must print `OK` and show
-   GPU memory > 0. If GPU memory stays near 0, the model is on CPU — stop and
-   fix before proceeding.
-6. **Section 6** — save the container as `repo-intel-gpu` via **Custom Actions
-   → Save Docker Container**. Set Working Directory to `/data`.
+   GPU memory in use. If eval rate is < 5 tok/s, the model is on CPU — restart
+   `ollama serve` with the `LD_LIBRARY_PATH` fix (Section 5 diagnostic cell).
+6. **Section 6** — pre-warms the pip package cache at
+   `/data/mpstme-dishank/site-packages/`. Takes ~2 minutes on first run.
+
+> **No "Save Container" step.** The portal does not allow custom images in batch
+> jobs. Instead, battery and rejudge jobs use `pytorch_pbs:25.12-py3` directly
+> and self-bootstrap from `/data/mpstme-dishank/` at start (~60 s overhead).
 
 ---
 
@@ -112,7 +118,7 @@ Submit `hpc/run_battery.sh` **three times**, once per generator.
 
 | Field | Value |
 |---|---|
-| Container Image | `repo-intel-gpu` |
+| Container Image | `pytorch_pbs:25.12-py3` |
 | Number of Nodes | 1 |
 | Number of Processors per Node | **8** |
 | Number of GPUs per Node | **1** |
@@ -201,7 +207,7 @@ Submit `hpc/run_rejudge.sh` **twice**, once per secondary judge.
 
 | Field | Value |
 |---|---|
-| Container Image | `repo-intel-gpu` |
+| Container Image | `pytorch_pbs:25.12-py3` |
 | Number of Nodes | 1 |
 | Number of Processors per Node | **8** |
 | Number of GPUs per Node | **1** |
