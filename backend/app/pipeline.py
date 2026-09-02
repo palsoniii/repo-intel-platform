@@ -219,25 +219,74 @@ def _read_raw_source(
     repo_path: Path, parsed: ParsedRepository, max_chars: int = DEFAULT_MAX_RAW_CHARS
 ) -> str:
     """RAW ContextVariant: the repo's own source text, concatenated per-module and
-    truncated to max_chars. Must run BEFORE the clone is cleaned up -- this is the
-    only place raw source is available anywhere in the pipeline (see
-    context/builder.py's docstring on why build_context() itself can't produce
-    this variant)."""
+    truncated to fit within the token budget. Token budget is calculated using tiktoken
+    (cl100k_base proxy) based on OLLAMA_NUM_CTX minus template overhead."""
+    import tiktoken
+    import logging
+    from app.providers.prompts import SUMMARY_PROMPT_TEMPLATE
+    
+    logger = logging.getLogger(__name__)
+    enc = tiktoken.get_encoding("cl100k_base")
+    
+    OLLAMA_NUM_CTX = int(os.environ.get("OLLAMA_NUM_CTX", "8192"))
+    SYSTEM_PROMPT_TOKENS = 50
+    RESERVED_OUTPUT_TOKENS = 1200
+    
+    # Since SUMMARY_PROMPT_TEMPLATE already contains the schema block appended a second time,
+    # formatting it with an empty context gives us the exact template overhead tokens.
+    template_overhead_tokens = len(enc.encode(SUMMARY_PROMPT_TEMPLATE.format(context="")))
+    
+    budget = OLLAMA_NUM_CTX - (SYSTEM_PROMPT_TOKENS + template_overhead_tokens + RESERVED_OUTPUT_TOKENS)
+    
+    # Log the computed budget once per pipeline start
+    if not hasattr(_read_raw_source, "_budget_logged"):
+        logger.info(f"Computed raw-context token budget: {budget} tokens (OLLAMA_NUM_CTX={OLLAMA_NUM_CTX})")
+        print(f"Computed raw-context token budget: {budget} tokens (OLLAMA_NUM_CTX={OLLAMA_NUM_CTX})")
+        _read_raw_source._budget_logged = True
+
     chunks: list[str] = []
-    total = 0
+    total_tokens = 0
+    separator_tokens = len(enc.encode("\n\n"))
+    
+    # Calculate the full raw source tokens to fast-fail if exceeded by rounding margin
+    full_raw_text = ""
+    for module in parsed.modules:
+        try:
+            text = (repo_path / module.path).read_text(encoding="utf-8", errors="replace")
+            full_raw_text += f"// ---- {module.path} ----\n{text}\n\n"
+        except OSError:
+            continue
+            
+    total_raw_tokens = len(enc.encode(full_raw_text))
+    margin = 50
+    if total_raw_tokens > (budget + margin):
+        warning_msg = f"WARNING: Repo {parsed.metadata.name} raw source exceeds token budget! ({total_raw_tokens} > {budget} tokens). It will be truncated."
+        logger.warning(warning_msg)
+        print(warning_msg)
+
     for module in parsed.modules:
         try:
             text = (repo_path / module.path).read_text(encoding="utf-8", errors="replace")
         except OSError:
             continue
+            
         chunk = f"// ---- {module.path} ----\n{text}"
-        if total + len(chunk) > max_chars:
-            remaining = max_chars - total
-            if remaining > 0:
-                chunks.append(chunk[:remaining])
+        chunk_tokens = len(enc.encode(chunk))
+        
+        cost = chunk_tokens + (separator_tokens if chunks else 0)
+        
+        if total_tokens + cost > budget:
+            remaining_tokens = budget - total_tokens - (separator_tokens if chunks else 0)
+            if remaining_tokens > 0:
+                # Truncate by tokens, not characters
+                encoded_chunk = enc.encode(chunk)
+                truncated_chunk = enc.decode(encoded_chunk[:remaining_tokens])
+                chunks.append(truncated_chunk)
             break
+            
         chunks.append(chunk)
-        total += len(chunk)
+        total_tokens += cost
+        
     return "\n\n".join(chunks)
 
 

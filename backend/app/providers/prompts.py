@@ -10,12 +10,7 @@ shape without a translation layer -- pipeline.py's JSON parsing just needs a
 snake_case -> camelCase mapping at the API boundary, not a schema redesign.
 """
 
-SUMMARY_PROMPT_TEMPLATE = """\
-You are analyzing a software repository from the structured context below. Base your \
-answer ONLY on facts present in the context -- do not invent classes, functions, \
-dependencies, or endpoints that aren't listed there. Respond with a single JSON \
-object with exactly these keys:
-
+SCHEMA_BLOCK = """\
 - "overview": a 4-6 sentence plain-English description of what this repository does -- \
 what it is for, how it is organised, and what its main parts are. Write it as prose a \
 developer new to the codebase could read to orient themselves, not as a list.
@@ -37,7 +32,15 @@ Copy the method and path verbatim from the context; do not normalise, guess, or 
 shorten them. Empty list if the context names none.
 - "components": a flat JSON array of the names of the repository's main classes, \
 controllers, and services, copied verbatim from the context -- e.g. ["UsersService", \
-"AuthController"]. Names only, no descriptions. Empty list if the context names none.
+"AuthController"]. Names only, no descriptions. Empty list if the context names none."""
+
+SUMMARY_PROMPT_TEMPLATE = f"""\
+You are analyzing a software repository from the structured context below. Base your \
+answer ONLY on facts present in the context -- do not invent classes, functions, \
+dependencies, or endpoints that aren't listed there. Respond with a single JSON \
+object with exactly these keys:
+
+{SCHEMA_BLOCK}
 
 If the context doesn't contain enough information for a field, return an empty list \
 (for tech_stack/services/dependencies/endpoints/components) or state that plainly in \
@@ -45,7 +48,11 @@ If the context doesn't contain enough information for a field, return an empty l
 the context.
 
 Context:
-{context}
+{{context}}
+
+Please output ONLY a valid JSON object matching this exact schema based on the context above:
+
+{SCHEMA_BLOCK}
 
 Respond with only the JSON object and no other text.
 """

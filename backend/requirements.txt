@@ -30,3 +30,4 @@ nltk==3.10.3         # BLEU-4, METEOR
 rouge-score==0.1.2   # ROUGE-L
 bert-score==0.3.13   # BERTScore (semantic overlap)
 scipy==1.18.1        # Wilcoxon signed-rank / paired significance testing
+tiktoken==0.8.0
