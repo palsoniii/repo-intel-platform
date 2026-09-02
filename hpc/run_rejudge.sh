@@ -40,6 +40,9 @@ DATA="${DATA:-/data/${USER_NAME}}"
 PROJ="${PROJ:-${DATA}/repo-intel-platform}"
 OUT_DIR="${OUT_DIR:-${DATA}/evaluation_results}"
 JUDGE_SLUG="$(echo "$JUDGE" | tr ':.' '__' | tr '/' '_')"
+# If the setup notebook ran as non-root, ollama was installed to $DATA/bin rather
+# than /usr/local/bin. Prepend both so the binary is found either way.
+export PATH="${DATA}/bin:/usr/local/bin:${PATH}"
 
 export OLLAMA_MODELS="${OLLAMA_MODELS:-${DATA}/ollama}"
 export OLLAMA_HOST="http://127.0.0.1:11434"
