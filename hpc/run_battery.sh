@@ -31,9 +31,11 @@ DATA="${DATA:-/data/${USER_NAME}}"
 PROJ="${PROJ:-${DATA}/repo-intel-platform}"
 PACK="${PACK:-${DATA}/context_pack.json}"
 OUT_DIR="${OUT_DIR:-${DATA}/evaluation_results}"
-# If the setup notebook ran as non-root, ollama was installed to $DATA/bin rather
-# than /usr/local/bin. Prepend both so the binary is found either way.
-export PATH="${DATA}/bin:/usr/local/bin:${PATH}"
+# Ollama may be in /usr/local/bin (root install) or in one of two non-root locations:
+# - $DATA/bin/ollama        (legacy single-binary install)
+# - $DATA/ollama-dist/bin/  (current tarball install, includes GPU libs)
+export PATH="${DATA}/ollama-dist/bin:${DATA}/bin:/usr/local/bin:${PATH}"
+export LD_LIBRARY_PATH="${DATA}/ollama-dist/lib/ollama:${LD_LIBRARY_PATH:-}"
 # Map canonical model names to clean output-file slugs so battery outputs land in
 # battery_codellama13b.{csv,db}, battery_qwen14b.{csv,db}, battery_qwen32b.{csv,db}.
 # Unknown model names fall back to the tr-escaped form for forward compatibility.
