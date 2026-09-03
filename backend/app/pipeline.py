@@ -49,15 +49,6 @@ REQUIRED_SUMMARY_KEYS = {"overview", "tech_stack", "services", "dependencies"}
 # separable when reading results.
 OPTIONAL_SUMMARY_KEYS = {"endpoints", "components"}
 
-# Raw-source arm cap. num_ctx is now configurable via OLLAMA_NUM_CTX (see
-# providers/ollama_provider.py) and .env sets it to 8192 tokens; this char cap is
-# sized to fit inside that window with headroom left for the prompt scaffold, the
-# ground-truth facts, and the model's own output. Keep this in step with
-# OLLAMA_NUM_CTX -- raising the window without raising this leaves the raw arm
-# needlessly truncated, and raising this above the window just gets truncated by Ollama.
-DEFAULT_MAX_RAW_CHARS = 24000
-
-
 class AnalysisError(Exception):
     """Wraps all recoverable failure modes with a consistent message for the API layer."""
 
@@ -216,7 +207,7 @@ def _default_comparison_models() -> list[str]:
 
 
 def _read_raw_source(
-    repo_path: Path, parsed: ParsedRepository, max_chars: int = DEFAULT_MAX_RAW_CHARS
+    repo_path: Path, parsed: ParsedRepository
 ) -> str:
     """RAW ContextVariant: the repo's own source text, concatenated per-module and
     truncated to fit within the token budget. Token budget is calculated using tiktoken
@@ -294,7 +285,6 @@ def run_representation_ablation(
     url: str,
     models: list[str] | None = None,
     max_size_mb: int = 200,
-    max_raw_chars: int = DEFAULT_MAX_RAW_CHARS,
     driver: Driver | None = None,
     provider: BaseLLMProvider | None = None,
 ) -> tuple[ParsedRepository, list[LLMResult]]:
@@ -317,7 +307,7 @@ def run_representation_ablation(
         parsed = parse_repository(acquired.local_path)
         parsed.metadata.source_url = url
         parsed.metadata.commit_sha = acquired.commit_sha
-        raw_context = _read_raw_source(acquired.local_path, parsed, max_raw_chars)
+        raw_context = _read_raw_source(acquired.local_path, parsed)
     except (InvalidRepoUrlError, CloneFailedError, RepoTooLargeError, UnsupportedFrameworkError) as e:
         raise AnalysisError(str(e)) from e
     finally:

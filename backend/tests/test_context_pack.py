@@ -34,7 +34,6 @@ def _parsed() -> ParsedRepository:
 def _pack() -> ContextPack:
     return ContextPack(
         built_at="2026-08-29T00:00:00+00:00",
-        max_raw_chars=24000,
         repositories=[
             PackedRepository(
                 source_url="https://github.com/test/sample-repo",
@@ -57,7 +56,6 @@ def test_pack_round_trips_through_disk(tmp_path):
     repo = back.repositories[0]
     assert repo.parsed.metadata.name == "sample-repo"
     assert repo.parsed.modules[0].path == "src/app.ts"
-    assert back.max_raw_chars == 24000
 
 
 def test_context_keys_survive_as_enum_not_string(tmp_path):

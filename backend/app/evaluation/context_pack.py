@@ -54,7 +54,6 @@ class PackedRepository(BaseModel):
 class ContextPack(BaseModel):
     version: int = PACK_VERSION
     built_at: str
-    max_raw_chars: int
     notes: str = ""
     repositories: list[PackedRepository] = Field(default_factory=list)
 

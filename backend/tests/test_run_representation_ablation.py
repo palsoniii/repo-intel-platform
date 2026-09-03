@@ -73,11 +73,11 @@ def test_runs_all_models_across_all_three_representations(fake_acquired_repo, fa
     mock_driver = MagicMock()
 
     with patch("app.pipeline.clone_repository", return_value=fake_acquired_repo), patch(
-        "app.pipeline.parse_repository", return_value=fake_parsed_repository
-    ), patch("app.pipeline.ensure_constraints"), patch(
-        "app.pipeline.write_parsed_repository"
+        "app.parsers.registry.parse_repository", return_value=fake_parsed_repository
+    ), patch("app.graph.builder.ensure_constraints"), patch(
+        "app.graph.builder.write_parsed_repository"
     ), patch(
-        "app.pipeline.build_context",
+        "app.context.builder.build_context",
         side_effect=lambda driver, repo_name, variant: f"context-for-{variant.value}",
     ):
         parsed, results = run_representation_ablation(
@@ -112,10 +112,10 @@ def test_raw_context_actually_contains_source_text(fake_acquired_repo, fake_pars
     mock_driver = MagicMock()
 
     with patch("app.pipeline.clone_repository", return_value=fake_acquired_repo), patch(
-        "app.pipeline.parse_repository", return_value=fake_parsed_repository
-    ), patch("app.pipeline.ensure_constraints"), patch(
-        "app.pipeline.write_parsed_repository"
-    ), patch("app.pipeline.build_context", return_value="graph-based-context"):
+        "app.parsers.registry.parse_repository", return_value=fake_parsed_repository
+    ), patch("app.graph.builder.ensure_constraints"), patch(
+        "app.graph.builder.write_parsed_repository"
+    ), patch("app.context.builder.build_context", return_value="graph-based-context"):
         run_representation_ablation(
             "https://github.com/test/fake-repo",
             models=["model-a"],
@@ -128,39 +128,13 @@ def test_raw_context_actually_contains_source_text(fake_acquired_repo, fake_pars
     assert captured_contexts[ContextVariant.KNOWLEDGE_GRAPH] == "graph-based-context"
 
 
-def test_raw_context_is_truncated_to_max_chars(fake_acquired_repo, fake_parsed_repository):
-    (fake_acquired_repo.local_path / "app.js").write_text("x" * 5000)
-    provider = MagicMock()
-    captured = {}
-    provider.generate_summary.side_effect = lambda **kwargs: (
-        captured.__setitem__(kwargs["context_variant"], kwargs["context"])
-        or _fake_llm_result(kwargs["model"], kwargs["context_variant"])
-    )
-    mock_driver = MagicMock()
-
-    with patch("app.pipeline.clone_repository", return_value=fake_acquired_repo), patch(
-        "app.pipeline.parse_repository", return_value=fake_parsed_repository
-    ), patch("app.pipeline.ensure_constraints"), patch(
-        "app.pipeline.write_parsed_repository"
-    ), patch("app.pipeline.build_context", return_value="ctx"):
-        run_representation_ablation(
-            "https://github.com/test/fake-repo",
-            models=["model-a"],
-            max_raw_chars=100,
-            driver=mock_driver,
-            provider=provider,
-        )
-
-    assert len(captured[ContextVariant.RAW]) <= 100
-
-
 def test_cleans_up_acquired_repo_even_if_neo4j_fails(fake_acquired_repo, fake_parsed_repository):
     fake_acquired_repo_mock = MagicMock(wraps=fake_acquired_repo)
     fake_acquired_repo_mock.local_path = fake_acquired_repo.local_path
 
     with patch("app.pipeline.clone_repository", return_value=fake_acquired_repo_mock), patch(
-        "app.pipeline.parse_repository", return_value=fake_parsed_repository
-    ), patch("app.pipeline.ensure_constraints", side_effect=RuntimeError("boom")):
+        "app.parsers.registry.parse_repository", return_value=fake_parsed_repository
+    ), patch("app.graph.builder.ensure_constraints", side_effect=RuntimeError("boom")):
         with pytest.raises(RuntimeError):
             run_representation_ablation(
                 "https://github.com/test/fake-repo", driver=MagicMock(), provider=MagicMock()
@@ -200,6 +174,7 @@ def test_run_scored_ablation_attaches_a_score_per_successful_result(fake_parsed_
     ) as mock_coverage:
         parsed, scored = run_scored_ablation(
             "https://github.com/test/fake-repo",
+            models=["model-a"],
             judge_model="llama3.1:8b",
             driver=MagicMock(),
             provider=MagicMock(),

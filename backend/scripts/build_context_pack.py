@@ -41,15 +41,14 @@ from app.evaluation.context_pack import ContextPack, PackedRepository  # noqa: E
 from app.graph.builder import ensure_constraints, write_parsed_repository  # noqa: E402
 from app.parsers.base import UnsupportedFrameworkError  # noqa: E402
 from app.parsers.registry import parse_repository  # noqa: E402
-from app.pipeline import DEFAULT_MAX_RAW_CHARS, _read_raw_source  # noqa: E402
+from app.pipeline import _read_raw_source  # noqa: E402
 from app.schemas.llm_result import ContextVariant  # noqa: E402
 
 
-def build(urls: list[str], max_size_mb: int, max_raw_chars: int, notes: str) -> ContextPack:
+def build(urls: list[str], max_size_mb: int, notes: str) -> ContextPack:
     driver = get_driver()
     pack = ContextPack(
         built_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        max_raw_chars=max_raw_chars,
         notes=notes,
     )
     try:
@@ -64,7 +63,7 @@ def build(urls: list[str], max_size_mb: int, max_raw_chars: int, notes: str) -> 
                 parsed.metadata.commit_sha = acquired.commit_sha
                 # Raw source must be read before cleanup -- it is the one context the
                 # graph cannot reproduce.
-                raw = _read_raw_source(acquired.local_path, parsed, max_raw_chars)
+                raw = _read_raw_source(acquired.local_path, parsed)
             except (
                 InvalidRepoUrlError,
                 CloneFailedError,
@@ -103,11 +102,10 @@ def main() -> int:
     ap.add_argument("urls", nargs="+", help="GitHub repo URLs to freeze into the pack")
     ap.add_argument("--out", default="evaluation_results/context_pack.json")
     ap.add_argument("--max-size-mb", type=int, default=200)
-    ap.add_argument("--max-raw-chars", type=int, default=DEFAULT_MAX_RAW_CHARS)
     ap.add_argument("--notes", default="", help="Free text recorded in the pack (e.g. which study this is for)")
     args = ap.parse_args()
 
-    pack = build(args.urls, args.max_size_mb, args.max_raw_chars, args.notes)
+    pack = build(args.urls, args.max_size_mb, args.notes)
     if not pack.repositories:
         print("No repositories were packed -- nothing written.", file=sys.stderr)
         return 1
