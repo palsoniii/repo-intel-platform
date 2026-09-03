@@ -30,7 +30,6 @@ if TYPE_CHECKING:  # never imported at runtime -- neo4j is not installed on the 
 
 from pydantic import BaseModel
 
-from app.db.neo4j_client import get_driver
 from app.evaluation.context_pack import ContextPack, PackedRepository
 from app.evaluation.coverage import build_coverable_facts, categorize_facts, score_coverage
 from app.evaluation.hallucination import score_summary
@@ -179,6 +178,8 @@ def run_evaluation(
     # still fail on a host with no bolt route configured at all.
     owns_driver = driver is None and context_pack is None
     if context_pack is None:
+    if not context_pack:
+        from app.db.neo4j_client import get_driver
         driver = driver or get_driver()
     provider = provider or OllamaProvider()
     judge_model = judge_model or provider.default_model

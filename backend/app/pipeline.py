@@ -212,29 +212,13 @@ def _read_raw_source(
     """RAW ContextVariant: the repo's own source text, concatenated per-module and
     truncated to fit within the token budget. Token budget is calculated using tiktoken
     (cl100k_base proxy) based on OLLAMA_NUM_CTX minus template overhead."""
-    import tiktoken
     import logging
-    from app.providers.prompts import SUMMARY_PROMPT_TEMPLATE
+    from app.context.token_budget import compute_context_token_budget, get_encoder
     
     logger = logging.getLogger(__name__)
-    enc = tiktoken.get_encoding("cl100k_base")
+    enc = get_encoder()
+    budget = compute_context_token_budget()
     
-    OLLAMA_NUM_CTX = int(os.environ.get("OLLAMA_NUM_CTX", "8192"))
-    SYSTEM_PROMPT_TOKENS = 50
-    RESERVED_OUTPUT_TOKENS = 1200
-    
-    # Since SUMMARY_PROMPT_TEMPLATE already contains the schema block appended a second time,
-    # formatting it with an empty context gives us the exact template overhead tokens.
-    template_overhead_tokens = len(enc.encode(SUMMARY_PROMPT_TEMPLATE.format(context="")))
-    
-    budget = OLLAMA_NUM_CTX - (SYSTEM_PROMPT_TOKENS + template_overhead_tokens + RESERVED_OUTPUT_TOKENS)
-    
-    # Log the computed budget once per pipeline start
-    if not hasattr(_read_raw_source, "_budget_logged"):
-        logger.info(f"Computed raw-context token budget: {budget} tokens (OLLAMA_NUM_CTX={OLLAMA_NUM_CTX})")
-        print(f"Computed raw-context token budget: {budget} tokens (OLLAMA_NUM_CTX={OLLAMA_NUM_CTX})")
-        _read_raw_source._budget_logged = True
-
     chunks: list[str] = []
     total_tokens = 0
     separator_tokens = len(enc.encode("\n\n"))

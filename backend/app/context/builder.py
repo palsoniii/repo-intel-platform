@@ -31,10 +31,10 @@ def build_context(driver: Driver, repo_name: str, variant: ContextVariant) -> st
     with driver.session() as session:
         if variant == ContextVariant.DEPENDENCY_GRAPH:
             rows = session.execute_read(_query_dependency_graph, repo_name)
-            return _format_dependency_graph(rows)
+            return _format_dependency_graph(rows, repo_name)
 
         data = session.execute_read(_query_knowledge_graph, repo_name)
-        return _format_knowledge_graph(data)
+        return _format_knowledge_graph(data, repo_name)
 
 
 def _query_dependency_graph(tx: ManagedTransaction, repo_name: str) -> list[dict]:
@@ -52,20 +52,54 @@ def _query_dependency_graph(tx: ManagedTransaction, repo_name: str) -> list[dict
     return [dict(record) for record in result]
 
 
-def _format_dependency_graph(rows: list[dict]) -> str:
+def _format_dependency_graph(rows: list[dict], repo_name: str) -> str:
+    from app.context.token_budget import compute_context_token_budget, get_encoder
+    import logging
+    logger = logging.getLogger(__name__)
+
     if not rows:
         return "No modules found for this repository."
 
-    lines = ["Module dependency graph:"]
+    enc = get_encoder()
+    budget = compute_context_token_budget()
+    
     all_external: set[str] = set()
+    modules_lines = []
     for row in rows:
         imports = [i for i in row["imports"] if i]
-        lines.append(f"- {row['module_path']} imports: {', '.join(imports) or '(none)'}")
+        modules_lines.append(f"- {row['module_path']} imports: {', '.join(imports) or '(none)'}")
         all_external.update(d for d in row["external_dependencies"] if d)
 
-    lines.append("")
-    lines.append(f"External dependencies: {', '.join(sorted(all_external)) or '(none)'}")
-    return "\n".join(lines)
+    deps_line = f"External dependencies: {', '.join(sorted(all_external)) or '(none)'}"
+    
+    full_text = "Module dependency graph:\n" + "\n".join(modules_lines) + "\n\n" + deps_line
+    total_raw_tokens = len(enc.encode(full_text))
+    if total_raw_tokens > budget + 50:
+        warning_msg = f"WARNING: Repo {repo_name} dependency_graph context exceeds token budget! ({total_raw_tokens} > {budget} tokens). It will be truncated."
+        logger.warning(warning_msg)
+        print(warning_msg)
+
+    output_lines = ["Module dependency graph:"]
+    current_tokens = len(enc.encode(output_lines[0] + "\n"))
+    deps_tokens = len(enc.encode("\n\n" + deps_line))
+
+    for i, line in enumerate(modules_lines):
+        line_tokens = len(enc.encode(line + "\n"))
+        if current_tokens + line_tokens > budget:
+            output_lines.append(f"... {len(modules_lines) - i} more modules omitted (token budget)")
+            break
+        output_lines.append(line)
+        current_tokens += line_tokens
+
+    if current_tokens + deps_tokens <= budget:
+        output_lines.append("")
+        output_lines.append(deps_line)
+    else:
+        msg = f"WARNING: Dropped external dependencies line for {repo_name} (dependency_graph) due to token budget."
+        logger.warning(msg)
+        print(msg)
+
+    return "\n".join(output_lines)
 
 
 def _query_knowledge_graph(tx: ManagedTransaction, repo_name: str) -> dict:
@@ -101,9 +135,16 @@ def _query_knowledge_graph(tx: ManagedTransaction, repo_name: str) -> dict:
     return dict(record) if record else {}
 
 
-def _format_knowledge_graph(data: dict) -> str:
+def _format_knowledge_graph(data: dict, repo_name: str) -> str:
+    from app.context.token_budget import compute_context_token_budget, get_encoder
+    import logging
+    logger = logging.getLogger(__name__)
+
     if not data:
         return "No graph data found for this repository."
+
+    enc = get_encoder()
+    budget = compute_context_token_budget()
 
     module_rows = [m for m in data.get("module_rows", []) if m and m.get("path")]
     module_rows.sort(key=lambda m: m["path"])
@@ -113,47 +154,115 @@ def _format_knowledge_graph(data: dict) -> str:
     configs = sorted(c for c in data.get("config_files", []) if c)
     db_entities = sorted(d for d in data.get("database_entities", []) if d)
 
-    lines: list[str] = []
-    lines.append(
-        f"Framework: {data.get('framework') or 'unknown'} "
-        f"({data.get('framework_version') or 'version unknown'})"
-    )
-    lines.append("")
-
-    # Each module carries its own import edges and the classes it defines. Emitting the
-    # relationships (rather than three flat lists) is what makes this variant a superset
-    # of dependency_graph: previously it dropped IMPORTS entirely, so the two arms were
-    # partially disjoint -- knowledge_graph had entity names and no edges, while
-    # dependency_graph had edges and no classes. Comparing them could not measure
-    # "more structure" because neither contained the other.
-    lines.append(f"Modules ({len(module_rows)}):")
+    # Fast fail check on full untruncated string
+    lines_untrunc = []
+    lines_untrunc.append(f"Framework: {data.get('framework') or 'unknown'} ({data.get('framework_version') or 'version unknown'})\n")
+    lines_untrunc.append(f"Modules ({len(module_rows)}):")
     if module_rows:
         for m in module_rows:
             imports = sorted(i for i in (m.get("imports") or []) if i)
             defines = sorted(c for c in (m.get("classes") or []) if c)
-            lines.append(f"- {m['path']}")
-            lines.append(f"    imports: {', '.join(imports) or '(none)'}")
+            lines_untrunc.append(f"- {m['path']}")
+            lines_untrunc.append(f"    imports: {', '.join(imports) or '(none)'}")
             if defines:
-                lines.append(f"    defines: {', '.join(defines)}")
+                lines_untrunc.append(f"    defines: {', '.join(defines)}")
     else:
-        lines.append("(none)")
-    lines.append("")
+        lines_untrunc.append("(none)")
+    lines_untrunc.append("")
 
-    lines.append(f"Classes ({len(classes)}):")
-    lines.extend([f"- {c}" for c in classes] or ["(none)"])
-    lines.append("")
+    lines_untrunc.append(f"Classes ({len(classes)}):")
+    lines_untrunc.extend([f"- {c}" for c in classes] or ["(none)"])
+    lines_untrunc.append("")
 
-    lines.append(f"API endpoints ({len(endpoints)}):")
+    lines_untrunc.append(f"API endpoints ({len(endpoints)}):")
     if endpoints:
         for e in endpoints:
             handler = e.get("handler") or "(inline handler, no stable function reference)"
-            lines.append(f"- {e['method']} {e['path']} -> {handler}")
+            lines_untrunc.append(f"- {e['method']} {e['path']} -> {handler}")
     else:
-        lines.append("(none)")
-    lines.append("")
+        lines_untrunc.append("(none)")
+    lines_untrunc.append("")
 
-    lines.append(f"External dependencies: {', '.join(deps) or '(none)'}")
-    lines.append(f"Config files: {', '.join(configs) or '(none)'}")
-    lines.append(f"Database entities: {', '.join(db_entities) or '(none)'}")
+    lines_untrunc.append(f"External dependencies: {', '.join(deps) or '(none)'}")
+    lines_untrunc.append(f"Config files: {', '.join(configs) or '(none)'}")
+    lines_untrunc.append(f"Database entities: {', '.join(db_entities) or '(none)'}")
 
-    return "\n".join(lines)
+    full_text = "\n".join(lines_untrunc)
+    total_raw_tokens = len(enc.encode(full_text))
+    if total_raw_tokens > budget + 50:
+        warning_msg = f"WARNING: Repo {repo_name} knowledge_graph context exceeds token budget! ({total_raw_tokens} > {budget} tokens). It will be truncated."
+        logger.warning(warning_msg)
+        print(warning_msg)
+
+    # Budgeted builder
+    output_lines = []
+    current_tokens = 0
+
+    def add_line(text: str) -> bool:
+        nonlocal current_tokens
+        t_count = len(enc.encode(text + "\n"))
+        if current_tokens + t_count > budget:
+            return False
+        output_lines.append(text)
+        current_tokens += t_count
+        return True
+
+    if not add_line(f"Framework: {data.get('framework') or 'unknown'} ({data.get('framework_version') or 'version unknown'})\n"):
+        return "\n".join(output_lines)
+
+    # Modules
+    if not add_line(f"Modules ({len(module_rows)}):"): return "\n".join(output_lines)
+    if module_rows:
+        for i, m in enumerate(module_rows):
+            imports = sorted(im for im in (m.get("imports") or []) if im)
+            defines = sorted(c for c in (m.get("classes") or []) if c)
+            mod_lines = [f"- {m['path']}", f"    imports: {', '.join(imports) or '(none)'}"]
+            if defines:
+                mod_lines.append(f"    defines: {', '.join(defines)}")
+            group_text = "\n".join(mod_lines)
+            
+            t_count = len(enc.encode(group_text + "\n"))
+            if current_tokens + t_count > budget:
+                output_lines.append(f"... {len(module_rows) - i} more modules omitted (token budget)")
+                return "\n".join(output_lines)
+            output_lines.extend(mod_lines)
+            current_tokens += t_count
+    else:
+        if not add_line("(none)"): return "\n".join(output_lines)
+    if not add_line(""): return "\n".join(output_lines)
+
+    # Classes
+    if not add_line(f"Classes ({len(classes)}):"): return "\n".join(output_lines)
+    if classes:
+        for i, c in enumerate(classes):
+            if not add_line(f"- {c}"):
+                output_lines.append(f"... {len(classes) - i} more classes omitted (token budget)")
+                return "\n".join(output_lines)
+    else:
+        if not add_line("(none)"): return "\n".join(output_lines)
+    if not add_line(""): return "\n".join(output_lines)
+
+    # Endpoints
+    if not add_line(f"API endpoints ({len(endpoints)}):"): return "\n".join(output_lines)
+    if endpoints:
+        for i, e in enumerate(endpoints):
+            handler = e.get("handler") or "(inline handler, no stable function reference)"
+            if not add_line(f"- {e['method']} {e['path']} -> {handler}"):
+                output_lines.append(f"... {len(endpoints) - i} more endpoints omitted (token budget)")
+                return "\n".join(output_lines)
+    else:
+        if not add_line("(none)"): return "\n".join(output_lines)
+    if not add_line(""): return "\n".join(output_lines)
+
+    # Footer
+    if not add_line(f"External dependencies: {', '.join(deps) or '(none)'}"):
+        output_lines.append("... dependencies omitted (token budget)")
+        return "\n".join(output_lines)
+    if not add_line(f"Config files: {', '.join(configs) or '(none)'}"):
+        output_lines.append("... configs omitted (token budget)")
+        return "\n".join(output_lines)
+    if not add_line(f"Database entities: {', '.join(db_entities) or '(none)'}"):
+        output_lines.append("... database entities omitted (token budget)")
+        return "\n".join(output_lines)
+
+    return "\n".join(output_lines)

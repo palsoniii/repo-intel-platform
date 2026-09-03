@@ -69,9 +69,9 @@ def test_orchestration_calls_graph_and_context_before_provider(mock_driver):
         '{"overview": "x", "tech_stack": [], "services": [], "dependencies": []}'
     )
 
-    with patch("app.pipeline.ensure_constraints") as mock_constraints, patch(
-        "app.pipeline.write_parsed_repository"
-    ) as mock_write, patch("app.pipeline.build_context", return_value="fake context") as mock_ctx:
+    with patch("app.graph.builder.ensure_constraints") as mock_constraints, patch(
+        "app.graph.builder.write_parsed_repository"
+    ) as mock_write, patch("app.context.builder.build_context", return_value="fake context") as mock_ctx:
         parsed, result = generate_repository_summary(
             "https://github.com/test/fake-repo", driver=mock_driver, provider=provider
         )
@@ -96,8 +96,8 @@ def test_injected_driver_is_not_closed(mock_driver):
     provider.default_model = "qwen2.5-coder:7b"
     provider.generate_summary.return_value = _fake_llm_result("not json")
 
-    with patch("app.pipeline.ensure_constraints"), patch("app.pipeline.write_parsed_repository"), patch(
-        "app.pipeline.build_context", return_value="ctx"
+    with patch("app.graph.builder.ensure_constraints"), patch("app.graph.builder.write_parsed_repository"), patch(
+        "app.context.builder.build_context", return_value="ctx"
     ):
         generate_repository_summary(
             "https://github.com/test/fake-repo", driver=mock_driver, provider=provider
@@ -110,10 +110,10 @@ def test_owned_driver_is_closed_even_if_context_build_fails(mock_driver):
     provider = MagicMock()
     provider.default_model = "qwen2.5-coder:7b"
 
-    with patch("app.pipeline.get_driver", return_value=mock_driver), patch(
-        "app.pipeline.ensure_constraints"
-    ), patch("app.pipeline.write_parsed_repository"), patch(
-        "app.pipeline.build_context", side_effect=RuntimeError("graph query failed")
+    with patch("app.db.neo4j_client.get_driver", return_value=mock_driver), patch(
+        "app.graph.builder.ensure_constraints"
+    ), patch("app.graph.builder.write_parsed_repository"), patch(
+        "app.context.builder.build_context", side_effect=RuntimeError("graph query failed")
     ):
         with pytest.raises(RuntimeError):
             generate_repository_summary("https://github.com/test/fake-repo", provider=provider)
@@ -130,8 +130,8 @@ def test_neo4j_connection_failure_wrapped_as_infrastructure_error(mock_driver):
     provider = MagicMock()
     provider.default_model = "qwen2.5-coder:7b"
 
-    with patch("app.pipeline.ensure_constraints"), patch("app.pipeline.write_parsed_repository"), patch(
-        "app.pipeline.build_context",
+    with patch("app.graph.builder.ensure_constraints"), patch("app.graph.builder.write_parsed_repository"), patch(
+        "app.context.builder.build_context",
         side_effect=ServiceUnavailable("Couldn't connect to localhost:7687"),
     ):
         with pytest.raises(PipelineInfrastructureError, match="Neo4j"):
@@ -147,8 +147,8 @@ def test_malformed_model_output_marked_invalid_not_raised(mock_driver):
     provider.default_model = "qwen2.5-coder:7b"
     provider.generate_summary.return_value = _fake_llm_result("this is not JSON at all")
 
-    with patch("app.pipeline.ensure_constraints"), patch("app.pipeline.write_parsed_repository"), patch(
-        "app.pipeline.build_context", return_value="ctx"
+    with patch("app.graph.builder.ensure_constraints"), patch("app.graph.builder.write_parsed_repository"), patch(
+        "app.context.builder.build_context", return_value="ctx"
     ):
         _, result = generate_repository_summary(
             "https://github.com/test/fake-repo", driver=mock_driver, provider=provider
@@ -163,8 +163,8 @@ def test_missing_required_keys_marked_invalid(mock_driver):
     provider.default_model = "qwen2.5-coder:7b"
     provider.generate_summary.return_value = _fake_llm_result('{"overview": "x"}')  # missing keys
 
-    with patch("app.pipeline.ensure_constraints"), patch("app.pipeline.write_parsed_repository"), patch(
-        "app.pipeline.build_context", return_value="ctx"
+    with patch("app.graph.builder.ensure_constraints"), patch("app.graph.builder.write_parsed_repository"), patch(
+        "app.context.builder.build_context", return_value="ctx"
     ):
         _, result = generate_repository_summary(
             "https://github.com/test/fake-repo", driver=mock_driver, provider=provider
@@ -180,8 +180,8 @@ def test_failed_llm_run_is_not_json_parsed(mock_driver):
     provider.default_model = "qwen2.5-coder:7b"
     provider.generate_summary.return_value = _fake_llm_result("", status=RunStatus.FAILED)
 
-    with patch("app.pipeline.ensure_constraints"), patch("app.pipeline.write_parsed_repository"), patch(
-        "app.pipeline.build_context", return_value="ctx"
+    with patch("app.graph.builder.ensure_constraints"), patch("app.graph.builder.write_parsed_repository"), patch(
+        "app.context.builder.build_context", return_value="ctx"
     ):
         _, result = generate_repository_summary(
             "https://github.com/test/fake-repo", driver=mock_driver, provider=provider
