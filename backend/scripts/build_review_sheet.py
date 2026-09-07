@@ -32,13 +32,11 @@ def main():
     repo_facts = {}
     for repo in pack.repositories:
         name = repo.parsed.metadata.name
-        framework = getattr(repo.parsed.metadata, 'framework', 'Unknown')
+        framework = repo.parsed.metadata.detected_framework
         deps = ", ".join([d.name for d in repo.parsed.dependencies.external])
         endpoints = []
-        for mod in repo.parsed.modules:
-            for cls in mod.classes:
-                for ep in cls.endpoints:
-                    endpoints.append(f"{ep.method.upper()} {ep.path}")
+        for ep in repo.parsed.api_endpoints:
+            endpoints.append(f"{ep.method.upper()} {ep.path}")
         repo_facts[name] = {
             "framework": framework,
             "deps": deps,
