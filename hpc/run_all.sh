@@ -318,13 +318,39 @@ cd "$PROJ/backend" || { echo "FATAL: cannot cd to $PROJ/backend" >&2; exit 2; }
 
 # rejudge_quality_and_overlap.py and rejudge_full_claims.py write to relative
 # evaluation_results/ paths, so that name must resolve to the persistent $OUT_DIR.
-if [[ ! -e evaluation_results ]]; then
-  ln -s "$OUT_DIR" evaluation_results \
-    || { echo "FATAL: could not symlink $PROJ/backend/evaluation_results -> $OUT_DIR" >&2; exit 2; }
-  echo "symlinked $PROJ/backend/evaluation_results -> $OUT_DIR"
-else
-  echo "using existing $PROJ/backend/evaluation_results"
-fi
+# The repo checkout ships its own backend/evaluation_results/ (old committed
+# results). Left in place it shadows $OUT_DIR, and every --src-db lookup fails on
+# a directory that has none of the battery DBs -- so it is moved aside, not
+# written into.
+link_results() {
+  local here="$PROJ/backend/evaluation_results"
+  local resolved_here="" resolved_out=""
+  resolved_out="$(cd "$OUT_DIR" 2>/dev/null && pwd -P)" || resolved_out=""
+
+  if [[ -e "$here" || -L "$here" ]]; then
+    resolved_here="$(cd "$here" 2>/dev/null && pwd -P)" || resolved_here=""
+    if [[ -n "$resolved_here" && "$resolved_here" == "$resolved_out" ]]; then
+      echo "evaluation_results already resolves to $OUT_DIR"
+      return 0
+    fi
+    local aside="${here}.shipped.$(date '+%Y%m%d%H%M%S')"
+    mv "$here" "$aside" || {
+      echo "FATAL: $here shadows $OUT_DIR and could not be moved aside." >&2
+      return 2
+    }
+    echo "WARNING: $here shadowed $OUT_DIR (the battery DBs live in $OUT_DIR)."
+    echo "WARNING: moved it aside to $aside -- nothing was deleted."
+  fi
+
+  ln -s "$OUT_DIR" "$here" || {
+    echo "FATAL: could not symlink $here -> $OUT_DIR" >&2
+    return 2
+  }
+  echo "symlinked $here -> $OUT_DIR"
+  return 0
+}
+
+link_results || exit 2
 
 case "$PHASE" in
   all)
