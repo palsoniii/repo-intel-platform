@@ -3,7 +3,10 @@
 # in pipeline.py / harness.py / parsers/ have been made lazy (TYPE_CHECKING
 # guards and deferred imports inside functions that are never called on cluster).
 # torch/numpy/scipy already in pytorch_pbs base image.
-# bert-score excluded via --no-bertscore flag.
+# bert-score is excluded on purpose: pass --no-bertscore to
+# scripts.rejudge_quality_and_overlap (BLEU-4, ROUGE-L and METEOR still run;
+# bertscore_f1 is left empty). roberta-large could not be fetched from a
+# network-isolated compute node anyway.
 
 pydantic==2.10.4
 gitpython==3.1.44
@@ -13,3 +16,5 @@ sqlalchemy==2.0.36
 pandas==2.2.3
 nltk==3.10.3
 rouge-score==0.1.2
+openpyxl==3.1.2
+scikit-learn
