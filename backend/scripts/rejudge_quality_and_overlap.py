@@ -73,8 +73,9 @@ def main():
                         help="Directory holding the battery_*.db inputs and the output CSVs.")
     parser.add_argument("--no-bertscore", action="store_true",
                         help="Skip BERTScore (bertscore_f1 left empty). Required on the "
-                             "cluster: bert-score is not installed there and roberta-large "
-                             "cannot be downloaded from a network-isolated node.")
+                             "cluster: bert-score is not installed there and its model "
+                             "(distilbert-base-uncased) cannot be downloaded from a "
+                             "network-isolated node unless the HF cache is pre-staged.")
     args = parser.parse_args()
 
     bootstrap_nltk()

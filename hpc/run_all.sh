@@ -49,8 +49,8 @@ environment overrides:
   OUT_DIR       results directory              (default $DATA/evaluation_results)
   PACK          context pack                   (default $DATA/context_pack.json)
   NO_BERTSCORE  1 = skip BERTScore in quality  (default 1 -- bert-score is not
-                installed on the cluster and roberta-large cannot be downloaded
-                from a network-isolated compute node)
+                installed on the cluster and its model (distilbert-base-uncased)
+                cannot be downloaded from a network-isolated compute node)
 EOF
 }
 
@@ -301,13 +301,31 @@ phase_quality() {
 
   local flags=()
   if [[ "${NO_BERTSCORE:-1}" == "1" ]]; then
-    # bert-score is excluded from requirements-cluster.txt and roberta-large
-    # cannot be fetched from a network-isolated node. BLEU-4, ROUGE-L and
-    # METEOR still run; bertscore_f1 is left empty.
+    # bert-score is excluded from requirements-cluster.txt and its model
+    # (distilbert-base-uncased) cannot be fetched from a network-isolated node
+    # unless the HuggingFace cache is pre-staged. BLEU-4, ROUGE-L and METEOR
+    # still run; bertscore_f1 is left empty.
     flags+=(--no-bertscore)
     echo "--- BERTScore disabled (NO_BERTSCORE=1) ---"
   else
-    echo "--- BERTScore ENABLED (NO_BERTSCORE=0) -- needs bert-score installed and a network route ---"
+    echo "--- BERTScore ENABLED (NO_BERTSCORE=0) ---"
+    # Fail loudly here rather than per-row: with bert-score missing, every row
+    # would take the overlap `except` path and land with an empty bertscore_f1
+    # while still burning its G-Eval call, and the CSV would look complete.
+    if ! python -c "import bert_score" >/dev/null 2>&1; then
+      echo "FATAL: NO_BERTSCORE=0 but the bert-score package is not importable." >&2
+      echo "It is deliberately absent from requirements-cluster.txt. Install it into" >&2
+      echo "the same --target as the other deps, from a node with a network route:" >&2
+      echo "  pip install --target \"$PIP_TARGET\" --cache-dir \"$PIP_CACHE\" bert-score==0.3.13" >&2
+      echo "Also pre-stage its model so the run does not need the network:" >&2
+      echo "  HF_HOME=$DATA/hf-cache python -c \"from transformers import AutoModel, AutoTokenizer;\\" >&2
+      echo "    AutoTokenizer.from_pretrained('distilbert-base-uncased');\\" >&2
+      echo "    AutoModel.from_pretrained('distilbert-base-uncased')\"" >&2
+      echo "then submit with HF_HOME=$DATA/hf-cache (add TRANSFORMERS_OFFLINE=1 to be sure)." >&2
+      echo "Or leave NO_BERTSCORE=1 and report BLEU-4/ROUGE-L/METEOR only." >&2
+      return 5
+    fi
+    echo "bert-score importable; HF_HOME=${HF_HOME:-<unset, will use the default cache>}"
   fi
 
   python -m scripts.rejudge_quality_and_overlap ${flags[@]+"${flags[@]}"}

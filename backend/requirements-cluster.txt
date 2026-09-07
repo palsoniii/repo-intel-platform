@@ -5,8 +5,9 @@
 # torch/numpy/scipy already in pytorch_pbs base image.
 # bert-score is excluded on purpose: pass --no-bertscore to
 # scripts.rejudge_quality_and_overlap (BLEU-4, ROUGE-L and METEOR still run;
-# bertscore_f1 is left empty). roberta-large could not be fetched from a
-# network-isolated compute node anyway.
+# bertscore_f1 is left empty). Its model (distilbert-base-uncased, see
+# text_overlap.py) could not be fetched from a network-isolated compute node
+# anyway unless the HuggingFace cache is pre-staged into $DATA.
 
 pydantic==2.10.4
 gitpython==3.1.44
