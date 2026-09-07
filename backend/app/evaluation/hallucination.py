@@ -55,9 +55,8 @@ and "endpoints" as the same thing.
 - Judge only against the facts given. Do not use outside knowledge. When unsure, treat \
 a claim as supported.
 
-Return a single JSON object with exactly these keys:
-- "total_claims": integer, the number of specific checkable claims you identified
-- "unsupported_claims": a list of strings, each the text of one unsupported claim (empty list if none)
+Return a single JSON object with exactly this key:
+- "all_claims": a list of objects representing EVERY specific checkable claim you identified. Each object must have exactly two keys: "text" (string, the claim itself) and "supported" (boolean, true if supported by facts, false if not).
 
 GROUND-TRUTH FACTS:
 {facts}
@@ -75,6 +74,7 @@ class HallucinationResult(BaseModel):
     judge_model: str
     total_claims: int
     unsupported_claims: list[str]
+    all_claims: list[dict] = []  # [{"text": str, "supported": bool}]
     hallucination_score: float  # unsupported / total; 0.0 = fully grounded
     judged: bool  # False if the judge's output couldn't be parsed into the expected shape
     judge_raw_output: str
@@ -145,12 +145,16 @@ def score_summary(
             judge_model=judge_model,
             total_claims=0,
             unsupported_claims=[],
+            all_claims=[],
             hallucination_score=0.0,
             judged=False,
             judge_raw_output=result.output.raw_text,
         )
 
-    total_claims, unsupported = parsed_verdict
+    all_claims = parsed_verdict
+    unsupported = [c["text"] for c in all_claims if not c["supported"]]
+    total_claims = len(all_claims)
+    
     score = len(unsupported) / total_claims if total_claims > 0 else 0.0
     return HallucinationResult(
         repo_name=parsed.metadata.name,
@@ -158,16 +162,16 @@ def score_summary(
         judge_model=judge_model,
         total_claims=total_claims,
         unsupported_claims=unsupported,
+        all_claims=all_claims,
         hallucination_score=round(score, 4),
         judged=True,
         judge_raw_output=result.output.raw_text,
     )
 
 
-def _parse_verdict(raw_text: str) -> Optional[tuple[int, list[str]]]:
-    """Returns (total_claims, unsupported_claims) or None if the judge's output
-    isn't the expected JSON shape. Local models sometimes wrap JSON in prose or
-    code fences, so a bare json.loads isn't enough -- extract the first JSON object."""
+def _parse_verdict(raw_text: str) -> Optional[list[dict]]:
+    """Returns a list of claim dicts (or None if unparseable).
+    Local models sometimes wrap JSON in prose or code fences, so extract the JSON object."""
     text = raw_text.strip()
     start, end = text.find("{"), text.rfind("}")
     if start == -1 or end == -1 or end < start:
@@ -179,14 +183,15 @@ def _parse_verdict(raw_text: str) -> Optional[tuple[int, list[str]]]:
     if not isinstance(data, dict):
         return None
 
-    total = data.get("total_claims")
-    unsupported = data.get("unsupported_claims")
-    if not isinstance(total, int) or not isinstance(unsupported, list):
+    all_claims = data.get("all_claims")
+    if not isinstance(all_claims, list):
         return None
-    # Drop empty/whitespace entries -- local models sometimes emit a stray "" in the
-    # list, which would otherwise inflate the score with a non-claim.
-    unsupported = [s for c in unsupported if (s := str(c).strip())]
-    # A judge can't report more unsupported claims than total claims -- clamp rather
-    # than trust an inconsistent verdict, so the score stays in [0, 1].
-    total = max(total, len(unsupported))
-    return total, unsupported
+        
+    valid_claims = []
+    for c in all_claims:
+        if isinstance(c, dict) and "text" in c and "supported" in c:
+            text_val = str(c["text"]).strip()
+            if text_val:
+                valid_claims.append({"text": text_val, "supported": bool(c["supported"])})
+                
+    return valid_claims

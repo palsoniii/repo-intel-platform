@@ -50,7 +50,25 @@ def main():
     with open(args.claims_csv, 'r', encoding='utf-8') as f:
         reader = csv.DictReader(f)
         for row in reader:
-            rows.append(row)
+            all_claims_raw = row.get("all_claims_list", "[]")
+            try:
+                claims = json.loads(all_claims_raw)
+            except json.JSONDecodeError:
+                claims = []
+            
+            for c in claims:
+                text = c.get("text", "")
+                supported = c.get("supported", False)
+                # Map boolean to judge verdict string
+                judge_verdict = "Supported" if supported else "Unsupported"
+                
+                rows.append({
+                    "repo_name": row.get("repo_name", ""),
+                    "model": row.get("model", ""),
+                    "context_variant": row.get("context_variant", ""),
+                    "claim_text": text,
+                    "judge_verdict": judge_verdict
+                })
 
     # Sort by repo_name, then by claim_text
     rows.sort(key=lambda x: (x.get('repo_name', ''), x.get('claim_text', '')))
