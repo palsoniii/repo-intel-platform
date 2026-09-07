@@ -1,0 +1,7 @@
+# Shell scripts and the cluster requirements file MUST keep LF endings. A clone
+# with core.autocrlf=true otherwise checks them out with CRLF, and `git archive`
+# carries that into the zip uploaded to the Altair portal -- where bash reads
+# `set -uo pipefail<CR>` and dies with "set: pipefail: invalid option name",
+# taking the whole phase with it.
+*.sh text eol=lf
+requirements*.txt text eol=lf
