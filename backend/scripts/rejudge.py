@@ -38,6 +38,7 @@ from app.evaluation.hallucination import score_summary
 from app.pipeline import analyze_repository
 from app.providers.ollama_provider import OllamaProvider
 from app.schemas.llm_result import ContextVariant
+from app.evaluation.context_pack import ContextPack
 from app.schemas.parser_schema import ParsedRepository
 
 # Default fallback paths (overridden by --src-db / --out-dir / --cache-dir args).
@@ -84,18 +85,38 @@ def load_rows(src_db):
 
 
 # ---------------------------------------------------------------- phase: parse
-def phase_parse(rows, cache_dir):
+def phase_parse(rows, cache_dir, context_pack_path=None):
     os.makedirs(cache_dir, exist_ok=True)
     repos = {}
     for r in rows:
         repos.setdefault(r["repo_name"], r["source_url"])
     log("PARSE PHASE -- %d unique repos" % len(repos))
 
+    # Preload from context pack if available
+    pack_data = {}
+    if context_pack_path and os.path.exists(context_pack_path):
+        log("PARSE PHASE -- loading context pack from %s" % context_pack_path)
+        try:
+            pack = ContextPack.read(context_pack_path)
+            for repo in pack.repositories:
+                pack_data[repo.parsed.metadata.name] = repo.parsed
+            log("PARSE PHASE -- loaded %d repos from context pack" % len(pack_data))
+        except Exception as e:
+            log("PARSE PHASE -- failed to load context pack: %s" % e)
+
     for i, (name, url) in enumerate(sorted(repos.items()), 1):
         path = os.path.join(cache_dir, name + ".json")
         if os.path.exists(path) and os.path.getsize(path) > 0:
             log("  [%d/%d] %s: cached, skip" % (i, len(repos), name))
             continue
+            
+        if name in pack_data:
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(pack_data[name].model_dump_json())
+            log("  [%d/%d] %s: parsed from context pack (0s network time)" % (i, len(repos), name))
+            continue
+
+        log("  [%d/%d] %s: missing from context pack, falling back to live clone" % (i, len(repos), name))
         for attempt in (1, 2, 3):
             try:
                 t0 = time.time()
@@ -307,6 +328,7 @@ def _summarise(out_db, judge):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--judge", required=True)
+    ap.add_argument("--context-pack", default=None, help="Path to pre-built context_pack.json")
     ap.add_argument("--phase", choices=["parse", "judge", "all"], default="all")
     ap.add_argument(
         "--src-db", default=None,
@@ -333,7 +355,7 @@ def main():
     rows = load_rows(src_db)
     log("loaded %d successful rows with summary_text from %s" % (len(rows), src_db))
     if a.phase in ("parse", "all"):
-        phase_parse(rows, cache_dir)
+        phase_parse(rows, cache_dir, context_pack_path=a.context_pack)
     if a.phase in ("judge", "all"):
         phase_judge(rows, a.judge, out_dir, src_stem)
     return 0

@@ -42,6 +42,7 @@ USER_NAME="${USER:-$(id -un)}"
 DATA="${DATA:-/data/${USER_NAME}}"
 PROJ="${PROJ:-${DATA}/repo-intel-platform}"
 OUT_DIR="${OUT_DIR:-${DATA}/evaluation_results}"
+PACK="${PACK:-${DATA}/context_pack.json}"
 JUDGE_SLUG="$(echo "$JUDGE" | tr ':.' '__' | tr '/' '_')"
 export PATH="${DATA}/ollama-dist/bin:${DATA}/bin:/usr/local/bin:${PATH}"
 export LD_LIBRARY_PATH="${DATA}/ollama-dist/lib/ollama:${LD_LIBRARY_PATH:-}"
@@ -69,7 +70,7 @@ export OLLAMA_NUM_PARALLEL=1
 export OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-30m}
 
 echo "=== configuration ==="
-printf '  %-14s %s\n' judge "$JUDGE" out "$OUT_DIR" models "$OLLAMA_MODELS"
+printf '  %-14s %s\n' judge "$JUDGE" out "$OUT_DIR" models "$OLLAMA_MODELS" pack "$PACK"
 
 # --- refuse the mistake that produces plausible-looking wrong numbers ----------
 # The secondary judge must not be gemma2:9b (the primary judge). Running it here
@@ -116,6 +117,13 @@ fi
 
 # --- ollama -------------------------------------------------------------------
 echo "=== starting ollama ==="
+# Kill any existing process on 11434 to prevent silent bind errors
+if command -v fuser >/dev/null 2>&1; then
+  fuser -k 11434/tcp || true
+elif command -v ss >/dev/null 2>&1; then
+  ss -ltnp | grep :11434 | awk '{print $6}' | cut -d, -f2 | cut -d= -f2 | xargs kill -9 2>/dev/null || true
+fi
+
 ollama serve > "$OUT_DIR/ollama_rejudge_${JUDGE_SLUG}.log" 2>&1 &
 OLLAMA_PID=$!
 trap 'kill "$OLLAMA_PID" 2>/dev/null || true' EXIT
@@ -149,6 +157,7 @@ echo "=== parse phase (build/verify parse cache from ${SRC_DBS[0]}) ==="
 time python -m scripts.rejudge \
   --judge "$JUDGE" \
   --src-db "${SRC_DBS[0]}" \
+  --context-pack "$PACK" \
   --phase parse
 
 # Judge phase: score each battery arm's stored summaries with $JUDGE.
