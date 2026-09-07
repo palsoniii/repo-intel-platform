@@ -31,7 +31,7 @@ def load_summaries(db_path: str, manifest: list[dict]) -> dict:
     # Check table name
     cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
     tables = [r[0] for r in cur.fetchall()]
-    table_name = "evaluations"
+    table_name = "evaluation_runs"
     if table_name not in tables and tables:
         table_name = tables[0]
         

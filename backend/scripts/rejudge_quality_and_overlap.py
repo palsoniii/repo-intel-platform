@@ -61,7 +61,7 @@ def main():
         # Expecting the table name to be `evaluations` or similar. We can dynamically check
         cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
         tables = [r[0] for r in cur.fetchall()]
-        table_name = "evaluations"
+        table_name = "evaluation_runs"
         if table_name not in tables:
             if tables:
                 table_name = tables[0]

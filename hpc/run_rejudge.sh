@@ -150,9 +150,9 @@ ollama list | awk 'NR>1 {print $1}' | grep -qx "$JUDGE" || {
 # --- run ----------------------------------------------------------------------
 cd "$PROJ/backend"
 
-# Parse phase: clone+parse all repos from the first available battery DB and
-# cache results to disk. All three battery DBs cover the same 18 repos, so one
-# parse run populates the cache for all three judge-phase calls that follow.
+# Parse phase: load parsed repos from the context pack and cache results to disk,
+# falling back to live clones only for repos missing from the pack. One parse run
+# populates the cache for all three judge-phase calls that follow.
 echo "=== parse phase (build/verify parse cache from ${SRC_DBS[0]}) ==="
 time python -m scripts.rejudge \
   --judge "$JUDGE" \
