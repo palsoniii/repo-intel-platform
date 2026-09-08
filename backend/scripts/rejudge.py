@@ -163,10 +163,19 @@ def phase_judge(rows, judge, out_dir, src_stem):
     conn.execute("CREATE TABLE IF NOT EXISTS rejudged (%s)"
                  % ",".join("%s TEXT" % c for c in OUT_COLS))
     conn.commit()
+    # Only rows that actually produced a verdict count as done. A row with `error`
+    # set (e.g. the 658 error="no cached parse" rows a broken parse phase once wrote)
+    # must be retried on the next run, not treated as finished forever.
     done = set(conn.execute(
-        "SELECT repo_name, model, context_variant FROM rejudged").fetchall())
+        "SELECT repo_name, model, context_variant FROM rejudged "
+        "WHERE error IS NULL OR error = ''").fetchall())
+    n_err = conn.execute(
+        "SELECT COUNT(*) FROM rejudged WHERE error IS NOT NULL AND error != ''"
+    ).fetchone()[0]
     if done:
         log("RESUME -- %d rows already judged, skipping those" % len(done))
+    if n_err:
+        log("RESUME -- %d previously failed row(s) will be retried" % n_err)
 
     csv_new = not os.path.exists(out_csv)
     csv_fh = open(out_csv, "a", newline="", encoding="utf-8")

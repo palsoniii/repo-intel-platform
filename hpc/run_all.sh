@@ -111,6 +111,32 @@ exec > >(_stamp | tee -a "$LOG") 2>&1
 
 echo $$ > "${OUT_DIR}/run_all.pid"
 
+# --- single instance ----------------------------------------------------------
+# Two concurrent runs judge the same rows twice and append both copies, so any
+# average taken from the output is weighted by how often each row was re-judged.
+# One earlier codellama arm ended up with 116 rows for 54 combos this way.
+LOCK="${OUT_DIR}/run_all.lock"
+OLLAMA_PID=""
+cleanup() {
+  [[ -n "${OLLAMA_PID:-}" ]] && kill "$OLLAMA_PID" 2>/dev/null
+  [[ -f "$LOCK" && "$(cat "$LOCK" 2>/dev/null)" == "$$" ]] && rm -f "$LOCK"
+  return 0
+}
+trap cleanup EXIT
+
+if [[ -f "$LOCK" ]]; then
+  OLD_PID="$(cat "$LOCK" 2>/dev/null || true)"
+  if [[ -n "$OLD_PID" ]] && kill -0 "$OLD_PID" 2>/dev/null; then
+    echo "FATAL: run_all.sh is already running as pid $OLD_PID." >&2
+    echo "Two instances would judge the same rows twice and append both copies." >&2
+    echo "Watch the running one:  tail -f $LOG" >&2
+    echo "Or stop it:             kill $OLD_PID   (then delete $LOCK)" >&2
+    exit 6
+  fi
+  echo "WARNING: stale lock from pid ${OLD_PID:-unknown} (not running); taking over."
+fi
+echo $$ > "$LOCK"
+
 echo "=== run_all.sh phase=$PHASE pid=$$ ==="
 echo "=== configuration ==="
 printf '  %-14s %s\n' \
@@ -174,8 +200,8 @@ fi
 # --- ollama -------------------------------------------------------------------
 # The judges phase delegates to run_rejudge.sh, which starts and tears down its
 # own server. So the human/quality phases call ensure_ollama, which reuses a live
-# server if there is one and otherwise starts a fresh one.
-OLLAMA_PID=""
+# server if there is one and otherwise starts a fresh one. OLLAMA_PID is declared
+# with the lock above and torn down by cleanup().
 
 ensure_ollama() {
   if ollama list >/dev/null 2>&1; then
@@ -194,7 +220,6 @@ ensure_ollama() {
 
   ollama serve > "${OUT_DIR}/ollama_run_all.log" 2>&1 &
   OLLAMA_PID=$!
-  trap 'kill "${OLLAMA_PID:-}" 2>/dev/null || true' EXIT
 
   local i
   for i in $(seq 1 90); do
@@ -319,6 +344,12 @@ phase_judges() {
       rc_all=1
       continue
     fi
+    echo "--- de-duplicating $J output ---"
+    # Cheap insurance: if a previous run's rows were appended without the .db
+    # resume engaging, the same combo appears more than once and every average
+    # taken from the file is silently mis-weighted.
+    python -m scripts.dedupe_rejudge --results-dir "$OUT_DIR" \
+      || echo "WARNING: dedupe_rejudge failed; check for duplicate rows by hand." >&2
     echo "--- verifying $J output ---"
     verify_rejudge_output "$J" || rc_all=1
     echo "--- secondary judge $J done ---"
