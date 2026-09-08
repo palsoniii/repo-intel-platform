@@ -3,6 +3,7 @@ import csv
 import json
 import os
 import sqlite3
+import sys
 from pathlib import Path
 
 from openpyxl import Workbook
@@ -11,6 +12,15 @@ from openpyxl.worksheet.datavalidation import DataValidation
 
 # Use the same loader as harness
 from app.evaluation.context_pack import ContextPack
+
+# Defaults derived from this file's location, not the cwd.
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+_BACKEND_DIR = os.path.dirname(_SCRIPT_DIR)
+_REPO_DIR = os.path.dirname(_BACKEND_DIR)
+_DEFAULT_RESULTS_DIR = os.path.join(_BACKEND_DIR, "evaluation_results")
+_DEFAULT_CLAIMS = os.path.join(_DEFAULT_RESULTS_DIR, "human_validation_claims.csv")
+_DEFAULT_PACK = os.path.join(_REPO_DIR, "context_pack.json")
+_DEFAULT_OUT = os.path.join(_DEFAULT_RESULTS_DIR, "human_review.xlsx")
 
 # The visible sheet is BLINDED: `model` and `context_variant` are deliberately absent
 # so a reviewer cannot see which arm produced a claim. They live in the hidden
@@ -24,21 +34,22 @@ HEADERS_KEY = ["row_id", "repo_name", "framework", "known_dependencies",
 
 def main():
     parser = argparse.ArgumentParser(description="Build human review excel sheet.")
-    parser.add_argument("--claims-csv", default="evaluation_results/human_validation_claims.csv")
+    parser.add_argument("--claims-csv", default=_DEFAULT_CLAIMS)
     # --context-pack is the spelling every other script in the repo uses; --pack is
     # kept because existing runbooks pass it.
-    parser.add_argument("--pack", "--context-pack", dest="pack", default="context_pack.json")
-    parser.add_argument("--out", default="evaluation_results/human_review.xlsx")
+    parser.add_argument("--pack", "--context-pack", dest="pack", default=_DEFAULT_PACK)
+    parser.add_argument("--out", default=_DEFAULT_OUT)
     args = parser.parse_args()
 
     if not os.path.exists(args.claims_csv):
-        print(f"File {args.claims_csv} not found.")
-        return
+        print(f"FATAL: claims CSV not found: {args.claims_csv}", file=sys.stderr)
+        print("Run `python -m scripts.rejudge_full_claims` first.", file=sys.stderr)
+        return 2
 
     # Load context pack
     if not os.path.exists(args.pack):
-        print(f"Context pack {args.pack} not found.")
-        return
+        print(f"FATAL: context pack not found: {args.pack}", file=sys.stderr)
+        return 2
     pack = ContextPack.read(args.pack)
 
     # Fast lookup for repo facts
@@ -80,6 +91,17 @@ def main():
                     "claim_text": text,
                     "judge_verdict": judge_verdict
                 })
+
+    # A claims CSV whose every all_claims_list is "[]" (the judge's output never
+    # parsed) yields zero rows here. Saving a header-only workbook would look like
+    # success and waste the reviewer's time, so stop instead.
+    if not rows:
+        print(f"FATAL: {args.claims_csv} contains no claims -- nothing to review.",
+              file=sys.stderr)
+        print("Every all_claims_list is empty, which means the judge's output could not "
+              "be parsed. Re-run scripts.rejudge_full_claims and check its "
+              "'judge unparseable' count.", file=sys.stderr)
+        return 1
 
     # Sort by repo_name, then by claim_text
     rows.sort(key=lambda x: (x.get('repo_name', ''), x.get('claim_text', '')))
@@ -165,12 +187,14 @@ def main():
         for col in wrap_cols:
             ws_review.cell(row=row_idx, column=col).alignment = Alignment(wrap_text=True)
 
-    os.makedirs(os.path.dirname(args.out), exist_ok=True)
+    os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
     wb.save(args.out)
     print(f"Created review sheet at {args.out}")
+    print(f"  {len(rows)} claims across {len(set(r['repo_name'] for r in rows))} repos")
     print(f"Reviewer fills column {verdict_letter} (human_verdict) on the 'Review' sheet. "
           f"Model and context variant are hidden in 'Answer Key' -- do not unhide them "
           f"before scoring.")
+    return 0
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

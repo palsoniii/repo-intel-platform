@@ -17,9 +17,11 @@
 # Pass an optional phase in "Job Script Arguments":
 #
 #   (no argument)   everything, in order: judges -> human -> quality
-#   judges          only the two secondary judges (gemma2:27b, mistral:7b-instruct)
+#   judges          only the secondary judge(s) -- gemma2:27b by default; set
+#                   JUDGES="gemma2:27b mistral:7b-instruct" to run both
 #   human           only sample + full-claims rejudge + review sheet
-#   quality         only G-Eval + text overlap
+#   quality         only G-Eval + text overlap (BLEU-4, ROUGE-L, METEOR;
+#                   BERTScore is off unless NO_BERTSCORE=0)
 #
 # SAFE TO RE-RUN. Every step dedupes on (repo, model, variant) against its own
 # output file, so if the walltime kills the job you resubmit the identical line
@@ -48,6 +50,8 @@ environment overrides:
   PROJ          repo checkout                  (default $DATA/repo-intel-platform)
   OUT_DIR       results directory              (default $DATA/evaluation_results)
   PACK          context pack                   (default $DATA/context_pack.json)
+  JUDGES        secondary judges, space-sep    (default "gemma2:27b"; use
+                "gemma2:27b mistral:7b-instruct" for both)
   NO_BERTSCORE  1 = skip BERTScore in quality  (default 1 -- bert-score is not
                 installed on the cluster and its model (distilbert-base-uncased)
                 cannot be downloaded from a network-isolated compute node)
@@ -68,18 +72,29 @@ case "$PHASE" in
 esac
 
 USER_NAME="${USER:-$(id -un)}"
-DATA="${DATA:-/data/${USER_NAME}}"
-PROJ="${PROJ:-${DATA}/repo-intel-platform}"
-OUT_DIR="${OUT_DIR:-${DATA}/evaluation_results}"
-PACK="${PACK:-${DATA}/context_pack.json}"
+# Exported, not just set: the judges phase shells out to run_rejudge.sh, which
+# recomputes these from the environment. Without export, an override passed to
+# run_all.sh would be silently ignored by that script and it would write its
+# results somewhere else.
+export DATA="${DATA:-/data/${USER_NAME}}"
+export PROJ="${PROJ:-${DATA}/repo-intel-platform}"
+export OUT_DIR="${OUT_DIR:-${DATA}/evaluation_results}"
+export PACK="${PACK:-${DATA}/context_pack.json}"
 export PATH="${DATA}/ollama-dist/bin:${DATA}/bin:/usr/local/bin:${PATH}"
 export LD_LIBRARY_PATH="${DATA}/ollama-dist/lib/ollama:${LD_LIBRARY_PATH:-}"
+
+# METEOR's wordnet corpus must not land in $HOME -- home is volatile here, so it
+# would be re-downloaded every job and lost if the node has no route out.
+export NLTK_DATA="${NLTK_DATA:-${DATA}/nltk_data}"
+mkdir -p "$NLTK_DATA" 2>/dev/null || true
 
 # The judge being validated against the human reviewer. Pinned explicitly rather
 # than left to the script default -- the primary judge under test must be visible
 # in the command that produced the numbers.
 PRIMARY_JUDGE="gemma2:9b"
-SECONDARY_JUDGES=(gemma2:27b mistral:7b-instruct)
+# Default is gemma2:27b alone. mistral:7b-instruct is a valid second judge but
+# doubles the phase's runtime; add it with JUDGES="gemma2:27b mistral:7b-instruct".
+read -r -a SECONDARY_JUDGES <<< "${JUDGES:-gemma2:27b}"
 DB_STEMS=(codellama13b qwen14b qwen32b)
 
 # --- logging ------------------------------------------------------------------
@@ -232,8 +247,69 @@ run_phase() {
 # Strictly sequential, never parallel: gemma2:27b is ~17 GB and will not
 # co-reside with a second judge on one MIG slice. A failing judge is logged and
 # the other one still runs.
+prune_parse_cache() {
+  # A parse cache left half-written by a killed job (or by the old pre-context-pack
+  # version that tried to git clone) makes the judge phase emit
+  # error="no cached parse" for every row -- 658 of them, last time, all scored
+  # null. Drop anything that is not valid JSON so the parse phase rebuilds it from
+  # the context pack.
+  local cache="$OUT_DIR/parse_cache"
+  [[ -d "$cache" ]] || return 0
+  python - "$cache" <<'PY'
+import json, os, sys
+cache = sys.argv[1]
+bad = []
+for name in sorted(os.listdir(cache)):
+    if not name.endswith(".json"):
+        continue
+    path = os.path.join(cache, name)
+    try:
+        if os.path.getsize(path) == 0:
+            raise ValueError("empty file")
+        with open(path, encoding="utf-8") as fh:
+            json.load(fh)
+    except Exception as e:
+        bad.append((name, str(e)))
+        os.remove(path)
+for name, err in bad:
+    print(f"  pruned unusable parse cache entry {name}: {err}")
+good = len([f for f in os.listdir(cache) if f.endswith('.json')])
+print(f"  parse cache: {good} valid entr{'y' if good == 1 else 'ies'}, {len(bad)} pruned")
+PY
+}
+
+verify_rejudge_output() {
+  # The judge phase writes a row per summary even when it fails, so a "successful"
+  # run can still be 100% useless. Check the CSVs it just produced.
+  local judge="$1" slug rc=0 csv rows bad
+  slug="$(echo "$judge" | tr ':.' '__' | tr '/' '_')"
+  shopt -s nullglob
+  local csvs=("$OUT_DIR"/rejudge_"${slug}"_*.csv)
+  shopt -u nullglob
+  if [[ ${#csvs[@]} -eq 0 ]]; then
+    echo "WARNING: judge $judge produced no rejudge_${slug}_*.csv at all." >&2
+    return 1
+  fi
+  for csv in "${csvs[@]}"; do
+    rows=$(( $(wc -l < "$csv") - 1 ))
+    bad=$(grep -c "no cached parse" "$csv" || true)
+    printf '  %-52s %4s rows, %s with "no cached parse"\n' "$(basename "$csv")" "$rows" "$bad"
+    if [[ "$rows" -le 0 ]]; then
+      echo "WARNING: $(basename "$csv") has no data rows." >&2
+      rc=1
+    elif [[ "$bad" -gt 0 ]]; then
+      echo "WARNING: $(basename "$csv") has $bad row(s) with no cached parse -- the" >&2
+      echo "         parse phase did not populate $OUT_DIR/parse_cache from \$PACK." >&2
+      rc=1
+    fi
+  done
+  return $rc
+}
+
 phase_judges() {
   local rc_all=0 J rc
+  echo "--- secondary judges to run: ${SECONDARY_JUDGES[*]} ---"
+  prune_parse_cache
   for J in "${SECONDARY_JUDGES[@]}"; do
     echo "--- secondary judge: $J ---"
     bash "$PROJ/hpc/run_rejudge.sh" "$J"
@@ -241,9 +317,11 @@ phase_judges() {
     if [[ $rc -ne 0 ]]; then
       echo "WARNING: secondary judge $J failed (rc=$rc). Continuing with the next judge." >&2
       rc_all=1
-    else
-      echo "--- secondary judge $J done ---"
+      continue
     fi
+    echo "--- verifying $J output ---"
+    verify_rejudge_output "$J" || rc_all=1
+    echo "--- secondary judge $J done ---"
   done
   return $rc_all
 }
@@ -285,6 +363,13 @@ phase_human() {
       rc_all=1
     fi
   done
+
+  if [[ ! -s "$claims" ]]; then
+    echo "FATAL: $claims is missing or empty after all three arms -- not building a" >&2
+    echo "review sheet from nothing. Check the per-arm counts above." >&2
+    return 1
+  fi
+  echo "--- claims file: $(( $(wc -l < "$claims") - 1 )) summary rows ---"
 
   echo "--- building blinded review sheet ---"
   python -m scripts.build_review_sheet --context-pack "$PACK"
@@ -329,6 +414,29 @@ phase_quality() {
   fi
 
   python -m scripts.rejudge_quality_and_overlap ${flags[@]+"${flags[@]}"}
+  local rc=$?
+
+  # This script's whole failure history is "exits 0, writes an empty CSV", so
+  # count what it actually produced.
+  local csv rows total=0
+  shopt -s nullglob
+  local csvs=("$OUT_DIR"/quality_and_overlap_*.csv)
+  shopt -u nullglob
+  if [[ ${#csvs[@]} -eq 0 ]]; then
+    echo "WARNING: no quality_and_overlap_*.csv was produced." >&2
+    return 1
+  fi
+  for csv in "${csvs[@]}"; do
+    rows=$(( $(wc -l < "$csv") - 1 ))
+    printf '  %-52s %4s rows\n' "$(basename "$csv")" "$rows"
+    total=$(( total + rows ))
+  done
+  echo "  total G-Eval/overlap rows: $total"
+  if [[ $total -le 0 ]]; then
+    echo "WARNING: every quality CSV is header-only. G-Eval produced nothing." >&2
+    return 1
+  fi
+  return $rc
 }
 
 # --- run ----------------------------------------------------------------------
