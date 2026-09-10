@@ -151,10 +151,7 @@ def score_summary(
             judge_raw_output=result.output.raw_text,
         )
 
-    all_claims = parsed_verdict
-    unsupported = [c["text"] for c in all_claims if not c["supported"]]
-    total_claims = len(all_claims)
-    
+    total_claims, unsupported, all_claims = parsed_verdict
     score = len(unsupported) / total_claims if total_claims > 0 else 0.0
     return HallucinationResult(
         repo_name=parsed.metadata.name,
@@ -169,9 +166,9 @@ def score_summary(
     )
 
 
-def _parse_verdict(raw_text: str) -> Optional[list[dict]]:
-    """Returns a list of claim dicts (or None if unparseable).
-    Local models sometimes wrap JSON in prose or code fences, so extract the JSON object."""
+def _parse_verdict(raw_text: str) -> Optional[tuple[int, list[str], list[dict]]]:
+    """Returns (total_claims, unsupported_claims, all_claims) or None if unparseable.
+    Handles both the new all_claims format and backward-compatible total/unsupported keys."""
     text = raw_text.strip()
     start, end = text.find("{"), text.rfind("}")
     if start == -1 or end == -1 or end < start:
@@ -183,15 +180,27 @@ def _parse_verdict(raw_text: str) -> Optional[list[dict]]:
     if not isinstance(data, dict):
         return None
 
-    all_claims = data.get("all_claims")
-    if not isinstance(all_claims, list):
-        return None
-        
-    valid_claims = []
-    for c in all_claims:
-        if isinstance(c, dict) and "text" in c and "supported" in c:
-            text_val = str(c["text"]).strip()
-            if text_val:
-                valid_claims.append({"text": text_val, "supported": bool(c["supported"])})
-                
-    return valid_claims
+    # Shape 1: all_claims list of dicts
+    if "all_claims" in data and isinstance(data["all_claims"], list):
+        valid_claims = []
+        for c in data["all_claims"]:
+            if isinstance(c, dict) and "text" in c and "supported" in c:
+                text_val = str(c["text"]).strip()
+                if text_val:
+                    valid_claims.append({"text": text_val, "supported": bool(c["supported"])})
+        unsupported = [c["text"] for c in valid_claims if not c["supported"]]
+        total = len(valid_claims)
+        return total, unsupported, valid_claims
+
+    # Shape 2: legacy total_claims and unsupported_claims
+    total = data.get("total_claims")
+    unsupported = data.get("unsupported_claims")
+    if isinstance(total, int) and isinstance(unsupported, list):
+        unsupported_clean = [s for c in unsupported if (s := str(c).strip())]
+        total = max(total, len(unsupported_clean))
+        valid_claims = [{"text": u, "supported": False} for u in unsupported_clean]
+        for i in range(total - len(unsupported_clean)):
+            valid_claims.append({"text": f"supported_claim_{i+1}", "supported": True})
+        return total, unsupported_clean, valid_claims
+
+    return None

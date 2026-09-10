@@ -141,3 +141,21 @@ def test_more_unsupported_than_total_is_clamped():
     # score must stay in [0, 1] even if the judge reports an inconsistent count
     assert result.hallucination_score == 1.0
     assert result.total_claims == 3
+
+
+import json
+
+def test_new_all_claims_schema():
+    payload = json.dumps({
+        "all_claims": [
+            {"text": "Uses Express framework", "supported": True},
+            {"text": "Uses MongoDB database", "supported": False}
+        ]
+    })
+    provider = _provider_returning(payload)
+    result = score_summary(provider, _parsed_repo(), "summary", ContextVariant.RAW)
+    assert result.judged is True
+    assert result.total_claims == 2
+    assert result.unsupported_claims == ["Uses MongoDB database"]
+    assert result.hallucination_score == 0.5
+    assert len(result.all_claims) == 2

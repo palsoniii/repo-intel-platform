@@ -177,7 +177,6 @@ def run_evaluation(
     # the node. get_driver() is lazy about connecting, but constructing it here would
     # still fail on a host with no bolt route configured at all.
     owns_driver = driver is None and context_pack is None
-    if context_pack is None:
     if not context_pack:
         from app.db.neo4j_client import get_driver
         driver = driver or get_driver()
