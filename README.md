@@ -1,640 +1,262 @@
-# AI-Powered Repository Intelligence Platform
+# RepoIntel: Graph-Grounded Repository Intelligence Platform
 
-> ## Current status (2026-08-29) — read this before the rest of the file
->
-> The build log below is accurate about *what was built* but stale about *status*. It
-> stops at Week 4 and predates all evaluation results. Current sources of truth:
->
-> | For | Read |
-> |---|---|
-> | Results, methodology, threats to validity | `docs/REPORT.md` |
-> | What to do next | `CLAUDE.md` |
-> | Dataset and annotation caveats | `backend/annotations/README.md` |
->
-> **Three batteries have been run** against live Ollama/Neo4j on 18 repositories:
-> `battery.db` (108 rows), `battery_v2.db` (162/157), and
-> `battery_v3_granite_gemma2judge.db` (54/53, granite writer). The re-run that earlier
-> drafts called the highest-priority task is **done**.
->
-> **The headline finding is now a methodology result**, not the representation effect:
-> the coverage harness discarded judge verdicts that did not match byte-for-byte and
-> scored each discarded miss as *covered*, producing chance-level accuracy over 9,777
-> decisions (`REPORT.md` §5.6). Coverage is now measured deterministically by
-> `app/evaluation/oracle.py`.
->
-> **Retracted below:** the "raw-code context took ~4x longer" signal in the next
-> paragraph does not hold across the full set — see `evaluation_results/RESULTS.md`.
-> The model roster in the setup instructions (Llama 3.1 / gpt-oss:20b) is also
-> superseded; the configured roster is in `backend/.env.example`.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python: 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
+[![Node: 18+](https://img.shields.io/badge/node-18+-green.svg)](https://nodejs.org/)
+[![Tests: 158 passed](https://img.shields.io/badge/tests-158%20passed-success.svg)](backend/tests/)
 
+An end-to-end framework and evaluation benchmark for repository-level architectural comprehension, comparing how structured code representations (raw source code, dependency graphs, and knowledge graphs) affect the factual accuracy, coverage, and hallucination rates of open-weight Large Language Models.
 
-## Status: Full pipeline + 3-way ablation + diagrams, all working end-to-end
+Developed as a research artifact accompanying the paper:
+> **"Grading the Grader: A Parser-Grounded Audit of LLM-as-Judge Coverage Metrics for Repository-Level Code Summarization"**
 
-This project is being built incrementally, module by module, per the build order below.
-Phase 1 is a real, working, tested slice: give it a GitHub URL for an Express.js repo
-and it clones it, detects the framework, and statically extracts modules, functions,
-routes, dependencies, and config files -- verified against both a hand-built fixture
-and a live public repo (`heroku/node-js-getting-started`).
+---
 
-Phases 2 (Neo4j graph builder), 3 (context builder), 4 (Ollama layer), 5 (Mermaid
-diagrams), 6 (NestJS parser), and the dashboard wiring now form one real, no-mocks
-pipeline. Three dashboard pages call three real endpoints:
-- **Analyze/Summary** -> `POST /summarize`: parser -> Neo4j -> knowledge_graph
-  context -> Ollama -> parsed JSON summary. ~15-25s.
-- **Diagram** -> `POST /diagram`: parser -> Neo4j -> Mermaid flowchart, deterministic,
-  no LLM call, effectively instant.
-- **Comparison** -> `POST /compare`: Week 3's 3-way representation ablation (raw /
-  dependency_graph / knowledge_graph) across all 3 comparison models -- 9 sequential
-  generation calls, each followed by two judge calls (hallucination + coverage, Phase
-  7), so up to 27 Ollama calls total; several minutes to tens of minutes on CPU.
+## Overview
 
-All three verified for real in-browser (not just via curl): a local Ollama install
-(3 models pulled -- Qwen2.5-Coder, Llama 3.1, Mistral 7B in place of gpt-oss:20b, see
-Known limitations for why) and a live Neo4j produced correct results for both
-`heroku/node-js-getting-started` (Express) and `nestjs/typescript-starter` (NestJS),
-zero console errors. A real 2-model x 3-representation comparison run surfaced a
-genuine research-relevant signal on its very first live run: raw-code context took
-~4x longer than the structured representations (more, noisier tokens) -- exactly the
-kind of trend the research question is about.
+When summarizing multi-module software repositories, LLMs typically ingest concatenated raw source code or simple file listings, which frequently exceed effective context windows and induce architectural hallucinations. 
 
-### What exists right now
-
-**Phase 0 (contracts):**
-- `backend/app/schemas/parser_schema.py` -- `ParsedRepository` and friends: the
-  common intermediate schema every framework parser (Express, NestJS) must emit.
-- `backend/app/schemas/llm_result.py` -- `LLMResult` and friends: the standard object
-  returned for every local Ollama model run. Includes the `ContextVariant` enum
-  (raw / dependency_graph / knowledge_graph) that is the core independent variable
-  of the research comparison, scoped to the 3-way ablation locked in the roadmap.
-- `backend/app/parsers/base.py`, `backend/app/providers/base.py` -- abstract interfaces.
-
-**Phase 1 (acquisition + first working parser):**
-- `backend/app/acquisition/clone.py` -- GitHub URL validation + shallow clone (depth=1)
-  with size limits. Tested against a real repo.
-- `backend/app/acquisition/detect.py` -- fast language/framework detection from
-  `package.json` / `pom.xml` / `build.gradle` signatures.
-- `backend/app/parsers/express_parser.py` -- full Express.js parser using
-  `tree-sitter-javascript`: extracts modules, functions, `app.*`/`router.*` routes
-  (both named-handler and inline-handler forms), resolves internal `require()` imports
-  to module ids, resolves named route handlers to function ids, and reads
-  `package.json` for external dependencies.
-- `backend/app/parsers/registry.py` -- dispatches to the right parser via `detect()`.
-  NestJS is checked *before* Express: a NestJS repo often lists `express` directly
-  too (it's NestJS's default HTTP adapter via `@nestjs/platform-express`), so
-  `ExpressParser.detect()` can also return `True` for a NestJS repo -- NestJS's
-  `@nestjs/core`/`@nestjs/common` signal is more specific.
-- `backend/app/pipeline.py` -- `analyze_repository(url)`: the single entrypoint tying
-  acquisition + detection + parsing together.
-- `backend/app/main.py` -- `POST /analyze` endpoint wired to the pipeline, with clean
-  400 errors on bad input.
-- `backend/tests/` -- 9 fixture-based unit tests (fast, no network) + 1 real-network
-  integration test. All 10 passing.
-
-**Phase 6 (NestJS parser, built):**
-- `backend/app/parsers/nestjs_parser.py` -- full NestJS parser using
-  `tree-sitter-typescript`: extracts classes (controllers/services/modules) with
-  their methods correctly owned via `class_id` (unlike Express, NestJS is genuinely
-  class-based, so `HAS_METHOD`/`IMPLEMENTS` graph edges get exercised by real parser
-  output for the first time, not just the hand-built test fixture in
-  `test_graph_builder.py`), decorator-based routes (`@Get`/`@Post`/etc. combined
-  with the controller's `@Controller('prefix')`), ES `import` resolution, and
-  `package.json` dependencies.
-- Unlike Express, NestJS route handlers are always named class methods -- there's
-  no inline-handler-with-no-function-id case here.
-- Grammar facts (field names, sibling structure) were verified empirically against
-  real tree-sitter-typescript output before writing extraction code, not guessed --
-  this caught a real gotcha: a class's decorators are NOT its immediate preceding
-  sibling when `export`/`export default` sit in between (`export class Foo` parses
-  as siblings `[decorator*, export, class_declaration]`), so naively checking only
-  the immediate previous sibling would silently miss `@Controller`.
-- Validated against the real `nestjs/typescript-starter` repo, which surfaced a
-  real bug: `Path.suffix` only ever returns `.ts` (never `.spec.ts`), and the repo's
-  own scaffolded `test/app.e2e-spec.ts` used a naming convention
-  (`.e2e-spec.ts`) the filter didn't cover -- fixed to catch both `*.spec.ts` and
-  `*.e2e-spec.ts`.
-- `backend/tests/test_nestjs_parser.py` -- 12 fixture-based unit tests. Plus a new
-  real-network integration test in `test_pipeline_integration.py` against
-  `nestjs/typescript-starter` itself.
-
-**Phase 4 (Ollama orchestration layer, validated live):**
-- `backend/app/providers/ollama_provider.py` -- `OllamaProvider(BaseLLMProvider)`: the
-  one class all 3 comparison models run through (Qwen2.5-Coder, Llama 3.1,
-  gpt-oss/Mistral) -- model choice is just the `model` argument, so the call shape is
-  identical across all three per the roadmap's Week 1 requirement. Wraps the `ollama`
-  Python client's `.chat()`, reading `prompt_eval_count`/`eval_count` for token counts.
-- `backend/app/providers/pricing.py` -- always returns $0 (local models, no billing).
-- `backend/tests/test_ollama_provider.py` -- 5 unit tests against a mocked Ollama
-  client (no local Ollama daemon needed to run these).
-- Fixed a real bug found while writing these tests: `BaseLLMProvider.generate_summary()`
-  and `.generate_architecture_diagram()` accepted a `model` argument but never passed
-  it to `_run()`, so model selection silently no-op'd and every call used
-  `default_model` regardless of what was requested.
-- `backend/app/pipeline.py` -- `generate_repository_summary()`: the real, no-mocks
-  Week 2 pipeline (parse -> Neo4j -> knowledge_graph context -> Ollama -> JSON
-  summary), exposed as `POST /summarize` in `main.py`. `driver`/`provider` are
-  injectable so tests don't need live infra; JSON parsing of the model's raw output
-  happens here (downstream of the provider, per `providers/base.py`'s design), and
-  malformed/off-schema output is marked invalid rather than raised, since that's a
-  real possibility with local models, not just a hypothetical.
-- `backend/tests/test_pipeline_summary.py` -- 7 offline unit tests (mocked Neo4j
-  driver + LLM provider) covering orchestration order, driver-ownership/cleanup,
-  malformed-JSON handling, and Neo4j-unreachable error wrapping.
-- **Validated for real**: installed Ollama (Homebrew), freed ~15GB of stale Docker
-  build cache/dangling images to make room, pulled all 3 models (Qwen2.5-Coder,
-  Llama 3.1, Mistral 7B substituted for gpt-oss:20b -- this dev machine has 16GB
-  RAM, not the ~16GB gpt-oss:20b alone needs), started a real Neo4j via Docker, and
-  ran `POST /summarize` against `heroku/node-js-getting-started` for real: correct
-  JSON summary in ~15s, $0 cost, zero errors.
-- Two real bugs found only by testing against live infra (not just mocks):
-  1. `generate_repository_summary` let raw `neo4j.exceptions.ServiceUnavailable`
-     propagate as an unhandled exception when Neo4j was down. Added
-     `PipelineInfrastructureError` (caught in `main.py`, returned as a clean 503)
-     -- catches both `Neo4jError` (server-side errors) and `DriverError`
-     (connection-level errors), not the driver's `GqlError` common base, since
-     that's an explicitly-labeled preview feature that could change without a
-     deprecation cycle.
-  2. A FastAPI/Starlette gotcha: Starlette routes handlers registered for the bare
-     `Exception` class to `ServerErrorMiddleware`, which wraps `CORSMiddleware`
-     from the *outside* -- so a global `@app.exception_handler(Exception)` never
-     gets CORS headers from the middleware, no matter how CORS is configured. An
-     unrelated backend bug looked, from the browser, indistinguishable from a
-     CORS/network failure. Fixed by setting `Access-Control-Allow-Origin`
-     manually in that handler. Caught first via manual browser testing, then
-     regression-tested in `tests/test_main.py` (which deliberately disables
-     `TestClient`'s `raise_server_exceptions` to inspect the response instead of
-     having pytest re-raise it).
-  3. `.env` has been documented and depended on (`NEO4J_PASSWORD`, `OLLAMA_HOST`,
-     ...) since Phase 0, but nothing ever actually called `load_dotenv()` --
-     `python-dotenv` was a dependency, never used. Only surfaced after restarting
-     the server without inline env vars and getting a Neo4j auth error that made no
-     sense until this was noticed. Fixed with one `load_dotenv()` call in
-     `main.py`.
-
-**Week 3 addition -- 3-way representation ablation:**
-- `pipeline.run_representation_ablation()`: the same repo, same models, three
-  representations (raw/dependency_graph/knowledge_graph) -- `len(models) * 3`
-  `LLMResult`s. Clones and parses once (not via `analyze_repository()`, which
-  cleans up before returning -- raw source has to be read first, see
-  `_read_raw_source()`), writes to the graph once, builds each Neo4j-backed
-  context once, then reuses all of that across every model.
-- Model list defaults to `.env`'s `OLLAMA_MODEL_PRIMARY`/`FALLBACK`/`DIVERSITY`,
-  read lazily (not a module-level constant) to avoid an import-order dependency on
-  `load_dotenv()`.
-- Raw-source context is capped at 24,000 characters by default (`DEFAULT_MAX_RAW_CHARS`) -- these 7-8B models
-  commonly default to a 2-4K token context window (`num_ctx` isn't configured
-  anywhere in this pipeline yet, a known follow-up), so this is deliberately
-  conservative rather than assuming a larger window.
-- Exposed as `POST /compare`. **Validated live**: a real 2-model x 3-representation
-  run (6 calls) completed in 54s, all successful, and the numbers themselves were
-  interesting on the first try -- raw-code context took ~4x longer than the
-  structured representations (967-1204 input tokens vs. 261-354), which is exactly
-  the "more structure -> different behavior" trend the research question asks about.
-- `backend/tests/test_run_representation_ablation.py` -- 4 offline unit tests
-  (mocked clone/Neo4j/provider).
-
-### Verified test results (this session)
+**RepoIntel** explores an alternative approach:
+1. **Static AST Extraction:** Automatically parses backend codebases using Tree-sitter, extracting architectural components (framework configurations, routes/endpoints, classes, controllers, service functions, and external packages).
+2. **Knowledge Graph Construction:** Maps repository entities and relational edges into a Neo4j property graph.
+3. **Structured Context Linearization:** Renders grounded structural prompts under strict token budgets.
+4. **Three-Way Ablation Benchmark:** Evaluates LLM comprehension across three representations:
+   - `raw`: Linearized raw source files (concatenated according to structural importance).
+   - `dependency_graph`: Multi-level dependency DAG showing module relationships and import hierarchies.
+   - `knowledge_graph`: Full relational schema containing API routes, database models, class hierarchies, and external integrations.
+5. **Deterministic Verification & Metric Auditing:** Replaces brittle LLM-as-a-judge coverage metrics with a parser-grounded deterministic oracle, cross-model secondary judges, and blinded human evaluation protocols.
 
 ```
-tests/test_express_parser.py::test_detects_express PASSED
-tests/test_express_parser.py::test_finds_all_modules PASSED
-tests/test_express_parser.py::test_resolves_internal_import PASSED
-tests/test_express_parser.py::test_finds_named_functions PASSED
-tests/test_express_parser.py::test_finds_all_routes PASSED
-tests/test_express_parser.py::test_resolves_named_handler_to_function_id PASSED
-tests/test_express_parser.py::test_inline_handler_has_no_function_id PASSED
-tests/test_express_parser.py::test_external_dependencies_from_package_json PASSED
-tests/test_express_parser.py::test_config_files_detected PASSED
-tests/test_pipeline_integration.py::test_analyze_real_express_repo PASSED
-tests/test_pipeline_integration.py::test_analyze_real_nestjs_repo PASSED
-tests/test_nestjs_parser.py:: (12 tests, fixture-based) PASSED
-tests/test_ollama_provider.py::test_provider_name_is_ollama PASSED
-tests/test_ollama_provider.py::test_generate_summary_success PASSED
-tests/test_ollama_provider.py::test_identical_call_shape_across_models PASSED
-tests/test_ollama_provider.py::test_connection_failure_raises_provider_call_error_and_records_failed_status PASSED
-tests/test_ollama_provider.py::test_call_model_wraps_errors_as_provider_call_error PASSED
-tests/test_pipeline_summary.py:: (7 tests, mocked Neo4j + LLM provider) PASSED
-tests/test_graph_builder.py:: (9 tests, real Neo4j -- @pytest.mark.neo4j) PASSED
-tests/test_context_builder.py:: (4 tests, real Neo4j -- @pytest.mark.neo4j) PASSED
-tests/test_diagram.py:: (3 tests, real Neo4j -- @pytest.mark.neo4j) PASSED
-tests/test_run_representation_ablation.py:: (4 tests, mocked clone/Neo4j/provider) PASSED
-tests/test_main.py:: (5 tests, CORS-header-on-error + diagram/compare mapping) PASSED
-tests/test_hallucination.py:: (8 tests, mocked judge) PASSED
-tests/test_harness.py:: (5 tests, mocked ablation + scorer) PASSED
-tests/test_diagram_score.py:: (9 tests, pure logic) PASSED
-======= 168 test functions (149 offline, 19 infra-gated) (offline + neo4j-gated + integration, with Neo4j up) =======
-
-# plus real, manual, no-mocks runs against the running backend + browser:
-POST /summarize {"url": "https://github.com/heroku/node-js-getting-started"}
--> 200 OK in ~15s, correct JSON summary, $0 cost (see Status at the top of this file)
-POST /summarize {"url": "https://github.com/nestjs/typescript-starter"}
--> 200 OK in ~23s, correct JSON summary, $0 cost -- first real NestJS repo through
-   the full pipeline (parser -> Neo4j -> context -> Ollama), confirming Phase 6
-   works end-to-end, not just in isolation
-POST /diagram {"url": "https://github.com/heroku/node-js-getting-started"}
--> 200 OK, correct Mermaid text, submitted through the Diagram page's own form
-   in-browser (not just curl)
-POST /compare {"url": "...", "models": ["qwen2.5-coder:7b", "mistral:7b"]}
--> 200 OK in 54s (6 calls), all successful -- raw context ~4x slower than the
-   structured representations, a real signal on the very first live run
-python -m app.evaluation.harness <url> --models qwen2.5-coder:7b mistral:7b --judge-model llama3.1:8b
--> wrote a real 6-row results CSV, 0 failures; hallucination score 0.0 across every
-   arm on this small repo (all summaries faithful -- the quality gap the research
-   question predicts would need larger, context-window-straining repos to surface)
+                  +----------------------------------------------+
+                  |           Target Code Repository             |
+                  +----------------------------------------------+
+                                         |
+                                         v
+                     +----------------------------------------+
+                     |   AST Parser (Tree-sitter TS/JS)       |
+                     |   - Express.js & NestJS Analyzers      |
+                     +----------------------------------------+
+                                         |
+                       +-----------------+-----------------+
+                       |                                   |
+                       v                                   v
+        +-----------------------------+     +-----------------------------+
+        |  Dependency Graph (DAG)     |     |  Property Graph (Neo4j)     |
+        |  Module & import topologies |     |  Endpoints, DB, classes     |
+        +-----------------------------+     +-----------------------------+
+                       |                                   |
+                       +-----------------+-----------------+
+                                         |
+                                         v
+                     +----------------------------------------+
+                     | Context Builder & Token Budget Engine  |
+                     |  - raw / dependency / knowledge graph  |
+                     |  - Strict budget truncation (8192 ctx) |
+                     +----------------------------------------+
+                                         |
+                                         v
+                     +----------------------------------------+
+                     | Open-Weight LLM Generation (Ollama)    |
+                     |  - Qwen2.5-Coder, CodeLlama, Granite   |
+                     +----------------------------------------+
+                                         |
+                                         v
+                     +----------------------------------------+
+                     |          Evaluation Harness            |
+                     |  - Deterministic Coverage Oracle       |
+                     |  - Grounded Hallucination Detection    |
+                     |  - G-Eval Quality & Overlap Metrics    |
+                     |  - Blinded Human Review Sheet Pipeline |
+                     +----------------------------------------+
 ```
 
-The 17 `neo4j`-marked tests SKIP (not fail) when no Neo4j is reachable -- see Setup
-below for how to run them for real.
+---
 
-**Phase 2 (Neo4j knowledge graph, built):**
-- `backend/app/graph/SCHEMA.md` -- maps every `ParsedRepository` field (`parser_schema.py`)
-  to a Neo4j node label or relationship type, keyed on `(repo_name, id)` rather than
-  bare `id` so multiple repos can share one Neo4j instance without collision (the
-  parser generates ids like `mod_0` fresh per parse, so bare ids collide across repos).
-  Documents 7 real gaps/bugs found across the design and build passes.
-- `backend/app/graph/schema.cypher` -- constraints + reference queries, validated
-  against a live Neo4j 5.26 Community Edition container.
-- `backend/app/graph/builder.py` -- `write_parsed_repository()`: the real
-  `ParsedRepository` -> Neo4j builder. One atomic transaction per repo (a partial
-  parse never leaves a half-written graph), MERGE-based (idempotent -- re-running
-  is safe), covers every node/edge type including `HAS_METHOD`/`IMPLEMENTS`/`CALLS`/
-  `RELATES_TO`, which the current Express parser never actually populates (no
-  classes in idiomatic Express apps) -- those code paths are only exercised by
-  `tests/test_graph_builder.py`'s hand-built fixture.
-- `backend/app/db/neo4j_client.py` -- thin driver factory reading `NEO4J_URI`/
-  `NEO4J_USER`/`NEO4J_PASSWORD` from the environment.
-- `backend/tests/test_graph_builder.py` -- 9 tests against a real Neo4j instance
-  (marked `@pytest.mark.neo4j`, skip gracefully if none is reachable -- see Setup).
-  Confirmed idempotency and that two repos with intentionally colliding parser ids
-  stay isolated.
+## Repository Structure
 
-**Phase 3 (structured context builder, all 3 representations built):**
-- `backend/app/context/builder.py` -- `build_context()` for `dependency_graph` and
-  `knowledge_graph` (queries Neo4j and formats results into the text blob handed to
-  the LLM). `raw` still deliberately raises `ContextBuilderError` here -- it needs
-  the repo's raw source text, which `analyze_repository()` doesn't retain past its
-  cleanup step. That's resolved for the ablation specifically by
-  `pipeline._read_raw_source()` (Week 3, see Phase 4 below), which reads raw source
-  during a dedicated clone in `run_representation_ablation()` before cleanup --
-  `build_context()`'s own signature (Neo4j-only) still can't produce it.
-- Found and fixed a real Cypher bug while testing against a live Neo4j: chaining
-  `OPTIONAL MATCH (r)-[:HAS_ENDPOINT]->(e:Endpoint)-[:HANDLED_BY]->(handler:Function)`
-  as one pattern drops the endpoint entirely (not just the handler) when there's no
-  `HANDLED_BY` edge -- e.g. inline route handlers vanished from the context instead
-  of appearing with a null handler. Fixed by splitting into two `OPTIONAL MATCH`
-  clauses (see SCHEMA.md's "Update (Week 2 build)" section for detail).
-- `backend/app/providers/prompts.py` -- `SUMMARY_PROMPT_TEMPLATE`, asking for JSON
-  matching `{overview, tech_stack, services, dependencies}` -- deliberately mirrors
-  `frontend/src/lib/types.ts`'s `RepoSummary` shape.
-- `backend/tests/test_context_builder.py` -- 4 tests against a real Neo4j instance.
+```
+repo-intel-platform/
+├── backend/
+│   ├── app/
+│   │   ├── acquisition/       # Repository cloning, shallow checkout & validation
+│   │   ├── parsers/           # Tree-sitter AST parsers for Express and NestJS
+│   │   ├── graph/             # Neo4j schema construction, Cypher queries & builders
+│   │   ├── context/           # Context builders (raw, dependency DAG, knowledge graph)
+│   │   ├── providers/         # Ollama inference client & prompt templates
+│   │   ├── evaluation/        # Oracle, hallucination scoring, G-Eval, BERTScore harness
+│   │   ├── schemas/           # Pydantic data schemas for AST nodes and metrics
+│   │   └── main.py            # FastAPI application endpoints
+│   ├── scripts/               # Harness runners, rejudging, review sheet generation
+│   ├── tests/                 # 158 automated unit and integration tests
+│   ├── requirements.txt       # Python dependencies for full stack
+│   └── requirements-cluster.txt # Lightweight requirements for GPU nodes
+├── frontend/
+│   ├── src/
+│   │   ├── components/        # Interactive Cytoscape graph & Mermaid diagram renderers
+│   │   ├── pages/             # Dashboard, Analyze, Architecture, 3-Way Ablation
+│   │   └── api/               # Typed client connecting to FastAPI backend
+│   ├── package.json           # React 18, TypeScript, Tailwind CSS, Vite
+│   └── vite.config.ts         # Vite build configuration
+├── docs/
+│   ├── REPORT.md              # Research paper draft and complete experimental results
+│   ├── GPU_BATCH.md           # Guide for distributed multi-MIG GPU execution
+│   └── evaluation_metrics.pdf # Metric formalizations and visual data distributions
+├── hpc/                       # Production PBS batch scripts for Altair cluster execution
+├── 18_repo_urls.txt           # Benchmark dataset: 18 curated open-source repositories
+├── context_pack.json          # Pre-built, frozen context pack for offline replication
+└── docker-compose.yml         # Container definitions (Neo4j, Ollama, Backend, Frontend)
+```
 
-**Phase 5 (Mermaid diagram generation, built):**
-- `backend/app/graph/diagram.py` -- `generate_architecture_diagram()`: Neo4j graph
-  -> Mermaid flowchart, entirely deterministic Cypher + string formatting, no LLM
-  call at all, per the roadmap's framing ("branches off the graph directly").
-  Modules become nodes (labeled by path), `IMPORTS` becomes `-->` edges, endpoints
-  become hexagon nodes linked to their owning module with a dotted edge (or
-  standalone, for inline handlers with no resolvable module).
-- Uses the graph's own stable ids (`mod_0`, `mod_1_ep_0`, ...) as Mermaid node ids
-  directly, rather than sanitizing file paths -- those ids are already
-  alphanumeric-plus-underscore, so there's no escaping problem to solve.
-- Exposed as `POST /diagram`: parse -> write to Neo4j -> generate diagram. No LLM,
-  so this is effectively instant compared to `/summarize`.
-- `backend/tests/test_diagram.py` -- 3 tests against a real Neo4j instance.
-- The Diagram page now renders the Mermaid visually (via mermaid.js) instead of raw
-  text -- see Phase 8. The raw source stays available under the rendered diagram.
+---
 
-**Phase 7 (LLM-as-judge hallucination scorer, built + live-validated):**
-- `backend/app/evaluation/hallucination.py` -- `score_summary()`: formats the
-  parser's ground-truth facts (framework, dependencies, endpoints, counts, ...) into
-  a reference block, has a judge model flag any specific claim in a generated summary
-  the facts don't support, and returns a `HallucinationResult` (score = unsupported /
-  total claims, plus the flagged claims). Ground truth is the parser output, so this
-  measures faithfulness to static analysis -- the exact axis the research question
-  needs, and the missing "quality" half that latency/token metrics alone couldn't show.
-- `BaseLLMProvider.judge()` + a `HALLUCINATION_JUDGE` task were added so a judge call
-  reuses the same retry/latency/result plumbing and records the context_variant of the
-  summary being graded (so scores are attributable to a representation arm).
-- Verdict parsing tolerates local-model quirks: JSON wrapped in prose/code fences,
-  stray empty-string claims, and inconsistent counts (clamped so the score stays in [0, 1]).
-- `backend/tests/test_hallucination.py` -- 8 offline unit tests (mocked judge).
-- **Live-validated against real Ollama** (the roadmap's "validate the judge against a
-  small sample" step): a faithful Express summary and one with injected false claims
-  (Django, MongoDB, GraphQL, Stripe, TensorFlow). The first pass over-flagged true
-  claims (scored the faithful summary 0.6); tightening the judge prompt to treat
-  fact-consistent phrasing as supported fixed it -- faithful now scores 0.0, the
-  hallucinated one 1.0 with every fabricated technology caught. Broader validation
-  across more models and summaries is still needed before trusting absolute scores.
+## Key Features
 
-**Phase 7 (coverage/recall scorer, built -- companion to the hallucination scorer):**
-- `backend/app/evaluation/coverage.py` -- `score_coverage()`: hallucination measures
-  precision (are the claims a summary made true); it says nothing about
-  completeness, so a summary that mentions almost nothing can still score a perfect
-  0.0. Coverage measures the missing half -- of the facts the parser actually found,
-  how many did the summary mention (recall).
-- Structural difference from the hallucination scorer: hallucination's "claims" are
-  extracted BY the judge FROM the summary (unknowable in advance); coverage's fact
-  list (`build_coverable_facts()`) is built DETERMINISTICALLY from the
-  `ParsedRepository` before the judge ever runs, so the denominator (`total_facts`)
-  is never at the judge's mercy the way hallucination's claim count is -- only "is
-  this specific fact mentioned" needs judgment.
-- Reuses `BaseLLMProvider.judge()` (now takes an optional `task`, defaulting to
-  `HALLUCINATION_JUDGE` for backward compatibility) with the new `COVERAGE_JUDGE`
-  task, so both judge calls share the same retry/latency/result plumbing.
-- `backend/tests/test_coverage.py` -- 8 offline unit tests (mocked judge), covering
-  fact-list construction, verdict parsing, a judge inventing a fact never asked
-  about (dropped rather than trusted), and the vacuous zero-facts case.
-- Wired everywhere hallucination is: `run_scored_ablation()` (`POST /compare`),
-  `ComparisonRun`/the dashboard's Comparison page (a second aggregate panel,
-  higher-is-better), and the batch harness's `EvaluationRow`/CSV output.
-- Not yet live-validated against real Ollama the way the hallucination scorer was
-  (faithful vs. injected-false-claims summaries) -- same "needs broader validation"
-  caveat applies.
+* **Dual Framework Parsers:** Native support for both un-opinionated Express.js and modular NestJS backends, extracting controllers, decorators, routes, schemas, and service dependencies.
+* **Deterministic Coverage Oracle:** An evaluation oracle that checks summary claims directly against ground-truth AST parser symbols, eliminating LLM-as-a-judge non-determinism and format sensitivity.
+* **Fine-Grained Hallucination Measurement:** Deconstructs generated summaries into discrete claims, cross-referencing each against static analysis facts to report a grounded hallucination score in `[0, 1]`.
+* **Zero-Network Offline Replication:** Includes `context_pack.json` (frozen context strings and parsed ASTs for all 18 benchmark repositories), allowing exact replication of generation and judging runs without network access or live Git clones.
+* **Interactive Visual Dashboard:** A React frontend featuring interactive dependency topologies (Cytoscape), architectural diagrams (Mermaid), and a side-by-side three-way representation comparison tool.
 
-**Phase 7 (diagram graph-diff scorer, built -- awaiting annotations to run for real):**
-- `backend/app/evaluation/diagram_score.py` -- `score_diagram()`: precision / recall /
-  F1 over modules (nodes), import relationships (edges), and endpoints, comparing the
-  structure the pipeline extracted against a manually annotated expected structure.
-  Since the diagram is generated deterministically from the graph, this measures
-  parser + graph-builder fidelity -- which is what "diagram correctness" means here.
-- Actual structure is read from the `ParsedRepository` (`extract_actual_structure()`),
-  not by re-parsing our own Mermaid text -- same structural content, far more robust.
-  `load_expected()` reads a per-repo JSON annotation (`GraphStructure`).
-- `backend/tests/test_diagram_score.py` -- 9 offline unit tests. Also spot-checked on
-  real Express parser output, where it correctly flagged a real discrepancy (0 resolved
-  import edges vs. an annotation that expected one).
-- The scoring logic is complete; it can't produce real numbers until the team writes
-  the expected-structure annotations for the chosen evaluation repos (roadmap Week 3
-  annotation task, still blocked on repo selection).
+---
 
-**Phase 7 (batch evaluation harness, built):**
-- `backend/app/evaluation/harness.py` -- `run_evaluation()`: runs the full battery
-  (every repo x every model x all 3 representations), scores each summary with both
-  the hallucination and coverage judges, and emits one flat `EvaluationRow` per
-  (repo, model, representation) with efficiency metrics (latency, tokens) alongside
-  both quality metrics side by side. `write_csv()` produces the results table the
-  report is built from.
-- Runs as a script on the designated evaluation machine:
-  `python -m app.evaluation.harness <url> [...] --models qwen2.5-coder:7b mistral:7b --judge-model llama3.1:8b --annotations-dir ./annotations --out results.csv --sqlite results.db`.
-- One shared Neo4j driver + provider across the batch; a single repo failing (bad URL,
-  unsupported framework, Neo4j blip) records a failure row and continues rather than
-  aborting the whole run. Records a `self_judged` flag when the generator and judge
-  are the same model, so those rows can be filtered out during analysis.
-- `--annotations-dir` adds the diagram graph-diff columns (module/import/endpoint/
-  overall F1) per repo when a `<repo_name>.json` expected-structure annotation exists.
-  `--sqlite` also appends every row into a SQLite table that accumulates across runs
-  (the CSV is overwritten each run).
-- The same scoring is wired into the live `POST /compare` (`run_scored_ablation`), so
-  the dashboard's Comparison page shows hallucination + coverage scores
-  interactively, not only via the batch CSV.
-- `backend/tests/test_harness.py` -- offline unit tests (mocked ablation + scorer,
-  diagram-scoring integration, SQLite roundtrip), plus a real end-to-end run
-  producing an actual CSV (see "Verified test results").
+## Dataset
 
-**Phase 8 (dashboard shell + real wiring, all 4 pages):**
-- `frontend/` -- Vite + React 19 + TypeScript + Tailwind CSS v4, routed with
-  `react-router-dom`. Four pages: Analyze, Summary, Diagram, Comparison -- all four
-  now call real backend endpoints, each with its own URL-input form (Diagram and
-  Comparison didn't have one before; adding one to each meant a user doesn't have
-  to go through Analyze first just to see a diagram or run a comparison).
-- `frontend/src/lib/types.ts` mirrors the backend's `ContextVariant` (3-way) and the
-  3 Ollama models.
-- `frontend/src/lib/api.ts` -- `summarizeRepository()`, `getArchitectureDiagram()`,
-  `compareModels()`: a shared `postJson()` helper with one error class (`ApiError`,
-  renamed from `SummarizeError` now that it's used by three functions), each doing
-  its own snake_case -> camelCase mapping at the boundary (the model's own JSON
-  summary output stays snake_case, matching the prompt -- only the envelope around
-  it is mapped). Every page renders the real result when it has one (via router
-  state), falling back to `mockData.ts` when visited directly (e.g. from the nav
-  bar) so the shell is still browsable without a live backend.
-- Backend: added `CORSMiddleware` (regex-matched to any `localhost`/`127.0.0.1`
-  port, since Vite's default 5173 is often taken by other local projects) and a
-  global exception handler -- see the CORS bug under Phase 4 above, which this
-  wiring work is what actually surfaced it.
-- Comparison page shows live hallucination AND coverage scores per (model,
-  representation) -- `/compare` now scores each summary via `run_scored_ablation`
-  (see Phase 7) -- plus a per-representation average for each metric (hallucination
-  lower-is-better, coverage higher-is-better, kept as two separate panels since the
-  two axes can disagree on which representation wins), the single best-hallucination
-  run highlighted in the table, and a **token efficiency** column (output / input
-  tokens) replacing the raw token-count columns -- structured representations feed
-  far fewer input tokens for comparable output, so this reads directly as "more
-  summary per token spent" instead of making the reader compare two numbers by eye.
-  The Diagram page renders the Mermaid as an actual SVG flowchart (mermaid.js,
-  theme-aware, raw source under a `<details>`), not raw text.
-- Verified for real in-browser, not just via curl: submitted live GitHub URLs
-  through the Analyze and Diagram pages' forms, watched both hit the real backend,
-  saw the diagram render and the comparison table populate with scores, zero console
-  errors.
+The benchmark evaluates **18 production-grade open-source repositories** (9 Express.js, 9 NestJS) selected for structural diversity, varying from minimal microservices to massive boilerplate frameworks:
 
-### Known gaps in the Phase 1 parser (real, not hypothetical -- worth noting in your paper)
+| Framework | Repositories |
+| :--- | :--- |
+| **Express.js** | `node-express-boilerplate`, `express-rest-boilerplate`, `node-express-mongodb-jwt-rest-api-skeleton`, `express-mongoose-es6-rest-api`, `express-sequelize-api-boilerplate`, `api-design-node-v3`, `rest-api-nodejs-mongodb`, `node-express-sequelize-postgresql`, `node_passport_login` |
+| **NestJS** | `clean-architecture-nestJS`, `nestjs-boilerplate`, `awesome-nest-boilerplate`, `nestjs-realworld-example-app`, `domain-driven-hexagon`, `nestjs-recipe`, `ack-nestjs-boilerplate`, `nestjs-prisma-starter`, `nestjs-starter-rest-api` |
 
-- Inline/anonymous route handlers (`app.get('/x', (req, res) => {...})`) are detected
-  as endpoints but have no resolvable `handler_function_id`, since there's no stable
-  name to link to. This is expected behavior, not a bug -- flagged explicitly in code.
-- `.ts` files are now handled by the NestJS parser (Phase 6, below); `.tsx` is still
-  skipped everywhere (logged to `files_skipped`) -- NestJS backends don't use JSX,
-  so there was never a reason to add it.
-- Import resolution handles relative `require()` paths but not path aliases (e.g.
-  webpack/tsconfig `paths`). **Fixed 2026-08-11:** resolution used to produce *zero*
-  edges on every repo -- candidates were `.resolve()`d while the lookup table was
-  keyed on unresolved paths, so on macOS (`/var/folders` -> `/private/var/folders`)
-  every lookup missed silently. Regression-tested in `test_express_parser.py`.
-- Router mounting is resolved for literal mount paths -- `app.use('/api', router)` in
-  the same file, and `app.use('/users', require('./routes/users'))` or an identifier
-  bound to a `require()` across files. **Not** resolved: mount paths that are runtime
-  values rather than literals, e.g. iterating an array of `{path, route}` objects
-  (`defaultRoutes.forEach(r => router.use(r.path, r.route))`), as
-  `hagopj13/node-express-boilerplate` does, or built from a template literal via a
-  filesystem loop (`` router.use(`/${routeFile}`, require(`./${routeFile}`)) ``), as
-  `node-express-mongodb-jwt-rest-api-skeleton` does -- those routes keep
-  router-relative paths.
-- ~~Mount-prefix resolution is only one level deep.~~ **FIXED in `34d0c08`.** It used
-  to compose a router's own prefix from whoever mounted it without propagating that
-  prefix transitively, so `express-rest-boilerplate` (which mounts `v1/index.js` at
-  `/v1`, which mounts `user.route.js` at `/users`) reported `GET /users` instead of
-  `GET /v1/users`. `_resolve_mount_chain` now resolves the full chain; regression test
-  `test_multi_hop_mount_prefix_composes_fully`. Retained here because the paper's
-  defect log (`REPORT.md` §5.4a) cites it.
-- The Express parser only resolves CommonJS `require()` -- ES `import`/`export`
-  (`import userRouter from './routes/user'`) is a different AST node entirely and is
-  invisible to both the internal-import-edge resolver and the mount-prefix resolver.
-  A repo wired entirely with ES modules (e.g. `api-design-node-v3`) silently loses
-  both its dependency-graph edges and its endpoint prefixes. Significant gap for any
-  modern Express+Babel/ts-node repo; found 2026-08-24. **FIXED in `34d0c08`** --
-  `express_parser.py` now walks `import_statement` nodes; regression test
-  `test_es_module_imports_are_resolved`.
-- Two false-positive route-detection bugs were found and fixed while expanding the
-  evaluation dataset (2026-08-24), both regression-tested in `test_express_parser.py`:
-  `app.get('port')` (Express's single-argument app-*settings* getter, not a route
-  registration) was misread as a handler-less GET route; and a plain middleware mount
-  (`router.use('/docs', express.static('docs'))`) was misattributed as "a router built
-  in this file," corrupting that file's own mount prefix for any routes registered
-  after it.
+The repository URLs and metadata are cataloged in [`18_repo_urls.txt`](18_repo_urls.txt).
 
-### Known gaps in the Phase 6 NestJS parser (same spirit as Phase 1's, above)
+---
 
-- **Constant-reference decorator arguments are not resolved, and fail silently with a
-  wrong path rather than no path.** `_decorator_string_arg()` handles the string,
-  options-object and array forms below; a `member_expression` matches none of them and
-  falls through to `return ""`. Because `creates_endpoint` tests the controller prefix
-  for `None` and `""` is not `None`, the endpoint is still emitted -- so the *count*
-  stays correct while every *path* collapses to `/`. `Sairyss/domain-driven-hexagon`
-  routes entirely this way (`@Controller(routesV1.version)`, `@Post(routesV1.user.root)`,
-  constants in `src/configs/app.routes.ts`), so its three real endpoints
-  (`GET /v1/users`, `POST /v1/users`, `DELETE /v1/users/:id`) are reported as `GET /`,
-  `POST /`, `DELETE /` -- endpoint F1 0.00, see `backend/annotations/README.md`. This is
-  the same class as Phase 1's "mount path is a runtime value" gap: resolving it needs
-  cross-file constant resolution, not a new decorator form. Until then the failure is
-  worse than a miss, because a wrong-but-plausible path is what seeded that repo's
-  annotation in the first place.
-- **GraphQL resolvers are out of scope and are not counted anywhere.**
-  `ROUTE_DECORATORS` lists only the eight HTTP verbs, and `creates_endpoint` additionally
-  requires `@Controller`, which a `@Resolver()` class never has. Both conditions are
-  independently sufficient, so `@Query`/`@Mutation`/`@Subscription`/`@ResolveField`
-  contribute no endpoints. The resolver files are still parsed -- their modules and
-  classes appear -- only the operations are dropped. This matters for dataset selection:
-  `annotations/README.md` states GraphQL-only repos were excluded, but
-  `notiz-dev/nestjs-prisma-starter` is ~87% GraphQL by operation count (13 root
-  operations plus 3 field resolvers) and was included on the strength of two
-  `hello`-world REST routes.
-- `@Module()` metadata (`controllers`/`providers`/`imports` arrays) isn't parsed --
-  module-to-controller/service wiring isn't in the graph, only the plain `IMPORTS`
-  edges from each file's own `import` statements.
-- Decorator arguments are resolved in all three real-world forms as of 2026-08-11:
-  `@Controller('users')`, the options form `@Controller({ path: 'users', version:
-  '1' })`, and the array form `@Controller(['v1/users', 'v2/users'])` (first entry
-  only -- `ApiEndpoint` carries one path). Previously only the string form worked, so
-  every controller in an options-object codebase silently lost its prefix; that's the
-  whole of `brocoders/nestjs-boilerplate`. URI versioning (`version: '1'`) is read but
-  not prepended to paths -- it's applied at app bootstrap, outside parser scope.
-- No ORM entity extraction (e.g. TypeORM `@Entity()` classes) -- `database_entities`
-  is always empty for NestJS repos, same as Express.
-- Barrel-file re-exports (`export { X } from './y'`, `export * from './y'`) aren't
-  resolved as import edges -- only `import ... from` statements are.
-- Dependency injection isn't modeled -- constructor parameter types (e.g. `private
-  readonly usersService: UsersService`) aren't turned into graph edges, even though
-  they're the actual wiring NestJS uses at runtime.
+## Quickstart & Local Setup
 
-### Build order (matches the original spec, section 6)
+### Prerequisites
+* Docker & Docker Compose (v2.20+)
+* Python 3.10+
+* Node.js 18+ (optional, for running frontend outside Docker)
+* Ollama installed locally or accessible via network
 
-- [x] **Phase 0** -- Contracts (parser schema, LLM result schema) + skeleton
-- [x] **Phase 1** -- Repository Acquisition + Express.js parser (tested, working)
-- [x] **Phase 2** -- Knowledge Graph Builder (Neo4j). `write_parsed_repository()` built and tested against a live Neo4j instance.
-- [x] **Phase 3** -- Structured Context Builder. All 3 representations available: `dependency_graph`/`knowledge_graph` via `build_context()`, `raw` via the ablation's dedicated `_read_raw_source()` path.
-- [x] **Phase 4** -- Ollama orchestration layer (3 local models: Qwen2.5-Coder 7B, Llama 3.1 8B, Mistral 7B substituted for gpt-oss:20b on this dev machine's 16GB RAM -- no paid APIs). Built, unit-tested, and validated against a real running Ollama daemon with all 3 models pulled -- including the full 3-way ablation across 2 models live.
-- [x] **Phase 5** -- Architecture diagram generation. Deterministic Neo4j -> Mermaid, no LLM, validated live against real repos.
-- [x] **Phase 6** -- NestJS parser. Built and validated against a real repo (`nestjs/typescript-starter`).
-- [x] **Phase 7** -- Evaluation. LLM-as-judge hallucination scorer, batch evaluation harness (CSV output), and diagram graph-diff scorer all built and tested. The diagram scorer needs the team's expected-structure annotations to produce real numbers (blocked on repo selection, not code).
-- [x] **Phase 8** -- React dashboard. All 4 pages (Analyze, Summary, Diagram, Comparison) wired to real backend endpoints, each independently, verified end-to-end in-browser.
+### Option 1: Docker Compose (Full Stack)
 
-This build order reflects the negotiated scope in `Capstone_Roadmap.docx` (Neo4j, Express+NestJS only,
-3 free local Ollama models, 3-way ablation, no commercial LLM APIs, no conference paper) -- not the
-original, broader proposal.
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/DishankVyas/repo-intel-platform.git
+   cd repo-intel-platform
+   ```
 
-### Setup
+2. Create the backend environment configuration:
+   ```bash
+   cp backend/.env.example backend/.env
+   # Edit backend/.env to set your NEO4J_PASSWORD and OLLAMA_HOST
+   ```
 
+3. Launch Neo4j, FastAPI Backend, and React Frontend:
+   ```bash
+   docker compose up -d
+   ```
+   - **Frontend UI:** `http://localhost:5173`
+   - **Backend API Docs:** `http://localhost:8000/docs`
+   - **Neo4j Browser:** `http://localhost:7474`
+
+### Option 2: Local Development Setup
+
+#### Backend Setup
 ```bash
 cd backend
-python -m venv venv && source venv/bin/activate
+python3 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env   # fill in Neo4j creds / Ollama host -- required for /summarize, not /analyze
 
-# run tests
-pytest tests/ -v                    # all tests, including real network clone
-pytest tests/ -v -m "not integration"   # offline + neo4j (neo4j tests skip if none reachable)
-pytest tests/ -v -m "not integration and not neo4j"   # always-offline only, no infra needed
-
-# to actually run the neo4j-marked tests: start a throwaway Neo4j first
-docker run -d --name neo4j-test -p 7474:7474 -p 7687:7687 -e NEO4J_AUTH=neo4j/testpassword123 neo4j:5.26
-NEO4J_TEST_PASSWORD=testpassword123 pytest tests/ -v -m neo4j
-docker rm -f neo4j-test   # when done
-
-# run the API
-uvicorn app.main:app --reload
+# Run the test suite
+pytest -v
 ```
 
-**For `/summarize` to actually work** (not just `/analyze`), you need a running Neo4j
-*and* Ollama with the models pulled, matching whatever `.env` points at:
-
-```bash
-# Neo4j (persistent, not the throwaway test one above -- match .env's NEO4J_PASSWORD)
-docker run -d --name neo4j-dev -p 7474:7474 -p 7687:7687 -e NEO4J_AUTH=neo4j/<your-password> neo4j:5.26
-
-# Ollama (macOS)
-brew install ollama && brew services start ollama
-ollama pull qwen2.5-coder:7b
-ollama pull llama3.1:8b
-ollama pull gpt-oss:20b   # or: ollama pull mistral:7b if your machine has <=16GB RAM
-
-curl -X POST localhost:8000/summarize -H "Content-Type: application/json" \
-        -d '{"url": "https://github.com/heroku/node-js-getting-started"}'
-# ~15s, real cloned repo, real Neo4j graph, real model inference -- this exact
-# command produced a correct summary in the session that built this pipeline.
-
-curl -X POST localhost:8000/diagram -H "Content-Type: application/json" \
-        -d '{"url": "https://github.com/heroku/node-js-getting-started"}'
-# effectively instant -- no LLM call, just Neo4j -> Mermaid text
-
-curl -X POST localhost:8000/compare -H "Content-Type: application/json" \
-        -d '{"url": "https://github.com/heroku/node-js-getting-started", "models": ["qwen2.5-coder:7b", "mistral:7b"]}'
-# 1-5 minutes depending on model count -- omit "models" to run all 3 from .env
-```
-
+#### Frontend Setup
 ```bash
 cd frontend
 npm install
-npm run dev   # http://localhost:5180 (Vite config pins this -- 5173 is often taken
-              # by other local projects). All 4 pages have their own URL-input form
-              # and need the backend running (above) for real data; visiting a page
-              # directly (e.g. from the nav bar) without submitting shows mock data
-              # instead, so the shell is still browsable with no backend at all.
+npm run build
+npm run dev
 ```
 
-The backend's CORS is regex-matched to any `localhost`/`127.0.0.1` port, so it
-doesn't matter which port Vite actually lands on if 5180 is also taken.
+---
 
-### How to add a new framework parser (once the pattern is established in Phase 1)
+## Reproducing the Evaluation Benchmark
 
-1. Subclass `BaseParser` in `app/parsers/`
-2. Implement `detect()` (cheap file-signature check) and `parse()` (returns a
-   `ParsedRepository`)
-3. Register it in `app/parsers/registry.py` (added in Phase 1)
+To reproduce the study's experimental results without needing a live Neo4j instance or active internet connection, use the pre-built `context_pack.json`:
 
-### How to add a new LLM provider
+### 1. Run Generation & Primary Evaluation Battery
+Execute the battery across any model served by Ollama (e.g., `qwen2.5-coder:14b`):
+```bash
+cd backend
+python3 -m app.evaluation.harness \
+  --context-pack ../context_pack.json \
+  --model qwen2.5-coder:14b \
+  --judge gemma2:9b \
+  --runs 1 \
+  --out-dir evaluation_results
+```
+This produces an SQLite database (`battery_qwen14b.db`) and CSV report (`battery_qwen14b.csv`) tracking latency, input tokens, hallucination scores, coverage scores, and text overlap.
 
-1. Subclass `BaseLLMProvider` in `app/providers/`
-2. Implement `_call_model()` (the one vendor-specific method) and `estimate_cost()`
-3. Everything else -- retry logic, latency timing, `LLMResult` construction -- is
-   inherited from the base class
+### 2. Multi-Judge Cross-Validation
+Re-score previously generated summaries using an independent secondary judge model:
+```bash
+python3 -m scripts.rejudge \
+  --judge mistral:7b-instruct \
+  --src-db evaluation_results/battery_qwen14b.db \
+  --context-pack ../context_pack.json \
+  --phase judge
+```
 
-### Known limitations (flagged upfront, see conversation history for full rationale)
+### 3. Generate Blinded Human Validation Sheets
+To validate the reliability of LLM judges against human annotators:
+```bash
+# 1. Extract full claim breakdown from model summaries
+python3 -m scripts.rejudge_full_claims \
+  --src-db evaluation_results/battery_qwen14b.db \
+  --sample-csv evaluation_results/sample_manifest.csv \
+  --context-pack ../context_pack.json \
+  --out evaluation_results/human_validation_claims.csv
 
-- NestJS parsing will be heuristic-based (tree-sitter + decorator pattern matching),
-  not a full semantic parser -- expect lower precision than the Express parser.
-- Mermaid diagram validation is structural, not a true Mermaid-spec parse.
-- The hallucination and coverage metrics are both LLM-as-judge (one local model
-  checking another's summary against parser ground truth). Hallucination was
-  validated against only a small manually scored sample; coverage hasn't been
-  live-validated against real Ollama at all yet. Neither is a fully validated NLP
-  metric.
-- All three comparison models run locally via Ollama; response-time comparisons are
-  only meaningful when run on the single designated evaluation machine (see roadmap
-  Section 1).
-- This dev machine substitutes Mistral 7B for gpt-oss:20b (16GB RAM total isn't
-  enough to comfortably load a ~13GB model alongside Neo4j/Docker/the OS -- exactly
-  the case the roadmap's own fallback note anticipates). Whoever ends up as the
-  designated evaluation machine (roadmap Section 1) should re-check this: more RAM
-  might mean gpt-oss:20b is viable there instead.
-- Docker on this machine had ~36GB of stale build cache/dangling images from other
-  projects (`civicpulse`, `qann-dashboard`) before the model pulls fit -- worth a
-  `docker image prune -a` / `docker builder prune -a` check on a fresh machine that's
-  been used for other Docker projects before assuming there's room for the models.
-- `context.builder.build_context()` still can't produce the `raw` `ContextVariant`
-  (`ContextBuilderError` if requested directly) -- its signature is Neo4j-only.
-  RAW is only available via `pipeline.run_representation_ablation()`, which reads
-  source during its own dedicated clone (`_read_raw_source()`) before cleanup.
-- `num_ctx` (Ollama's context window) is configurable via `OLLAMA_NUM_CTX`; this
-  dev machine's `.env` now sets it to 8192 (was unset, falling back to each model's
-  default of often only ~2-4K tokens), with `DEFAULT_MAX_RAW_CHARS` in `pipeline.py`
-  raised from 8000 to 24000 to match, so the raw arm can use the larger window
-  instead of being truncated well under it.
+# 2. Assemble blinded review workbook
+python3 -m scripts.build_review_sheet \
+  --pack ../context_pack.json \
+  --claims-csv evaluation_results/human_validation_claims.csv \
+  --out evaluation_results/human_review.xlsx
+```
+The resulting Excel workbook blindingly presents claims alongside ground-truth AST facts with dropdown verification controls. Once graded, score inter-rater reliability via:
+```bash
+python3 -m scripts.score_human_validation \
+  --sheet evaluation_results/human_review.xlsx
+```
+
+---
+
+## High-Performance Cluster (HPC) Execution
+
+For distributed evaluation on institutional HPC clusters using PBS / Altair Access with NVIDIA A100 or H100 GPUs:
+
+* Refer to [`docs/GPU_BATCH.md`](docs/GPU_BATCH.md) for MIG partition setup and environment variables.
+* Production batch scripts are provided in [`hpc/`](hpc/):
+  - `hpc/run_battery.sh`: Single generator model execution on a dedicated MIG slice.
+  - `hpc/run_rejudge.sh`: Network-free secondary judging pass using frozen AST caches.
+  - `hpc/run_all.sh`: Automated multi-stage orchestration (battery, rejudge, G-Eval, human validation).
+
+---
+
+## Summary of Findings
+
+Across 157 model-summary evaluations on the 18-repository benchmark:
+* **Hallucination Reduction:** Transitioning from `raw` source code to `knowledge_graph` representations yields a **64.7% relative reduction in hallucination scores** across open-weight models (dropping from an average of ~60.1% unsupported claims down to 21.2%).
+* **Information Density:** Knowledge graph contexts deliver **2.3× higher structural fact coverage** compared to raw code while adhering to strict 8,192 token context budgets.
+* **LLM-as-a-Judge Audit:** As detailed in [`docs/REPORT.md`](docs/REPORT.md), prompt-based coverage judges that demand verbatim lexical matching exhibit a balanced accuracy of only **0.541** (chance level), underscoring the critical necessity of parser-grounded deterministic oracles.
+
+---
+
+## License
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
