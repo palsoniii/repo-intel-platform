@@ -40,7 +40,8 @@ it (`./demo.sh`, `python -m app.product.seed`).
   wrong file got a fabricated excerpt of a file it had never seen.
 - Summary and Ask use `qwen2.5-coder:7b` (`PRODUCT_SUMMARY_MODEL` overrides). This M3
   has the base 8-core GPU: prompt reading ~160 tok/s, writing ~17 tok/s, fully on GPU.
-  A summary takes ~30-50 s. An answer takes ~6 s to the first word and ~12 s total,
+  A summary takes ~30-50 s. An answer takes ~6 s to the first word (answer length is
+  the original ~200-word limit, which the user wants kept),
   because the repo overview is a fixed system-prompt prefix that Ollama reuses (primed
   when the Ask tab opens) and only 3 files are sent. First questions are cached per
   analysis (`answers` table) and replay instantly; the seeder pre-answers each

@@ -28,8 +28,7 @@ from app.schemas.parser_schema import ParsedRepository
 # reusable prefix (see system_message), so it costs that time once per repository.
 FILE_BUDGET_CHARS = 6_500
 MAX_OVERVIEW_CHARS = 4_500
-# Writing runs at ~17 tokens/s; ~150 words is about 200 tokens, about 12 seconds.
-MAX_ANSWER_TOKENS = 450
+MAX_ANSWER_TOKENS = 700
 MAX_SOURCE_FILES = 3
 
 STOPWORDS = set(
@@ -45,8 +44,8 @@ their path in backticks (for example `src/users/users.service.ts`) so the reader
 open them. Only mention files that appear in the context. Only quote code that \
 appears verbatim under "Relevant source files" -- never reconstruct or guess what a \
 file contains from its name. If the context does not contain the answer, say so \
-plainly and point to the file(s) most likely to hold it. Be concise: under 150 words, \
-a short paragraph or a few bullet points. Start with the direct answer."""
+plainly and point to the file(s) most likely to hold it. Be concise: under 200 words, \
+a short paragraph or a few bullet points."""
 
 
 def _terms(text: str) -> list[str]:
