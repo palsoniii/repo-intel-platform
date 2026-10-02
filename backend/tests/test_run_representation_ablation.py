@@ -200,7 +200,9 @@ def test_run_scored_ablation_attaches_a_score_per_successful_result(fake_parsed_
     ) as mock_coverage:
         parsed, scored = run_scored_ablation(
             "https://github.com/test/fake-repo",
-            judge_model="llama3.1:8b",
+            # Not one of the default generators: run_scored_ablation() refuses a judge
+            # that grades its own output.
+            judge_model="independent-judge:7b",
             driver=MagicMock(),
             provider=MagicMock(),
         )
