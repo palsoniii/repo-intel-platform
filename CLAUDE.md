@@ -38,8 +38,13 @@ it (`./demo.sh`, `python -m app.product.seed`).
 - Ask (`ask.py`) is lexical + structural retrieval, not embeddings. The prompt forbids
   quoting code that isn't in the context: without that, a question that retrieved the
   wrong file got a fabricated excerpt of a file it had never seen.
-- Summary and Ask use `qwen2.5-coder:7b` (`PRODUCT_SUMMARY_MODEL` overrides). On this
-  machine a summary takes ~30-50 s and an answer ~25-45 s, mostly prompt evaluation.
+- Summary and Ask use `qwen2.5-coder:7b` (`PRODUCT_SUMMARY_MODEL` overrides). This M3
+  has the base 8-core GPU: prompt reading ~160 tok/s, writing ~17 tok/s, fully on GPU.
+  A summary takes ~30-50 s. An answer takes ~6 s to the first word and ~12 s total,
+  because the repo overview is a fixed system-prompt prefix that Ollama reuses (primed
+  when the Ask tab opens) and only 3 files are sent. First questions are cached per
+  analysis (`answers` table) and replay instantly; the seeder pre-answers each
+  repository's suggested questions.
 - Not built yet, deliberately: function-level call graphs (`CALLS` edges are still
   never populated), new frameworks, paid APIs.
 

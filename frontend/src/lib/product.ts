@@ -193,12 +193,13 @@ export const api = {
     get<{ path: string; content: string }>(`/api/analyses/${id}/file?path=${encodeURIComponent(path)}`),
   regenerateSummary: (id: string, model?: string) => post<unknown>(`/api/analyses/${id}/summary`, { model }),
   system: () => get<SystemStatus>("/api/system"),
+  primeAsk: (id: string) => post<unknown>(`/api/analyses/${id}/ask/prime`, {}),
 };
 
 export type AskEvent =
-  | { type: "sources"; sources: { path: string; score: number }[]; model: string }
+  | { type: "sources"; sources: { path: string; score: number }[]; model: string; cached?: boolean }
   | { type: "token"; text: string }
-  | { type: "done"; input_tokens?: number; output_tokens?: number; duration_ms?: number }
+  | { type: "done"; input_tokens?: number; output_tokens?: number; duration_ms?: number; cached?: boolean }
   | { type: "error"; message: string };
 
 // Streams an answer as NDJSON events. The model writes ~15-25 tokens/s on this
@@ -209,13 +210,14 @@ export async function askRepo(
   history: { role: "user" | "assistant"; content: string }[],
   onEvent: (e: AskEvent) => void,
   signal?: AbortSignal,
+  fresh = false,
 ): Promise<void> {
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}/api/analyses/${id}/ask`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question, history }),
+      body: JSON.stringify({ question, history, fresh }),
       signal,
     });
   } catch (e) {

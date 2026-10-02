@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { askRepo, type AskEvent } from "../../lib/product";
+import { api, askRepo, type AskEvent } from "../../lib/product";
 import { ApiError } from "../../lib/api";
 import { useRepo } from "../RepoLayout";
 import { Button, Icon, Spinner } from "../ui";
@@ -12,7 +12,13 @@ interface Turn {
   pending?: boolean;
   error?: string;
   stats?: { output_tokens?: number; duration_ms?: number };
+  cached?: boolean;
+  question?: string;
+  startedAt?: number;
 }
+
+// Repositories whose overview the model has already read this session.
+const primed = new Set<string>();
 
 // Conversations survive tab switches within a session (but not reloads).
 const conversations = new Map<string, Turn[]>();
@@ -32,11 +38,23 @@ export default function AskTab() {
 
   useEffect(() => () => abort.current?.abort(), []);
 
-  async function send(question: string) {
+  // Let the model read this repository's overview while the user picks a question.
+  useEffect(() => {
+    if (primed.has(analysis.id)) return;
+    primed.add(analysis.id);
+    void api.primeAsk(analysis.id).catch(() => primed.delete(analysis.id));
+  }, [analysis.id]);
+
+  async function send(question: string, fresh = false, replaceLast = false) {
     if (!question.trim() || busy) return;
-    const history = turns.filter((t) => !t.error).map((t) => ({ role: t.role, content: t.content }));
+    const prior = replaceLast ? turns.slice(0, -1) : turns;
+    const history = prior
+      .slice(0, replaceLast ? -1 : undefined)
+      .filter((t) => !t.error)
+      .map((t) => ({ role: t.role, content: t.content }));
     setInput("");
-    setTurns((ts) => [...ts, { role: "user", content: question }, { role: "assistant", content: "", pending: true }]);
+    const answerTurn: Turn = { role: "assistant", content: "", pending: true, question, startedAt: Date.now() };
+    setTurns(() => (replaceLast ? [...prior, answerTurn] : [...prior, { role: "user", content: question }, answerTurn]));
     const update = (fn: (t: Turn) => Turn) =>
       setTurns((ts) => ts.map((t, i) => (i === ts.length - 1 ? fn(t) : t)));
 
@@ -47,12 +65,13 @@ export default function AskTab() {
         question,
         history,
         (e: AskEvent) => {
-          if (e.type === "sources") update((t) => ({ ...t, sources: e.sources }));
+          if (e.type === "sources") update((t) => ({ ...t, sources: e.sources, cached: !!e.cached }));
           else if (e.type === "token") update((t) => ({ ...t, content: t.content + e.text }));
           else if (e.type === "done") update((t) => ({ ...t, pending: false, stats: e }));
           else if (e.type === "error") update((t) => ({ ...t, pending: false, error: e.message }));
         },
         abort.current.signal,
+        fresh,
       );
       update((t) => ({ ...t, pending: false }));
     } catch (err) {
@@ -122,17 +141,29 @@ export default function AskTab() {
                 ) : t.pending ? (
                   <div className="space-y-2.5 pt-1">
                     <p className="flex items-center gap-2 text-sm text-ink-2">
-                      <Spinner /> Reading the code…
+                      <Spinner /> Reading {t.sources?.length ? `${t.sources.length} files` : "the code"}…
+                      <Elapsed since={t.startedAt} />
                     </p>
                     <div className="skeleton h-3.5 w-full" />
                     <div className="skeleton h-3.5 w-3/4" />
                   </div>
                 ) : null}
                 {t.error && <p className="mt-2 text-sm text-danger">{t.error}</p>}
-                {t.stats?.duration_ms && !t.pending && (
-                  <p className="mt-3 text-[11px] text-muted">
-                    {(t.stats.duration_ms / 1000).toFixed(0)}s · {t.stats.output_tokens} tokens · local model
-                  </p>
+                {!t.pending && !t.error && t.content && (
+                  <div className="mt-3 flex items-center gap-3 text-[11px] text-muted">
+                    {t.cached ? (
+                      <span className="flex items-center gap-1">
+                        <Icon name="check" className="h-3 w-3" /> Answered earlier, shown instantly
+                      </span>
+                    ) : (
+                      t.stats?.duration_ms && <span>{(t.stats.duration_ms / 1000).toFixed(0)}s · {t.stats.output_tokens} tokens · local model</span>
+                    )}
+                    {t.cached && i === turns.length - 1 && t.question && (
+                      <button onClick={() => void send(t.question!, true, true)} className="font-medium text-ink-2 hover:text-ink hover:underline">
+                        Ask again
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
@@ -167,6 +198,16 @@ export default function AskTab() {
       </form>
     </div>
   );
+}
+
+function Elapsed({ since }: { since?: number }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  if (!since) return null;
+  return <span className="tabular-nums text-muted">{Math.max(0, Math.round((now - since) / 1000))}s</span>;
 }
 
 // Minimal Markdown: fenced code, bullets/numbered lists, paragraphs, **bold** and

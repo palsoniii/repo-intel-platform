@@ -22,11 +22,15 @@ from typing import Iterator
 from app.product.insights import LAYER_LABELS, endpoint_module_id
 from app.schemas.parser_schema import ParsedRepository
 
-# Sized for an 8k-token window: ~4.5k tokens of context, plus the system prompt, up
-# to four short history turns, and room for the answer.
-CONTEXT_BUDGET_CHARS = 13_000
-MAX_OVERVIEW_CHARS = 5_000
-MAX_SOURCE_FILES = 5
+# Prompt reading runs at ~160 tokens/s on the demo machine (M3, 8-core GPU), so every
+# 1,000 characters of context costs about two seconds before the first word appears.
+# Three files' worth of focused excerpts answers most questions; the overview is a
+# reusable prefix (see system_message), so it costs that time once per repository.
+FILE_BUDGET_CHARS = 6_500
+MAX_OVERVIEW_CHARS = 4_500
+# Writing runs at ~17 tokens/s; ~150 words is about 200 tokens, about 12 seconds.
+MAX_ANSWER_TOKENS = 450
+MAX_SOURCE_FILES = 3
 
 STOPWORDS = set(
     """a an and are as at be by can do does for from has have how i in is it its me
@@ -41,8 +45,8 @@ their path in backticks (for example `src/users/users.service.ts`) so the reader
 open them. Only mention files that appear in the context. Only quote code that \
 appears verbatim under "Relevant source files" -- never reconstruct or guess what a \
 file contains from its name. If the context does not contain the answer, say so \
-plainly and point to the file(s) most likely to hold it. Be concise: under 200 words, \
-a short paragraph or a few bullet points."""
+plainly and point to the file(s) most likely to hold it. Be concise: under 150 words, \
+a short paragraph or a few bullet points. Start with the direct answer."""
 
 
 def _terms(text: str) -> list[str]:
@@ -227,18 +231,66 @@ def _overview(parsed: ParsedRepository, insights: dict, files: dict[str, str]) -
     return "\n".join(lines)
 
 
+def system_message(parsed: ParsedRepository, insights: dict, files: dict[str, str]) -> str:
+    """Instructions plus the repository overview. Identical for every question about
+    the same repository, which is the point: Ollama skips re-reading a prompt prefix
+    it has just processed, so after prime() each question pays only for its own
+    files. On this machine that prefix is about 1,100 tokens, roughly 7 seconds."""
+    return f"{SYSTEM_PROMPT}\n\nRepository overview:\n{_overview(parsed, insights, files)[:MAX_OVERVIEW_CHARS]}"
+
+
 def build_prompt(parsed: ParsedRepository, insights: dict, files: dict[str, str], question: str) -> tuple[str, list[dict]]:
+    """The per-question part: the most relevant source excerpts, then the question."""
     sources = retrieve(parsed, insights, files, question)
-    overview = _overview(parsed, insights, files)[:MAX_OVERVIEW_CHARS]
-    budget = max(2000, CONTEXT_BUDGET_CHARS - len(overview))
     terms = _expand(set(_terms(question)))
-    blocks = []
-    per_file = budget // max(1, len(sources)) if sources else 0
-    for s in sources:
-        blocks.append(f"--- {s['path']} ---\n{_excerpt(files[s['path']], terms, per_file)}")
-    context = overview + ("\n\nRelevant source files:\n" + "\n\n".join(blocks) if blocks else "")
-    user = f"Repository context:\n{context}\n\nQuestion: {question}"
-    return user, sources
+    per_file = FILE_BUDGET_CHARS // max(1, len(sources)) if sources else 0
+    blocks = [f"--- {s['path']} ---\n{_excerpt(files[s['path']], terms, per_file)}" for s in sources]
+    context = "Relevant source files:\n" + "\n\n".join(blocks) if blocks else "No source file matched the question."
+    return f"{context}\n\nQuestion: {question}", sources
+
+
+def _client():
+    import ollama
+
+    return ollama.Client(host=os.environ.get("OLLAMA_HOST", "http://localhost:11434"), timeout=600)
+
+
+def _options(**extra) -> dict:
+    from app.product.jobs import num_ctx
+
+    return {"temperature": 0.2, "num_ctx": num_ctx(), **extra}
+
+
+def prime(parsed: ParsedRepository, insights: dict, files: dict[str, str], model: str | None = None) -> None:
+    """Has the model read this repository's overview now, while the user is still
+    choosing a question, so the first answer starts sooner."""
+    from app.product.jobs import KEEP_ALIVE, summary_model
+
+    try:
+        _client().chat(
+            model=model or summary_model(),
+            messages=[
+                {"role": "system", "content": system_message(parsed, insights, files)},
+                {"role": "user", "content": "Ready."},
+            ],
+            options=_options(num_predict=1),
+            keep_alive=KEEP_ALIVE,
+        )
+    except Exception:  # noqa: BLE001 -- an optimisation; the real request reports errors
+        pass
+
+
+def question_key(question: str) -> str:
+    return " ".join(re.findall(r"[a-z0-9/:._-]+", question.lower()))
+
+
+def _replay(cached: dict) -> Iterator[str]:
+    """Streams a stored answer back in the same event shape as a live one."""
+    yield json.dumps({"type": "sources", "sources": cached["sources"], "model": cached["model"], "cached": True}) + "\n"
+    text = cached["answer"]
+    for i in range(0, len(text), 24):
+        yield json.dumps({"type": "token", "text": text[i : i + 24]}) + "\n"
+    yield json.dumps({"type": "done", "cached": True, **cached.get("stats", {})}) + "\n"
 
 
 def stream_answer(
@@ -248,32 +300,44 @@ def stream_answer(
     question: str,
     history: list[dict] | None = None,
     model: str | None = None,
+    analysis_id: str | None = None,
+    use_cache: bool = True,
 ) -> Iterator[str]:
     """Yields NDJSON lines: one {"type":"sources"}, many {"type":"token"}, then
-    {"type":"done"} or {"type":"error"}."""
-    import ollama
+    {"type":"done"} or {"type":"error"}.
 
-    from app.product.jobs import num_ctx, summary_model
+    A first question (no history) that was asked before about the same analysis is
+    replayed from the store instantly; follow-ups always go to the model, because
+    their answer depends on the conversation."""
+    from app.product import store
+    from app.product.jobs import KEEP_ALIVE, summary_model
 
     model = model or summary_model()
+    cacheable = analysis_id is not None and not history
+    if cacheable and use_cache:
+        cached = store.get_cached_answer(analysis_id, question_key(question))
+        if cached:
+            yield from _replay(cached)
+            return
+
     user_prompt, sources = build_prompt(parsed, insights, files, question)
     yield json.dumps({"type": "sources", "sources": sources, "model": model}) + "\n"
 
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    messages = [{"role": "system", "content": system_message(parsed, insights, files)}]
     for turn in (history or [])[-4:]:
         if turn.get("role") in ("user", "assistant") and turn.get("content"):
             messages.append({"role": turn["role"], "content": str(turn["content"])[:1200]})
     messages.append({"role": "user", "content": user_prompt})
 
-    client = ollama.Client(host=os.environ.get("OLLAMA_HOST", "http://localhost:11434"), timeout=600)
-    options = {"temperature": 0.2, "num_predict": 700, "num_ctx": num_ctx()}
+    answer: list[str] = []
     try:
-        stats = {}
-        from app.product.jobs import KEEP_ALIVE
-
-        for chunk in client.chat(model=model, messages=messages, options=options, stream=True, keep_alive=KEEP_ALIVE):
+        stats: dict = {}
+        for chunk in _client().chat(
+            model=model, messages=messages, options=_options(num_predict=MAX_ANSWER_TOKENS), stream=True, keep_alive=KEEP_ALIVE
+        ):
             text = chunk.message.content or ""
             if text:
+                answer.append(text)
                 yield json.dumps({"type": "token", "text": text}) + "\n"
             if chunk.done:
                 stats = {
@@ -281,8 +345,32 @@ def stream_answer(
                     "output_tokens": chunk.eval_count,
                     "duration_ms": int((chunk.total_duration or 0) / 1e6),
                 }
+        if cacheable and answer:
+            store.save_cached_answer(
+                analysis_id, question_key(question),
+                {"answer": "".join(answer), "sources": sources, "model": model, "stats": stats},
+            )
         yield json.dumps({"type": "done", **stats}) + "\n"
     except Exception as e:  # noqa: BLE001
         from app.product.jobs import _friendly_model_error
 
         yield json.dumps({"type": "error", "message": _friendly_model_error(str(e), model)}) + "\n"
+
+
+def suggested_questions(parsed: ParsedRepository, insights: dict) -> list[str]:
+    qs: list[str] = ["Where should a new developer start reading this codebase?"]
+    services = [c.name for c in parsed.classes if c.name.endswith("Service")]
+    if services:
+        qs.append(f"What does {services[0]} do?")
+    posts = [ep for ep in parsed.api_endpoints if getattr(ep.method, "value", ep.method) == "POST"]
+    ep = posts[0] if posts else (parsed.api_endpoints[0] if parsed.api_endpoints else None)
+    if ep:
+        qs.append(f"What happens when a request hits {getattr(ep.method, 'value', ep.method)} {ep.path}?")
+    paths = " ".join(m.path.lower() for m in parsed.modules)
+    if any(k in paths for k in ("auth", "passport", "jwt", "login")):
+        qs.append("How does authentication work?")
+    if insights.get("entities"):
+        qs.append("Which data models exist and how are they related?")
+    if any(k in paths for k in ("middleware", "error", "exception", "filter")):
+        qs.append("How are errors handled?")
+    return qs[:5]

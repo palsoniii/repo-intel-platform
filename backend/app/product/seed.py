@@ -5,6 +5,8 @@ model:
     python -m app.product.seed                # every URL in ../demo_repos.txt
     python -m app.product.seed URL [URL ...]  # just these
     python -m app.product.seed --force        # re-analyse even if already stored
+    python -m app.product.seed --answers-only # just pre-answer the suggested questions
+                                              # for every stored analysis
 
 Runs in-process against the same SQLite store the API serves from, one repository at
 a time (summaries included), and prints a line per repository.
@@ -31,7 +33,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("urls", nargs="*")
     parser.add_argument("--force", action="store_true", help="re-analyse repositories already stored")
     parser.add_argument("--no-summary", action="store_true", help="skip the LLM summary")
+    parser.add_argument("--no-answers", action="store_true", help="skip pre-answering the suggested questions")
+    parser.add_argument("--answers-only", action="store_true", help="only pre-answer questions for stored analyses")
     args = parser.parse_args(argv)
+
+    if args.answers_only:
+        store.init_db()
+        for a in store.list_analyses(limit=200):
+            if a["status"] == "ready":
+                _pre_answer(a["id"])
+        return 0
 
     urls = args.urls or [
         line.strip() for line in DEMO_LIST.read_text().splitlines() if line.strip() and not line.startswith("#")
@@ -43,7 +54,9 @@ def main(argv: list[str] | None = None) -> int:
         url = f"https://github.com/{owner}/{repo.removesuffix('.git')}"
         existing = store.find_latest_for_url(url)
         if existing and not args.force and existing["summary_status"] == "done":
-            print(f"skip   {owner}/{repo} (already analysed: {existing['id']})")
+            print(f"skip   {owner}/{repo} (already analysed: {existing['id']})", flush=True)
+            if not args.no_answers:
+                _pre_answer(existing["id"])
             continue
         started = time.monotonic()
         analysis = store.create_analysis(url, owner, repo.removesuffix(".git"))
@@ -71,7 +84,31 @@ def main(argv: list[str] | None = None) -> int:
         )
         if result["summary_status"] == "failed":
             print(f"       summary error: {result['summary_error']}")
+        if not args.no_answers:
+            _pre_answer(analysis["id"])
     return 1 if failures else 0
+
+
+def _pre_answer(analysis_id: str) -> None:
+    """Answers the repository's suggested questions now, so clicking one during the
+    demo replays instantly. Questions already answered are skipped."""
+    from app.product import ask, store
+    from app.schemas.parser_schema import ParsedRepository
+
+    analysis = store.get_analysis(analysis_id)
+    parsed = ParsedRepository.model_validate(analysis["parsed_json"])
+    insights = analysis.get("insights_json") or {}
+    files = store.get_all_files(analysis_id)
+    for q in ask.suggested_questions(parsed, insights):
+        if store.get_cached_answer(analysis_id, ask.question_key(q)):
+            continue
+        started = time.monotonic()
+        error = None
+        for line in ask.stream_answer(parsed, insights, files, q, analysis_id=analysis_id):
+            if '"type": "error"' in line:
+                error = line.strip()
+        status = f"error {error}" if error else f"{time.monotonic() - started:.0f}s"
+        print(f"       answered: {q}  ({status})", flush=True)
 
 
 if __name__ == "__main__":

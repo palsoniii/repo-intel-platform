@@ -39,3 +39,19 @@ def test_find_latest_for_url_ignores_case_and_failures():
     assert store.find_latest_for_url("https://github.com/owner/repo")["id"] == a["id"]
     store.update_analysis(a["id"], status="failed")
     assert store.find_latest_for_url("https://github.com/owner/repo") is None
+
+
+def test_cached_answer_replays_in_the_live_event_shape():
+    import json
+
+    from app.product import ask
+
+    a = store.create_analysis("https://github.com/o/r2", "o", "r2")
+    key = ask.question_key("  How does AUTH work? ")
+    assert key == ask.question_key("how does auth work")  # punctuation and case ignored
+    store.save_cached_answer(a["id"], key, {"answer": "x" * 60, "sources": [{"path": "a.js"}], "model": "m", "stats": {}})
+
+    events = [json.loads(line) for line in ask.stream_answer(None, {}, {}, "How does auth work?", analysis_id=a["id"])]
+    assert events[0] == {"type": "sources", "sources": [{"path": "a.js"}], "model": "m", "cached": True}
+    assert "".join(e["text"] for e in events if e["type"] == "token") == "x" * 60
+    assert events[-1]["type"] == "done" and events[-1]["cached"] is True

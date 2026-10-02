@@ -2,8 +2,9 @@
 
 ## The day before
 
-1. `./demo.sh --seed`: pre-analyses every repo in `demo_repos.txt`. Each line should
-   end `summary=done`.
+1. `./demo.sh --seed`: pre-analyses every repo in `demo_repos.txt` and pre-answers
+   each repo's suggested questions. Each repo line should end `summary=done`, and each
+   question gets an `answered:` line.
 2. Open every seeded repository once and click through all eight tabs.
 3. Ask each repository one of its suggested questions, so you know the answers.
 4. Plug in the charger. The model is much slower on battery with low-power mode on.
@@ -31,8 +32,9 @@
 5. **API.** Open `POST /articles`: the request flow (controller → service → entities)
    and the handler's source, highlighted.
 6. **Data models.** The ER diagram, extracted from the TypeORM decorators.
-7. **Ask.** Click a suggested question. While it streams, point at "Read:", the files
-   it was given. "It cites those files, and it's told not to quote code it wasn't shown."
+7. **Ask.** Click a suggested question: it was answered during seeding, so it appears
+   instantly. Point at "Read", the files it was given: "it's told not to quote code it
+   wasn't shown." Then type a new question live: about 6 s to the first word, ~12 s total.
 8. **Research.** The paper's result in one chart: a knowledge graph beats raw source on
    coverage and hallucination, with 1.3–2× fewer input tokens. "That's why the product
    works the way it does."

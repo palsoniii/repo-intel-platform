@@ -6,6 +6,7 @@ Dashboard API, mounted under /api. The research endpoints in main.py (/summarize
 from __future__ import annotations
 
 import os
+import threading
 from functools import lru_cache
 from typing import Any, Optional
 
@@ -15,7 +16,7 @@ from pydantic import BaseModel, Field
 
 from app.acquisition.clone import InvalidRepoUrlError, validate_github_url
 from app.product import jobs, store, views
-from app.product.ask import stream_answer
+from app.product.ask import prime, stream_answer, suggested_questions
 from app.schemas.parser_schema import ParsedRepository
 
 router = APIRouter(prefix="/api", tags=["dashboard"])
@@ -34,6 +35,7 @@ class AskRequest(BaseModel):
     question: str = Field(..., min_length=2, max_length=2000)
     history: list[dict[str, Any]] = Field(default_factory=list)
     model: Optional[str] = None
+    fresh: bool = Field(False, description="Ignore a stored answer and ask the model again")
 
 
 @lru_cache(maxsize=16)
@@ -99,7 +101,7 @@ def get_analysis(analysis_id: str) -> dict:
         out["metadata"] = parsed.metadata.model_dump(mode="json")
         out["layers"] = views.layer_breakdown(parsed, insights)
         out["hotspots"] = views.hotspots(parsed)
-        out["suggested_questions"] = _suggested_questions(parsed, insights)
+        out["suggested_questions"] = suggested_questions(parsed, insights)
     return out
 
 
@@ -168,9 +170,22 @@ def ask(analysis_id: str, req: AskRequest) -> StreamingResponse:
     _, parsed, insights = _load(analysis_id)
     files = store.get_all_files(analysis_id)
     return StreamingResponse(
-        stream_answer(parsed, insights, files, req.question, req.history, req.model),
+        stream_answer(
+            parsed, insights, files, req.question, req.history, req.model,
+            analysis_id=analysis_id, use_cache=not req.fresh,
+        ),
         media_type="application/x-ndjson",
     )
+
+
+@router.post("/analyses/{analysis_id}/ask/prime")
+def ask_prime(analysis_id: str) -> dict:
+    """Called when the Ask tab opens: the model reads the repository overview in the
+    background, so the first question only pays for its own files."""
+    _, parsed, insights = _load(analysis_id)
+    files = store.get_all_files(analysis_id)
+    threading.Thread(target=prime, args=(parsed, insights, files), daemon=True).start()
+    return {"priming": True}
 
 
 @router.get("/system")
@@ -203,20 +218,3 @@ def system_status() -> dict:
     return out
 
 
-def _suggested_questions(parsed: ParsedRepository, insights: dict) -> list[str]:
-    qs: list[str] = ["Where should a new developer start reading this codebase?"]
-    services = [c.name for c in parsed.classes if c.name.endswith("Service")]
-    if services:
-        qs.append(f"What does {services[0]} do?")
-    posts = [ep for ep in parsed.api_endpoints if getattr(ep.method, "value", ep.method) == "POST"]
-    ep = posts[0] if posts else (parsed.api_endpoints[0] if parsed.api_endpoints else None)
-    if ep:
-        qs.append(f"What happens when a request hits {getattr(ep.method, 'value', ep.method)} {ep.path}?")
-    paths = " ".join(m.path.lower() for m in parsed.modules)
-    if any(k in paths for k in ("auth", "passport", "jwt", "login")):
-        qs.append("How does authentication work?")
-    if insights.get("entities"):
-        qs.append("Which data models exist and how are they related?")
-    if any(k in paths for k in ("middleware", "error", "exception", "filter")):
-        qs.append("How are errors handled?")
-    return qs[:5]

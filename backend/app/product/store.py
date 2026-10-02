@@ -49,6 +49,14 @@ CREATE TABLE IF NOT EXISTS analyses (
 );
 CREATE INDEX IF NOT EXISTS analyses_url ON analyses(url);
 
+CREATE TABLE IF NOT EXISTS answers (
+    analysis_id   TEXT NOT NULL,
+    question_key  TEXT NOT NULL,
+    payload       TEXT NOT NULL,      -- {answer, sources, model, stats}
+    created_at    TEXT NOT NULL,
+    PRIMARY KEY (analysis_id, question_key)
+);
+
 CREATE TABLE IF NOT EXISTS files (
     analysis_id  TEXT NOT NULL,
     path         TEXT NOT NULL,
@@ -204,8 +212,25 @@ def list_analyses(limit: int = 50) -> list[dict[str, Any]]:
     return [_decode(r) for r in rows]  # type: ignore[misc]
 
 
+def get_cached_answer(analysis_id: str, question_key: str) -> dict[str, Any] | None:
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT payload FROM answers WHERE analysis_id=? AND question_key=?", (analysis_id, question_key)
+        ).fetchone()
+    return json.loads(row["payload"]) if row else None
+
+
+def save_cached_answer(analysis_id: str, question_key: str, payload: dict[str, Any]) -> None:
+    with connect() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO answers (analysis_id, question_key, payload, created_at) VALUES (?, ?, ?, ?)",
+            (analysis_id, question_key, json.dumps(payload), _now()),
+        )
+
+
 def delete_analysis(analysis_id: str) -> None:
     with connect() as conn:
+        conn.execute("DELETE FROM answers WHERE analysis_id=?", (analysis_id,))
         conn.execute("DELETE FROM files WHERE analysis_id=?", (analysis_id,))
         conn.execute("DELETE FROM analyses WHERE id=?", (analysis_id,))
 
