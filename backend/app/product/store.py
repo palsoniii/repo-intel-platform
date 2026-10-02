@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS analyses (
     summary_error   TEXT,
     summary_model   TEXT,
     graph_status    TEXT NOT NULL,     -- pending | stored | unavailable
+    owner_pid       INTEGER,           -- process running this analysis's current stage
     parsed_json     TEXT,
     summary_json    TEXT,
     insights_json   TEXT,
@@ -78,23 +79,49 @@ def connect() -> Iterator[sqlite3.Connection]:
         conn.close()
 
 
+def _pid_alive(pid: int | None) -> bool:
+    if not pid:
+        return False
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
 def init_db() -> None:
     with connect() as conn:
         conn.executescript(SCHEMA)
-        # A server restart kills the worker threads; anything still marked in-flight
-        # would otherwise spin in the UI forever.
-        conn.execute(
-            "UPDATE analyses SET status='failed', stage='failed', "
-            "error='The server restarted while this analysis was running. Re-analyze it.', "
-            "updated_at=? WHERE status IN ('queued', 'running')",
-            (_now(),),
-        )
-        conn.execute(
-            "UPDATE analyses SET summary_status='failed', "
-            "summary_error='The server restarted while the summary was being written.', "
-            "updated_at=? WHERE summary_status IN ('pending', 'running') AND status='ready'",
-            (_now(),),
-        )
+        cols = {r["name"] for r in conn.execute("PRAGMA table_info(analyses)")}
+        if "owner_pid" not in cols:
+            conn.execute("ALTER TABLE analyses ADD COLUMN owner_pid INTEGER")
+        # A server restart kills its worker threads, and anything they were running
+        # would otherwise spin in the UI forever. Rows owned by a process that is
+        # still alive (the seed command, or another server) are left alone.
+        rows = conn.execute(
+            "SELECT id, status, summary_status, owner_pid FROM analyses "
+            "WHERE status IN ('queued', 'running') OR "
+            "(status = 'ready' AND summary_status IN ('pending', 'running'))"
+        ).fetchall()
+        for r in rows:
+            if r["owner_pid"] != os.getpid() and _pid_alive(r["owner_pid"]):
+                continue
+            if r["status"] in ("queued", "running"):
+                conn.execute(
+                    "UPDATE analyses SET status='failed', stage='failed', "
+                    "error='The server restarted while this analysis was running. Re-analyze it.', "
+                    "updated_at=? WHERE id=?",
+                    (_now(), r["id"]),
+                )
+            else:
+                conn.execute(
+                    "UPDATE analyses SET summary_status='failed', stage='done', "
+                    "summary_error='The server restarted while the summary was being written.', "
+                    "updated_at=? WHERE id=?",
+                    (_now(), r["id"]),
+                )
 
 
 def _decode(row: sqlite3.Row | None) -> dict[str, Any] | None:
@@ -113,9 +140,9 @@ def create_analysis(url: str, owner: str, repo_name: str) -> dict[str, Any]:
     with connect() as conn:
         conn.execute(
             "INSERT INTO analyses (id, url, owner, repo_name, status, stage, summary_status, "
-            "graph_status, timings_json, created_at, updated_at) "
-            "VALUES (?, ?, ?, ?, 'queued', 'queued', 'pending', 'pending', '{}', ?, ?)",
-            (analysis_id, url, owner, repo_name, now, now),
+            "graph_status, owner_pid, timings_json, created_at, updated_at) "
+            "VALUES (?, ?, ?, ?, 'queued', 'queued', 'pending', 'pending', ?, '{}', ?, ?)",
+            (analysis_id, url, owner, repo_name, os.getpid(), now, now),
         )
     return get_analysis(analysis_id)  # type: ignore[return-value]
 

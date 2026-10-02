@@ -39,6 +39,8 @@ _structure_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="analysis
 _model_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="model")
 
 MAX_STORED_FILE_BYTES = 400_000
+# ~6k tokens, leaving room in an 8k window for the prompt scaffold and the answer.
+MAX_SUMMARY_CONTEXT_CHARS = 18_000
 EXTRA_FILES = ("package.json", "README.md", "readme.md", "README", "tsconfig.json", ".env.example")
 SKIP_DIRS = {"node_modules", ".git", "dist", "build", "coverage"}
 
@@ -49,12 +51,32 @@ def summary_model() -> str:
     ).split("#")[0].strip()
 
 
+KEEP_ALIVE = os.environ.get("PRODUCT_MODEL_KEEP_ALIVE", "45m")
+
+
+def keep_warm(model: str | None = None) -> None:
+    """Loads the model into memory (an empty prompt only loads it) and asks Ollama to
+    keep it resident. Loading a 7B model takes several seconds; without this the first
+    question of a demo pays for it, and Ollama unloads idle models after 5 minutes."""
+    try:
+        import ollama
+
+        client = ollama.Client(host=os.environ.get("OLLAMA_HOST", "http://localhost:11434"), timeout=120)
+        client.generate(model=model or summary_model(), prompt="", keep_alive=KEEP_ALIVE)
+    except Exception as e:  # noqa: BLE001 -- best effort; the status endpoint reports problems
+        log.info("model warm-up skipped: %s", e)
+
+
+def warm_up_in_background() -> None:
+    _model_pool.submit(keep_warm)
+
+
 def submit_analysis(analysis_id: str, url: str) -> None:
     _structure_pool.submit(_run_analysis, analysis_id, url)
 
 
 def submit_summary(analysis_id: str, model: str | None = None) -> None:
-    store.update_analysis(analysis_id, summary_status="pending", summary_error=None)
+    store.update_analysis(analysis_id, summary_status="pending", summary_error=None, owner_pid=os.getpid())
     _model_pool.submit(_run_summary, analysis_id, model or summary_model())
 
 
@@ -65,7 +87,7 @@ def _stage(analysis_id: str, stage: str, **fields) -> None:
 def _run_analysis(analysis_id: str, url: str) -> None:
     acquired = None
     try:
-        store.update_analysis(analysis_id, status="running")
+        store.update_analysis(analysis_id, status="running", owner_pid=os.getpid())
         t = time.monotonic()
         _stage(analysis_id, "cloning")
         max_mb = int(os.environ.get("MAX_REPO_SIZE_MB", "200").split("#")[0].strip())
@@ -197,7 +219,28 @@ def knowledge_graph_context(parsed: ParsedRepository, insights: dict) -> str:
         "config_files": [c.path for c in parsed.config_files],
         "database_entities": [e["name"] for e in insights.get("entities", [])],
     }
-    return _format_knowledge_graph(data)
+    text = _format_knowledge_graph(data)
+    if len(text) <= MAX_SUMMARY_CONTEXT_CHARS:
+        return text
+
+    # Too big for the context window: Ollama would drop the *start* of the prompt,
+    # which is where the instructions are. Shed detail in order of least value to a
+    # summary -- tests, then most per-file import lists, then DTO/type files.
+    layers = insights.get("layers", {})
+    by_path = {m.path: m.id for m in parsed.modules}
+    rows = data["module_rows"]
+    steps = [
+        lambda r: [m for m in r if layers.get(by_path[m["path"]]) != "test"],
+        lambda r: [{**m, "imports": m["imports"][:3]} for m in r],
+        lambda r: [m for m in r if layers.get(by_path[m["path"]]) != "contract"],
+        lambda r: [{**m, "imports": []} for m in r],
+    ]
+    for step in steps:
+        rows = step(rows)
+        text = _format_knowledge_graph({**data, "module_rows": rows})
+        if len(text) <= MAX_SUMMARY_CONTEXT_CHARS:
+            break
+    return text[:MAX_SUMMARY_CONTEXT_CHARS]
 
 
 def _run_summary(analysis_id: str, model: str) -> None:
@@ -209,7 +252,7 @@ def _run_summary(analysis_id: str, model: str) -> None:
     analysis = store.get_analysis(analysis_id)
     if analysis is None or analysis.get("parsed_json") is None:
         return
-    store.update_analysis(analysis_id, summary_status="running", summary_model=model)
+    store.update_analysis(analysis_id, summary_status="running", summary_model=model, owner_pid=os.getpid())
     t = time.monotonic()
     try:
         parsed = ParsedRepository.model_validate(analysis["parsed_json"])
@@ -247,6 +290,8 @@ def _run_summary(analysis_id: str, model: str) -> None:
         current = store.get_analysis(analysis_id, include_documents=False)
         if current and current["status"] == "ready":
             store.update_analysis(analysis_id, stage="done")
+        # The provider's request resets Ollama's idle timer to its 5-minute default.
+        keep_warm(model)
 
 
 def _friendly_model_error(error: str, model: str) -> str:

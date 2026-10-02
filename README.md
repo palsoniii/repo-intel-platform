@@ -1,5 +1,51 @@
 # AI-Powered Repository Intelligence Platform
 
+## The product: running the dashboard
+
+Paste a GitHub URL for an **Express.js or NestJS** repository and get a dashboard for
+it. The repository is analysed once; every view reads from that stored analysis.
+
+| Tab | What it shows | Model involved? |
+|---|---|---|
+| Overview | AI summary, codebase stats, layer breakdown, most-imported files | Summary only |
+| Knowledge graph | Interactive graph of files, classes, methods, endpoints and data models | No |
+| Architecture | Swimlane diagram by layer; NestJS module map | No |
+| API | Every endpoint with a request-flow trace (middleware, handler, services, models) and its source | No |
+| Data models | ER diagram and fields for Mongoose, TypeORM, Sequelize and Prisma models | No |
+| Dependencies | npm packages grouped by purpose | No |
+| Files | Source tree and highlighted viewer | No |
+| Ask | Questions answered by the local model, listing the files it read | Yes |
+
+The dashboard opens as soon as parsing finishes (about two seconds after the clone).
+The Neo4j write and the summary keep running in the background.
+
+**Demo machine setup (once):**
+
+```bash
+ollama pull qwen2.5-coder:7b
+cd backend && python3.13 -m venv venv && venv/bin/pip install -r requirements.txt
+cp .env.example .env    # set NEO4J_PASSWORD
+cd ../frontend && npm install
+```
+
+**Run it:**
+
+```bash
+./demo.sh --seed   # first time: pre-analyses demo_repos.txt (about a minute per repository)
+./demo.sh          # afterwards
+```
+
+`demo.sh` checks Ollama, starts Neo4j in Docker, starts the API (`:8000`) and the
+dashboard (`:5180`), and stops everything on Ctrl-C. Ollama runs natively, not in
+Docker: on a Mac, Docker can't use the GPU. Without Docker the dashboard still works;
+only the Neo4j write is skipped.
+
+**Where it lives:** `backend/app/product/` (job runner, SQLite store at
+`backend/data/product.db`, views, data-model extractor, Ask) behind `/api/*`;
+`frontend/src/product/` for the UI. The research endpoints (`/summarize`, `/diagram`,
+`/compare`) are unchanged, and the live 3×3 comparison is under Research → live
+comparison.
+
 > ## Current status (2026-08-29) — read this before the rest of the file
 >
 > The build log below is accurate about *what was built* but stale about *status*. It

@@ -22,7 +22,10 @@ from typing import Iterator
 from app.product.insights import LAYER_LABELS, endpoint_module_id
 from app.schemas.parser_schema import ParsedRepository
 
-CONTEXT_BUDGET_CHARS = 14_000
+# Sized for an 8k-token window: ~4.5k tokens of context, plus the system prompt, up
+# to four short history turns, and room for the answer.
+CONTEXT_BUDGET_CHARS = 13_000
+MAX_OVERVIEW_CHARS = 5_000
 MAX_SOURCE_FILES = 5
 
 STOPWORDS = set(
@@ -226,7 +229,7 @@ def _overview(parsed: ParsedRepository, insights: dict, files: dict[str, str]) -
 
 def build_prompt(parsed: ParsedRepository, insights: dict, files: dict[str, str], question: str) -> tuple[str, list[dict]]:
     sources = retrieve(parsed, insights, files, question)
-    overview = _overview(parsed, insights, files)
+    overview = _overview(parsed, insights, files)[:MAX_OVERVIEW_CHARS]
     budget = max(2000, CONTEXT_BUDGET_CHARS - len(overview))
     terms = _expand(set(_terms(question)))
     blocks = []
@@ -259,14 +262,16 @@ def stream_answer(
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
     for turn in (history or [])[-4:]:
         if turn.get("role") in ("user", "assistant") and turn.get("content"):
-            messages.append({"role": turn["role"], "content": str(turn["content"])[:2000]})
+            messages.append({"role": turn["role"], "content": str(turn["content"])[:1200]})
     messages.append({"role": "user", "content": user_prompt})
 
     client = ollama.Client(host=os.environ.get("OLLAMA_HOST", "http://localhost:11434"), timeout=600)
     options = {"temperature": 0.2, "num_predict": 700, "num_ctx": int(os.environ.get("OLLAMA_NUM_CTX", "8192").split("#")[0])}
     try:
         stats = {}
-        for chunk in client.chat(model=model, messages=messages, options=options, stream=True):
+        from app.product.jobs import KEEP_ALIVE
+
+        for chunk in client.chat(model=model, messages=messages, options=options, stream=True, keep_alive=KEEP_ALIVE):
             text = chunk.message.content or ""
             if text:
                 yield json.dumps({"type": "token", "text": text}) + "\n"

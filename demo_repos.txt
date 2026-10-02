@@ -1,0 +1,8 @@
+# Repositories pre-analysed for the demo (python -m app.product.seed).
+# One GitHub URL per line; lines starting with # are ignored.
+https://github.com/lujakob/nestjs-realworld-example-app
+https://github.com/hagopj13/node-express-boilerplate
+https://github.com/notiz-dev/nestjs-prisma-starter
+https://github.com/bradtraversy/node_passport_login
+https://github.com/brocoders/nestjs-boilerplate
+https://github.com/kunalkapadia/express-mongoose-es6-rest-api

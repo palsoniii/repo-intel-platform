@@ -64,6 +64,13 @@ product_store.init_db()
 app.include_router(product_router)
 
 
+@app.on_event("startup")
+def _warm_model() -> None:
+    from app.product.jobs import warm_up_in_background
+
+    warm_up_in_background()
+
+
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Safety net for genuinely unexpected exceptions. Specific, anticipated

@@ -18,7 +18,32 @@ they were deliberately cut from a larger original proposal): Neo4j only (not
 NetworkX), Express.js + NestJS only (not Spring Boot), 3 free local Ollama models
 only (no paid commercial APIs), a 3-way representation ablation (not 5-way).
 
-## Current status / what to do next
+## Current focus: the product demo (2026-10-02)
+
+The paper is **submitted to a conference**; the research phase is closed. The work now
+is the dashboard, which will be presented to faculty and industry visitors on
+**2026-10-25** from **this machine** (Apple M3, 16 GB, Ollama native, Neo4j in Docker).
+Branch `product`. See `README.md` "The product" for what each tab does and how to run
+it (`./demo.sh`, `python -m app.product.seed`).
+
+- `backend/app/product/` is the product layer: analyse once (`jobs.py`), store in
+  SQLite (`store.py`, `backend/data/product.db`, gitignored), serve every view from
+  the stored parse (`views.py`, `router.py` at `/api/*`). It reuses the parsers,
+  graph builder and Ollama provider unchanged and writes nothing the evaluation reads.
+- `entities.py` extracts ORM models (Mongoose, TypeORM, sequelize-typescript,
+  Sequelize, Prisma) from stored source text. It deliberately does **not** populate
+  `ParsedRepository.database_entities`, so the paper's ground truth is unchanged.
+- `insights.py` adds layer classification, NestJS constructor injection and Express
+  route locations (chained `.route()` included), which feed the request-flow traces.
+- Ask (`ask.py`) is lexical + structural retrieval, not embeddings. The prompt forbids
+  quoting code that isn't in the context: without that, a question that retrieved the
+  wrong file got a fabricated excerpt of a file it had never seen.
+- Summary and Ask use `qwen2.5-coder:7b` (`PRODUCT_SUMMARY_MODEL` overrides). On this
+  machine a summary takes ~30-50 s and an answer ~25-45 s, mostly prompt evaluation.
+- Not built yet, deliberately: function-level call graphs (`CALLS` edges are still
+  never populated), new frameworks, paid APIs.
+
+## Research status (closed)
 
 **As of 2026-08-29.** All 8 build phases are done and **three full evaluation
 batteries have been run** against live Ollama/Neo4j. The dataset is **18 repositories**
