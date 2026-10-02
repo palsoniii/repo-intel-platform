@@ -14,7 +14,36 @@ export default function MermaidDiagram({ chart }: { chart: string }) {
     const dark = window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
     mermaid.initialize({
       startOnLoad: false,
-      theme: dark ? "dark" : "default",
+      theme: "base",
+      themeVariables: dark
+        ? {
+            background: "#020617",
+            primaryColor: "#1e1b4b",
+            primaryTextColor: "#e2e8f0",
+            primaryBorderColor: "#6366f1",
+            lineColor: "#64748b",
+            secondaryColor: "#0f172a",
+            tertiaryColor: "#0f172a",
+            attributeBackgroundColorOdd: "#0f172a",
+            attributeBackgroundColorEven: "#111827",
+            rowOdd: "#0f172a",
+            rowEven: "#111827",
+            fontFamily: "ui-sans-serif, system-ui, sans-serif",
+          }
+        : {
+            background: "#ffffff",
+            primaryColor: "#eef2ff",
+            primaryTextColor: "#1e293b",
+            primaryBorderColor: "#6366f1",
+            lineColor: "#94a3b8",
+            secondaryColor: "#f8fafc",
+            tertiaryColor: "#ffffff",
+            attributeBackgroundColorOdd: "#ffffff",
+            attributeBackgroundColorEven: "#f8fafc",
+            rowOdd: "#ffffff",
+            rowEven: "#f8fafc",
+            fontFamily: "ui-sans-serif, system-ui, sans-serif",
+          },
       securityLevel: "strict",
       // Grouped architecture diagrams of large repos exceed Mermaid's default limits.
       maxEdges: 2000,
