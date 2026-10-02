@@ -55,6 +55,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Dashboard API (analyse once, serve every view from the stored result). Imported
+# after load_dotenv() so its env-dependent defaults see .env.
+from app.product import store as product_store  # noqa: E402
+from app.product.router import router as product_router  # noqa: E402
+
+product_store.init_db()
+app.include_router(product_router)
+
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
