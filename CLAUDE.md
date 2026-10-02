@@ -43,7 +43,8 @@ it (`./demo.sh`, `python -m app.product.seed`).
   A summary takes ~30-50 s. An answer takes ~6 s to the first word (answer length is
   the original ~200-word limit, which the user wants kept),
   because the repo overview is a fixed system-prompt prefix that Ollama reuses (primed
-  when the Ask tab opens) and only 3 files are sent. First questions are cached per
+  when the Ask tab opens) Ask sends the 5 most relevant files
+  (user's choice over 3 for speed). First questions are cached per
   analysis (`answers` table) and replay instantly; the seeder pre-answers each
   repository's suggested questions.
 - Not built yet, deliberately: function-level call graphs (`CALLS` edges are still

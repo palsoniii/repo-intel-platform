@@ -22,14 +22,12 @@ from typing import Iterator
 from app.product.insights import LAYER_LABELS, endpoint_module_id
 from app.schemas.parser_schema import ParsedRepository
 
-# Prompt reading runs at ~160 tokens/s on the demo machine (M3, 8-core GPU), so every
-# 1,000 characters of context costs about two seconds before the first word appears.
-# Three files' worth of focused excerpts answers most questions; the overview is a
-# reusable prefix (see system_message), so it costs that time once per repository.
-FILE_BUDGET_CHARS = 6_500
-MAX_OVERVIEW_CHARS = 4_500
+# Sized for an 8k-token window: ~4.5k tokens of context (overview plus file
+# excerpts), the system prompt, up to four short history turns, and the answer.
+CONTEXT_BUDGET_CHARS = 13_000
+MAX_OVERVIEW_CHARS = 5_000
 MAX_ANSWER_TOKENS = 700
-MAX_SOURCE_FILES = 3
+MAX_SOURCE_FILES = 5
 
 STOPWORDS = set(
     """a an and are as at be by can do does for from has have how i in is it its me
@@ -234,7 +232,7 @@ def system_message(parsed: ParsedRepository, insights: dict, files: dict[str, st
     """Instructions plus the repository overview. Identical for every question about
     the same repository, which is the point: Ollama skips re-reading a prompt prefix
     it has just processed, so after prime() each question pays only for its own
-    files. On this machine that prefix is about 1,100 tokens, roughly 7 seconds."""
+    files."""
     return f"{SYSTEM_PROMPT}\n\nRepository overview:\n{_overview(parsed, insights, files)[:MAX_OVERVIEW_CHARS]}"
 
 
@@ -242,7 +240,10 @@ def build_prompt(parsed: ParsedRepository, insights: dict, files: dict[str, str]
     """The per-question part: the most relevant source excerpts, then the question."""
     sources = retrieve(parsed, insights, files, question)
     terms = _expand(set(_terms(question)))
-    per_file = FILE_BUDGET_CHARS // max(1, len(sources)) if sources else 0
+    # The overview now lives in the system message, but it still shares the budget.
+    overview_len = len(_overview(parsed, insights, files)[:MAX_OVERVIEW_CHARS])
+    budget = max(2000, CONTEXT_BUDGET_CHARS - overview_len)
+    per_file = budget // max(1, len(sources)) if sources else 0
     blocks = [f"--- {s['path']} ---\n{_excerpt(files[s['path']], terms, per_file)}" for s in sources]
     context = "Relevant source files:\n" + "\n\n".join(blocks) if blocks else "No source file matched the question."
     return f"{context}\n\nQuestion: {question}", sources
