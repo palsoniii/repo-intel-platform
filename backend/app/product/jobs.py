@@ -54,6 +54,10 @@ def summary_model() -> str:
 KEEP_ALIVE = os.environ.get("PRODUCT_MODEL_KEEP_ALIVE", "45m")
 
 
+def num_ctx() -> int:
+    return int(os.environ.get("OLLAMA_NUM_CTX", "8192").split("#")[0].strip() or 8192)
+
+
 def keep_warm(model: str | None = None) -> None:
     """Loads the model into memory (an empty prompt only loads it) and asks Ollama to
     keep it resident. Loading a 7B model takes several seconds; without this the first
@@ -62,7 +66,13 @@ def keep_warm(model: str | None = None) -> None:
         import ollama
 
         client = ollama.Client(host=os.environ.get("OLLAMA_HOST", "http://localhost:11434"), timeout=120)
-        client.generate(model=model or summary_model(), prompt="", keep_alive=KEEP_ALIVE)
+        # Same num_ctx as the real requests: Ollama reloads the model whenever the
+        # context size changes, so warming it at the default (4096) would just cost a
+        # second load on the first summary or question.
+        client.generate(
+            model=model or summary_model(), prompt="", keep_alive=KEEP_ALIVE,
+            options={"num_ctx": num_ctx()},
+        )
     except Exception as e:  # noqa: BLE001 -- best effort; the status endpoint reports problems
         log.info("model warm-up skipped: %s", e)
 
@@ -257,7 +267,10 @@ def _run_summary(analysis_id: str, model: str) -> None:
     try:
         parsed = ParsedRepository.model_validate(analysis["parsed_json"])
         context = knowledge_graph_context(parsed, analysis.get("insights_json") or {})
-        provider = OllamaProvider()
+        # Explicit, so a .env without OLLAMA_NUM_CTX doesn't fall back to the model's
+        # 4096 default (which truncates large repos and forces a reload between a
+        # summary and an Ask request).
+        provider = OllamaProvider(num_ctx=num_ctx())
         result = provider.generate_summary(
             context=context,
             repo_name=parsed.metadata.name,

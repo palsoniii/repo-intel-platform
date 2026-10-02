@@ -253,7 +253,7 @@ def stream_answer(
     {"type":"done"} or {"type":"error"}."""
     import ollama
 
-    from app.product.jobs import summary_model
+    from app.product.jobs import num_ctx, summary_model
 
     model = model or summary_model()
     user_prompt, sources = build_prompt(parsed, insights, files, question)
@@ -266,7 +266,7 @@ def stream_answer(
     messages.append({"role": "user", "content": user_prompt})
 
     client = ollama.Client(host=os.environ.get("OLLAMA_HOST", "http://localhost:11434"), timeout=600)
-    options = {"temperature": 0.2, "num_predict": 700, "num_ctx": int(os.environ.get("OLLAMA_NUM_CTX", "8192").split("#")[0])}
+    options = {"temperature": 0.2, "num_predict": 700, "num_ctx": num_ctx()}
     try:
         stats = {}
         from app.product.jobs import KEEP_ALIVE
