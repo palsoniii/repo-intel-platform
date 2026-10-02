@@ -1,58 +1,54 @@
 import { useEffect, useRef, useState } from "react";
 import mermaid from "mermaid";
+import { token, useResolvedTheme } from "../lib/theme";
 
-// Renders Mermaid source to an SVG. Falls back to showing the raw source if Mermaid
-// can't parse it (a local model or an odd repo shape can produce invalid syntax), so
-// the page never ends up blank.
-export default function MermaidDiagram({ chart }: { chart: string }) {
+// Renders Mermaid source to an SVG, themed from the app's design tokens and redrawn
+// when the theme changes. Falls back to showing the raw source if Mermaid can't
+// parse it, so the page never ends up blank.
+export default function MermaidDiagram({ chart, bare = false }: { chart: string; bare?: boolean }) {
+  const theme = useResolvedTheme();
   const [svg, setSvg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const idRef = useRef(`mermaid-${Math.random().toString(36).slice(2)}`);
+  const counter = useRef(0);
+  const base = useRef(`mermaid-${Math.random().toString(36).slice(2)}`);
 
   useEffect(() => {
     let cancelled = false;
-    const dark = window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
+    const t = (n: string) => token(n);
     mermaid.initialize({
       startOnLoad: false,
       theme: "base",
-      themeVariables: dark
-        ? {
-            background: "#020617",
-            primaryColor: "#1e1b4b",
-            primaryTextColor: "#e2e8f0",
-            primaryBorderColor: "#6366f1",
-            lineColor: "#64748b",
-            secondaryColor: "#0f172a",
-            tertiaryColor: "#0f172a",
-            attributeBackgroundColorOdd: "#0f172a",
-            attributeBackgroundColorEven: "#111827",
-            rowOdd: "#0f172a",
-            rowEven: "#111827",
-            fontFamily: "ui-sans-serif, system-ui, sans-serif",
-          }
-        : {
-            background: "#ffffff",
-            primaryColor: "#eef2ff",
-            primaryTextColor: "#1e293b",
-            primaryBorderColor: "#6366f1",
-            lineColor: "#94a3b8",
-            secondaryColor: "#f8fafc",
-            tertiaryColor: "#ffffff",
-            attributeBackgroundColorOdd: "#ffffff",
-            attributeBackgroundColorEven: "#f8fafc",
-            rowOdd: "#ffffff",
-            rowEven: "#f8fafc",
-            fontFamily: "ui-sans-serif, system-ui, sans-serif",
-          },
+      themeVariables: {
+        background: t("sunken"),
+        primaryColor: t("surface"),
+        primaryTextColor: t("ink"),
+        primaryBorderColor: t("line-strong"),
+        lineColor: t("muted"),
+        secondaryColor: t("sunken"),
+        tertiaryColor: t("surface"),
+        textColor: t("ink"),
+        mainBkg: t("surface"),
+        nodeBorder: t("line-strong"),
+        clusterBkg: t("sunken"),
+        edgeLabelBackground: t("surface"),
+        attributeBackgroundColorOdd: t("surface"),
+        attributeBackgroundColorEven: t("sunken"),
+        rowOdd: t("surface"),
+        rowEven: t("sunken"),
+        fontFamily: "ui-sans-serif, system-ui, -apple-system, sans-serif",
+        fontSize: "13px",
+      },
       securityLevel: "strict",
-      // Grouped architecture diagrams of large repos exceed Mermaid's default limits.
+      // Grouped diagrams of large repos exceed Mermaid's default limits.
       maxEdges: 2000,
       maxTextSize: 200000,
-      flowchart: { useMaxWidth: false, htmlLabels: true },
+      flowchart: { useMaxWidth: false, htmlLabels: true, curve: "basis" },
       er: { useMaxWidth: false },
     });
+    // Mermaid refuses to reuse an id it has rendered, so each render gets a fresh one.
+    counter.current += 1;
     mermaid
-      .render(idRef.current, chart)
+      .render(`${base.current}-${counter.current}`, chart)
       .then(({ svg }) => {
         if (!cancelled) {
           setSvg(svg);
@@ -68,31 +64,28 @@ export default function MermaidDiagram({ chart }: { chart: string }) {
     return () => {
       cancelled = true;
     };
-  }, [chart]);
+  }, [chart, theme]);
 
   return (
     <div>
       {error ? (
-        <p className="mb-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
-          Couldn't render this as a diagram ({error}). The raw Mermaid source is below.
+        <p className="mb-3 rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">
+          Couldn't render this diagram ({error}). The source is below.
         </p>
       ) : !svg ? (
-        <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">Rendering diagram…</p>
+        <div className="skeleton h-40 w-full" />
       ) : (
-        <div
-          className="overflow-x-auto rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950"
-          dangerouslySetInnerHTML={{ __html: svg }}
-        />
+        <div className={bare ? "" : "overflow-x-auto"} dangerouslySetInnerHTML={{ __html: svg }} />
       )}
 
-      <details className="mt-3">
-        <summary className="cursor-pointer text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">
-          View Mermaid source
-        </summary>
-        <pre className="mt-2 overflow-x-auto rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm dark:border-slate-800 dark:bg-slate-900">
-          <code>{chart}</code>
-        </pre>
-      </details>
+      {(!bare || error) && (
+        <details className="mt-3">
+          <summary className="cursor-pointer text-xs text-muted hover:text-ink">Mermaid source</summary>
+          <pre className="scroll-quiet mt-2 overflow-x-auto rounded-xl border border-line bg-code p-4 font-mono text-xs text-ink">
+            <code>{chart}</code>
+          </pre>
+        </details>
+      )}
     </div>
   );
 }

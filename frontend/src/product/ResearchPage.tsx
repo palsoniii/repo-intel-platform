@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Card, SectionTitle } from "./ui";
+import { Card, CardTitle, Icon } from "./ui";
 
 // Figures from the submitted paper (docs/paper.tex): Figure "fig:main" and Table
 // "tab:tokens". 18 repositories, judge gemma2:9b, generators run on a GPU cluster.
@@ -33,11 +33,11 @@ export default function ResearchPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-8">
       <header>
-        <p className="text-sm font-medium text-indigo-600 dark:text-indigo-400">The research behind the platform</p>
-        <h2 className="mt-1 text-3xl font-semibold tracking-tight">
+        <p className="text-sm font-medium text-accent-text">The research behind the platform</p>
+        <h2 className="mt-2 text-[34px] font-semibold leading-tight tracking-[-0.02em] text-ink">
           Does structured repository representation improve LLM-generated codebase summaries?
         </h2>
-        <p className="mt-3 max-w-3xl text-slate-600 dark:text-slate-400">
+        <p className="mt-4 max-w-3xl text-[16px] leading-relaxed text-ink-2">
           A model handed raw source has to do static analysis and writing at once, and the analysis
           half is where it invents frameworks, dependencies and endpoints. We tested handing that job
           to a deterministic parser instead: the same parse rendered three ways, sent to three local
@@ -53,22 +53,22 @@ export default function ResearchPage() {
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
-          <SectionTitle hint="higher is better">Coverage of the repository's real structure</SectionTitle>
+          <CardTitle aside="higher is better">Coverage of the repository's real structure</CardTitle>
           <GroupedBars data={COVERAGE} />
         </Card>
         <Card>
-          <SectionTitle hint="lower is better">Hallucination score</SectionTitle>
+          <CardTitle aside="lower is better">Hallucination score</CardTitle>
           <GroupedBars data={HALLUCINATION} />
         </Card>
       </div>
       <Legend />
 
       <Card>
-        <SectionTitle>All figures</SectionTitle>
+        <CardTitle>All figures</CardTitle>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs text-slate-500 dark:text-slate-400">
+              <tr className="text-left text-xs text-muted">
                 <th className="py-1.5 pr-4 font-medium">Model</th>
                 <th className="py-1.5 pr-4 font-medium">Representation</th>
                 <th className="py-1.5 pr-4 text-right font-medium">Coverage</th>
@@ -79,7 +79,7 @@ export default function ResearchPage() {
             <tbody>
               {MODELS.flatMap((m) =>
                 ARMS.map((a, i) => (
-                  <tr key={m + a.key} className={`border-t border-slate-100 dark:border-slate-800 ${a.key === "kg" ? "font-medium" : ""}`}>
+                  <tr key={m + a.key} className={`border-t border-line ${a.key === "kg" ? "font-semibold text-ink" : "text-ink-2"}`}>
                     <td className="py-1.5 pr-4 font-mono text-xs">{i === 0 ? m : ""}</td>
                     <td className="py-1.5 pr-4">{a.label}</td>
                     <td className="py-1.5 pr-4 text-right tabular-nums">{COVERAGE[m][a.key].toFixed(3)}</td>
@@ -91,7 +91,7 @@ export default function ResearchPage() {
             </tbody>
           </table>
         </div>
-        <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+        <p className="mt-4 text-xs leading-relaxed text-muted">
           Means over 18 repositories (17 for the qwen models on tokens), judge gemma2:9b. The knowledge
           graph beats raw source on coverage in every model (Holm-adjusted p ≤ 0.002, rank-biserial r ≥ 0.95)
           and on hallucination (Holm-adjusted p ≤ 0.022).
@@ -100,16 +100,16 @@ export default function ResearchPage() {
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
-          <SectionTitle>What this platform takes from it</SectionTitle>
-          <ul className="list-inside list-disc space-y-1.5 text-sm text-slate-700 dark:text-slate-300">
+          <CardTitle>What this platform takes from it</CardTitle>
+          <ul className="space-y-2.5 text-sm leading-relaxed text-ink-2 [&>li]:flex [&>li]:gap-2.5 [&>li]:before:mt-2 [&>li]:before:h-1 [&>li]:before:w-1 [&>li]:before:shrink-0 [&>li]:before:rounded-full [&>li]:before:bg-muted [&>li]:before:content-['']">
             <li>The AI summary is written from the knowledge graph, never from raw source.</li>
             <li>Diagrams, endpoints, request flows and data models come straight from the parser: no model involved, so nothing on those tabs can be hallucinated.</li>
             <li>Ask-the-repo pairs the graph with the most relevant source files and shows which files it read.</li>
           </ul>
         </Card>
         <Card>
-          <SectionTitle>Honest caveats</SectionTitle>
-          <ul className="list-inside list-disc space-y-1.5 text-sm text-slate-700 dark:text-slate-300">
+          <CardTitle>Honest caveats</CardTitle>
+          <ul className="space-y-2.5 text-sm leading-relaxed text-ink-2 [&>li]:flex [&>li]:gap-2.5 [&>li]:before:mt-2 [&>li]:before:h-1 [&>li]:before:w-1 [&>li]:before:shrink-0 [&>li]:before:rounded-full [&>li]:before:bg-muted [&>li]:before:content-['']">
             <li>On 552 hand-scored claims the human annotator was 96% accurate, the automatic judge 83%, and they agree at only κ = 0.26: trust the direction of the result, not the absolute scores.</li>
             <li>One generator (codellama:13b) shows an unresolved context-window anomaly, disclosed in the paper.</li>
             <li>Scope: Express.js and NestJS only, local open models only.</li>
@@ -117,39 +117,42 @@ export default function ResearchPage() {
         </Card>
       </div>
 
-      <p className="text-sm text-slate-500 dark:text-slate-400">
-        Want to run the comparison live on one repository?{" "}
-        <Link to="/research/live" className="text-indigo-700 hover:underline dark:text-indigo-300">
-          Open the live comparison
-        </Link>{" "}
-        (runs every model on every representation, so it takes several minutes).
-      </p>
+      <Link
+        to="/research/live"
+        className="group flex items-center justify-between gap-4 rounded-2xl border border-line bg-surface px-6 py-5 shadow-card transition hover:border-line-strong hover:shadow-pop"
+      >
+        <span>
+          <span className="block font-medium text-ink">Run the comparison live</span>
+          <span className="block text-sm text-ink-2">Every model on every representation, for one repository. Takes several minutes.</span>
+        </span>
+        <Icon name="arrow" className="h-5 w-5 text-muted transition group-hover:translate-x-0.5 group-hover:text-ink" />
+      </Link>
     </div>
   );
 }
 
 function Headline({ value, label }: { value: string; label: string }) {
   return (
-    <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-800">
-      <p className="text-3xl font-semibold tracking-tight">{value}</p>
-      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{label}</p>
+    <div className="rounded-2xl border border-line bg-surface p-5 shadow-card">
+      <p className="text-[34px] font-semibold leading-none tracking-[-0.02em] text-ink">{value}</p>
+      <p className="mt-2 text-sm leading-snug text-ink-2">{label}</p>
     </div>
   );
 }
 
 // Ordered representations, so one hue from light (least structure) to dark (most).
-const ARM_CLASS: Record<Arm, string> = {
-  raw: "bg-indigo-300 dark:bg-indigo-800",
-  dep: "bg-indigo-500 dark:bg-indigo-500",
-  kg: "bg-indigo-800 dark:bg-indigo-200",
+const ARM_COLOR: Record<Arm, string> = {
+  raw: "var(--ord-1)",
+  dep: "var(--ord-2)",
+  kg: "var(--ord-3)",
 };
 
 function Legend() {
   return (
-    <div className="-mt-4 flex flex-wrap justify-center gap-5 text-sm text-slate-600 dark:text-slate-400">
+    <div className="-mt-2 flex flex-wrap justify-center gap-6 text-sm text-ink-2">
       {ARMS.map((a) => (
         <span key={a.key} className="flex items-center gap-2">
-          <span className={`h-3 w-3 rounded-sm ${ARM_CLASS[a.key]}`} /> {a.label}
+          <span className="h-3 w-3 rounded-sm" style={{ background: ARM_COLOR[a.key] }} /> {a.label}
         </span>
       ))}
     </div>
@@ -161,10 +164,10 @@ function GroupedBars({ data }: { data: typeof COVERAGE }) {
   const height = 180;
   return (
     <div>
-      <div className="relative flex items-end gap-6 border-b border-slate-200 pl-8 dark:border-slate-700" style={{ height }}>
+      <div className="relative flex items-end gap-6 border-b border-line-strong pl-8" style={{ height }}>
         {[0, 0.5, 1].map((t) => (
-          <div key={t} className="pointer-events-none absolute left-0 right-0 border-t border-slate-100 dark:border-slate-800" style={{ bottom: t * height }}>
-            <span className="absolute -top-2 left-0 text-[10px] tabular-nums text-slate-400">{t.toFixed(1)}</span>
+          <div key={t} className="pointer-events-none absolute left-0 right-0 border-t border-line" style={{ bottom: t * height }}>
+            <span className="absolute -top-2 left-0 text-[10px] tabular-nums text-muted">{t.toFixed(1)}</span>
           </div>
         ))}
         {MODELS.map((m) => (
@@ -179,9 +182,9 @@ function GroupedBars({ data }: { data: typeof COVERAGE }) {
                   onMouseLeave={() => setHover(null)}
                   className="relative flex h-full w-5 items-end"
                 >
-                  <div className={`w-full rounded-t ${ARM_CLASS[a.key]} ${hover && !active ? "opacity-50" : ""}`} style={{ height: v * height }} />
+                  <div className={`w-full rounded-t-[4px] transition-opacity ${hover && !active ? "opacity-40" : ""}`} style={{ height: v * height, background: ARM_COLOR[a.key] }} />
                   {active && (
-                    <div className="absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded bg-slate-900 px-2 py-1 text-xs text-white shadow dark:bg-slate-100 dark:text-slate-900" style={{ bottom: v * height + 4 }}>
+                    <div className="absolute left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-lg bg-ink px-2.5 py-1.5 text-xs text-page shadow-pop" style={{ bottom: v * height + 4 }}>
                       {ARMS.find((x) => x.key === a.key)?.label}: {v.toFixed(3)}
                     </div>
                   )}
@@ -193,7 +196,7 @@ function GroupedBars({ data }: { data: typeof COVERAGE }) {
       </div>
       <div className="flex gap-6 pl-8 pt-1.5">
         {MODELS.map((m) => (
-          <p key={m} className="flex-1 text-center font-mono text-[11px] text-slate-500 dark:text-slate-400">{m}</p>
+          <p key={m} className="flex-1 text-center font-mono text-[11px] text-muted">{m}</p>
         ))}
       </div>
     </div>

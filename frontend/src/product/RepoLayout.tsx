@@ -1,8 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { NavLink, Outlet, useNavigate, useParams } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
 import { api, type Analysis, type Stage } from "../lib/product";
 import { ApiError } from "../lib/api";
-import { ErrorBox, Loading, Pill, Spinner, frameworkLabel } from "./ui";
+import { Button, Chip, ErrorBox, Icon, Loading, Spinner, frameworkLabel, languageLabel, type IconName } from "./ui";
 
 interface RepoContextValue {
   analysis: Analysis;
@@ -17,29 +17,29 @@ export function useRepo(): RepoContextValue {
   return ctx;
 }
 
-const TABS = [
-  { path: "overview", label: "Overview" },
-  { path: "graph", label: "Knowledge graph" },
-  { path: "architecture", label: "Architecture" },
-  { path: "api", label: "API" },
-  { path: "models", label: "Data models" },
-  { path: "dependencies", label: "Dependencies" },
-  { path: "files", label: "Files" },
-  { path: "ask", label: "Ask" },
+// Seven destinations, ordered by what a newcomer asks first: what is it, can I ask
+// it something, how is it built, then the details.
+const TABS: { path: string; label: string; icon: IconName; also?: string[] }[] = [
+  { path: "overview", label: "Overview", icon: "overview" },
+  { path: "ask", label: "Ask", icon: "ask" },
+  { path: "architecture", label: "Architecture", icon: "layers" },
+  { path: "graph", label: "Knowledge graph", icon: "graph" },
+  { path: "api", label: "API", icon: "api" },
+  { path: "models", label: "Data models", icon: "database" },
+  { path: "files", label: "Code", icon: "code", also: ["dependencies"] },
 ];
 
-const STEPS: { stage: Stage; label: string; detail: string }[] = [
-  { stage: "cloning", label: "Clone", detail: "Shallow clone from GitHub" },
-  { stage: "parsing", label: "Parse", detail: "tree-sitter static analysis" },
-  { stage: "indexing", label: "Index", detail: "Layers, data models, request flows" },
-  { stage: "graph", label: "Knowledge graph", detail: "Write to Neo4j" },
-  { stage: "summarizing", label: "Summary", detail: "Local LLM writes the overview" },
+const STEPS: { stage: Stage; label: string; detail: string; timing: string }[] = [
+  { stage: "cloning", label: "Downloading the repository", detail: "Shallow clone from GitHub", timing: "clone" },
+  { stage: "parsing", label: "Reading the code", detail: "Static analysis with tree-sitter", timing: "parse" },
+  { stage: "indexing", label: "Mapping the structure", detail: "Layers, data models and request flows", timing: "index" },
 ];
 const ORDER: Stage[] = ["queued", "cloning", "parsing", "indexing", "graph", "summarizing", "done"];
 
 export default function RepoLayout() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -57,8 +57,6 @@ export default function RepoLayout() {
     void refresh();
   }, [refresh]);
 
-  // Poll while anything is still in flight: fast during the structural stages (a few
-  // seconds in total), slower while the model writes the summary (~30s+).
   const inFlight =
     analysis &&
     (analysis.status === "queued" ||
@@ -68,8 +66,7 @@ export default function RepoLayout() {
       analysis.stage === "graph");
   useEffect(() => {
     if (!inFlight) return;
-    const ready = analysis?.status === "ready";
-    const t = setTimeout(() => void refresh(), ready ? 2500 : 900);
+    const t = setTimeout(() => void refresh(), analysis?.status === "ready" ? 2500 : 800);
     return () => clearTimeout(t);
   }, [analysis, inFlight, refresh]);
 
@@ -82,77 +79,77 @@ export default function RepoLayout() {
     navigate(`/repo/${fresh.id}/overview`);
   }
 
+  const section = location.pathname.split("/")[3] ?? "overview";
+  const summaryBusy = analysis.summary_status === "running" || analysis.summary_status === "pending";
+
   return (
     <RepoContext.Provider value={{ analysis, refresh }}>
-      <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
+      <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <a
-            href={analysis.url}
-            target="_blank"
-            rel="noreferrer"
-            className="text-sm text-slate-500 hover:text-indigo-600 dark:text-slate-400"
-          >
-            {analysis.owner} /
-          </a>
-          <h2 className="truncate text-2xl font-semibold tracking-tight">{analysis.repo_name}</h2>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            {analysis.framework && <Pill tone="indigo">{frameworkLabel(analysis.framework)}</Pill>}
-            {analysis.metadata?.detected_language && <Pill>{analysis.metadata.detected_language}</Pill>}
+          <p className="text-sm text-muted">{analysis.owner}</p>
+          <h1 className="truncate text-[28px] font-semibold leading-tight tracking-[-0.02em] text-ink">{analysis.repo_name}</h1>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {analysis.framework && <Chip tone="accent">{frameworkLabel(analysis.framework)}</Chip>}
+            {analysis.metadata?.detected_language && <Chip>{languageLabel(analysis.metadata.detected_language)}</Chip>}
             {analysis.commit_sha && (
-              <span className="font-mono text-xs text-slate-500 dark:text-slate-400" title={analysis.commit_sha}>
-                @{analysis.commit_sha.slice(0, 7)}
-              </span>
+              <Chip>
+                <span className="font-mono" title={analysis.commit_sha}>
+                  {analysis.commit_sha.slice(0, 7)}
+                </span>
+              </Chip>
             )}
-            {analysis.graph_status === "stored" && (
-              <Pill tone="emerald">
-                <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" /> Stored in Neo4j
-              </Pill>
-            )}
-            {analysis.status === "ready" && analysis.summary_status === "running" && (
-              <Pill tone="amber">
-                <Spinner className="mr-1 h-3 w-3" /> Writing summary
-              </Pill>
+            {analysis.graph_status === "stored" && <Chip tone="success">Saved to Neo4j</Chip>}
+            {analysis.status === "ready" && summaryBusy && (
+              <Chip>
+                <Spinner className="h-3 w-3" /> Writing summary
+              </Chip>
             )}
           </div>
         </div>
-        {(analysis.status === "ready" || analysis.status === "failed") && (
-          <button
-            onClick={reanalyze}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
-            title="Clone and analyse the latest commit again"
-          >
-            Re-analyze
-          </button>
-        )}
+        <div className="flex gap-2">
+          <a href={analysis.url} target="_blank" rel="noreferrer">
+            <Button variant="secondary">
+              <Icon name="external" className="h-3.5 w-3.5" /> GitHub
+            </Button>
+          </a>
+          {(analysis.status === "ready" || analysis.status === "failed") && (
+            <Button variant="secondary" onClick={reanalyze} title="Clone and analyse the latest commit again">
+              <Icon name="refresh" className="h-3.5 w-3.5" /> Re-analyze
+            </Button>
+          )}
+        </div>
       </header>
 
       {analysis.status === "failed" ? (
         <ErrorBox>
-          <p className="font-medium">This analysis failed.</p>
-          <p className="mt-1">{analysis.error}</p>
+          <p className="font-medium">This analysis failed</p>
+          <p className="mt-1 opacity-90">{analysis.error}</p>
         </ErrorBox>
       ) : analysis.status !== "ready" ? (
         <Progress stage={analysis.stage} timings={analysis.timings} />
       ) : (
         <>
-          <nav className="-mx-1 mb-6 flex gap-1 overflow-x-auto border-b border-slate-200 pb-px dark:border-slate-800">
-            {TABS.map((t) => (
-              <NavLink
-                key={t.path}
-                to={t.path}
-                className={({ isActive }) =>
-                  `whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
-                    isActive
-                      ? "border-indigo-600 text-indigo-700 dark:border-indigo-400 dark:text-indigo-300"
-                      : "border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
-                  }`
-                }
-              >
-                {t.label}
-              </NavLink>
-            ))}
+          <nav className="scroll-quiet -mx-1 mb-8 flex gap-1 overflow-x-auto border-b border-line px-1">
+            {TABS.map((t) => {
+              const active = section === t.path || (t.also ?? []).includes(section);
+              return (
+                <NavLink
+                  key={t.path}
+                  to={t.path}
+                  className={`relative flex items-center gap-2 whitespace-nowrap px-3 pb-3 pt-1 text-sm font-medium transition-colors ${
+                    active ? "text-ink" : "text-muted hover:text-ink"
+                  }`}
+                >
+                  <Icon name={t.icon} className="h-4 w-4" />
+                  {t.label}
+                  {active && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-ink" />}
+                </NavLink>
+              );
+            })}
           </nav>
-          <Outlet />
+          <div key={section} className="animate-in">
+            <Outlet />
+          </div>
         </>
       )}
     </RepoContext.Provider>
@@ -161,40 +158,39 @@ export default function RepoLayout() {
 
 function Progress({ stage, timings }: { stage: Stage; timings: Record<string, number> }) {
   const current = ORDER.indexOf(stage);
-  const keys: Record<string, string> = { cloning: "clone", parsing: "parse", indexing: "index", graph: "graph" };
   return (
-    <div className="mx-auto max-w-xl py-8">
-      <ol className="space-y-3">
-        {STEPS.slice(0, 3).map((s) => {
-          const idx = ORDER.indexOf(s.stage);
-          const state = idx < current ? "done" : idx === current ? "active" : "todo";
-          const t = timings[keys[s.stage]];
-          return (
-            <li key={s.stage} className="flex items-center gap-3">
-              <span
-                className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
-                  state === "done"
-                    ? "bg-emerald-500 text-white"
-                    : state === "active"
-                      ? "bg-indigo-600 text-white"
-                      : "bg-slate-200 text-slate-500 dark:bg-slate-800"
-                }`}
-              >
-                {state === "done" ? "✓" : state === "active" ? <Spinner className="h-3.5 w-3.5" /> : ""}
-              </span>
-              <div className="flex-1">
-                <p className={`text-sm font-medium ${state === "todo" ? "text-slate-400" : ""}`}>{s.label}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">{s.detail}</p>
-              </div>
-              {t !== undefined && <span className="text-xs tabular-nums text-slate-400">{t.toFixed(1)}s</span>}
-            </li>
-          );
-        })}
-      </ol>
-      <p className="mt-6 text-center text-xs text-slate-500 dark:text-slate-400">
-        The dashboard opens as soon as parsing finishes. The knowledge graph and the AI summary
-        keep building in the background.
-      </p>
+    <div className="mx-auto max-w-md py-12">
+      <div className="rounded-2xl border border-line bg-surface p-6 shadow-pop">
+        <p className="font-semibold text-ink">Analyzing the repository</p>
+        <p className="mt-1 text-sm text-ink-2">Usually a few seconds. The dashboard opens as soon as the structure is mapped.</p>
+        <ol className="mt-6 space-y-4">
+          {STEPS.map((s) => {
+            const idx = ORDER.indexOf(s.stage);
+            const state = idx < current ? "done" : idx === current ? "active" : "todo";
+            const t = timings[s.timing];
+            return (
+              <li key={s.stage} className="flex items-center gap-3">
+                <span
+                  className={`flex h-7 w-7 items-center justify-center rounded-full border text-xs ${
+                    state === "done"
+                      ? "border-transparent bg-ink text-page"
+                      : state === "active"
+                        ? "border-line-strong text-ink"
+                        : "border-line text-muted"
+                  }`}
+                >
+                  {state === "done" ? <Icon name="check" className="h-3.5 w-3.5" /> : state === "active" ? <Spinner className="h-3.5 w-3.5" /> : null}
+                </span>
+                <div className="flex-1">
+                  <p className={`text-sm font-medium ${state === "todo" ? "text-muted" : "text-ink"}`}>{s.label}</p>
+                  <p className="text-xs text-muted">{s.detail}</p>
+                </div>
+                {t !== undefined && <span className="text-xs tabular-nums text-muted">{t.toFixed(1)}s</span>}
+              </li>
+            );
+          })}
+        </ol>
+      </div>
     </div>
   );
 }

@@ -3,15 +3,15 @@ import { Link } from "react-router-dom";
 import { api, type Endpoint, type TraceStep } from "../../lib/product";
 import { useRepo } from "../RepoLayout";
 import CodeView from "../CodeView";
-import { Empty, ErrorBox, Loading, MethodBadge } from "../ui";
+import { Empty, ErrorBox, Icon, Loading, MethodBadge, PageHeader, SearchInput, groupColor, type LayerGroup } from "../ui";
 
-const STEP_STYLES: Record<TraceStep["kind"], { label: string; cls: string }> = {
-  endpoint: { label: "Request", cls: "border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/50" },
-  middleware: { label: "Middleware", cls: "border-orange-300 bg-orange-50 dark:border-orange-900 dark:bg-orange-950/40" },
-  handler: { label: "Handler", cls: "border-sky-300 bg-sky-50 dark:border-sky-800 dark:bg-sky-950/50" },
-  service: { label: "Service", cls: "border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/50" },
-  data: { label: "Data access", cls: "border-rose-300 bg-rose-50 dark:border-rose-900 dark:bg-rose-950/40" },
-  entity: { label: "Model", cls: "border-rose-400 bg-rose-100 dark:border-rose-800 dark:bg-rose-950/60" },
+const STEP_META: Record<TraceStep["kind"], { label: string; group: LayerGroup }> = {
+  endpoint: { label: "Request", group: "route" },
+  middleware: { label: "Middleware", group: "middleware" },
+  handler: { label: "Handler", group: "route" },
+  service: { label: "Service", group: "service" },
+  data: { label: "Data access", group: "data" },
+  entity: { label: "Model", group: "data" },
 };
 
 export default function ApiTab() {
@@ -47,46 +47,43 @@ export default function ApiTab() {
   if (!endpoints) return <Loading />;
   if (endpoints.length === 0)
     return (
-      <Empty title="No HTTP endpoints found">
-        The parser looks for Express <code>app/router.get(...)</code> calls and NestJS route decorators.
-        GraphQL resolvers aren't counted.
+      <Empty icon="api" title="No HTTP endpoints found">
+        The parser looks for Express <code className="font-mono">router.get(…)</code> calls and NestJS route
+        decorators. GraphQL resolvers aren't counted.
       </Empty>
     );
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          {endpoints.length} endpoints. Click one to trace the request through the code.
-        </p>
-        <input
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          placeholder="Filter by path, method, handler…"
-          className="w-72 rounded-md border border-slate-300 px-3 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-900"
-        />
-      </div>
-      <div className="space-y-5">
+      <PageHeader
+        title="API"
+        description={`${endpoints.length} endpoints. Open one to follow the request through the code: middleware, the handler, the services it calls, and the data models it touches.`}
+        actions={<SearchInput value={filter} onChange={setFilter} placeholder="Filter by path, method or handler" className="w-72" />}
+      />
+      <div className="space-y-6">
         {groups.map(([group, eps]) => (
           <section key={group}>
-            <h3 className="mb-2 font-mono text-xs font-semibold text-slate-500 dark:text-slate-400">{group}</h3>
-            <div className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 dark:divide-slate-800 dark:border-slate-800">
-              {eps.map((e) => (
-                <div key={e.id}>
-                  <button
-                    onClick={() => setOpen(open === e.id ? null : e.id)}
-                    className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-slate-900"
-                  >
-                    <MethodBadge method={e.method} />
-                    <span className="flex-1 truncate font-mono text-sm">{e.path}</span>
-                    <span className="hidden truncate font-mono text-xs text-slate-500 sm:block">
-                      {e.handler ? `${e.handler}()` : e.trace.find((s) => s.kind === "handler")?.label}
-                    </span>
-                    <span className="text-slate-400">{open === e.id ? "▾" : "▸"}</span>
-                  </button>
-                  {open === e.id && <EndpointDetail analysisId={analysis.id} endpoint={e} />}
-                </div>
-              ))}
+            <h3 className="mb-2 px-1 font-mono text-xs text-muted">{group}</h3>
+            <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface shadow-card">
+              {eps.map((e) => {
+                const isOpen = open === e.id;
+                const handler = e.handler ? `${e.handler}()` : e.trace.find((s) => s.kind === "handler")?.label;
+                return (
+                  <div key={e.id}>
+                    <button
+                      onClick={() => setOpen(isOpen ? null : e.id)}
+                      aria-expanded={isOpen}
+                      className={`flex w-full items-center gap-4 px-4 py-3 text-left transition ${isOpen ? "bg-sunken" : "hover:bg-hover"}`}
+                    >
+                      <MethodBadge method={e.method} />
+                      <span className="flex-1 truncate font-mono text-[13px] text-ink">{e.path}</span>
+                      <span className="hidden max-w-[40%] truncate font-mono text-xs text-muted sm:block">{handler}</span>
+                      <Icon name="chevron" className={`h-4 w-4 text-muted transition ${isOpen ? "rotate-90" : ""}`} />
+                    </button>
+                    {isOpen && <EndpointDetail analysisId={analysis.id} endpoint={e} />}
+                  </div>
+                );
+              })}
             </div>
           </section>
         ))}
@@ -108,37 +105,40 @@ function EndpointDetail({ analysisId, endpoint }: { analysisId: string; endpoint
   const range: [number, number] = [Math.max(1, line - 3), Math.min(total, line + 18)];
 
   return (
-    <div className="space-y-4 bg-slate-50/60 px-4 py-4 dark:bg-slate-900/40">
+    <div className="animate-in space-y-5 border-t border-line bg-sunken px-4 pb-5 pt-4">
       <div>
-        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Request flow</p>
-        <div className="flex flex-wrap items-center gap-1.5">
+        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted">Request flow</p>
+        <div className="flex flex-wrap items-center gap-2">
           {endpoint.trace.map((step, i) => (
-            <div key={i} className="flex items-center gap-1.5">
-              {i > 0 && <span className="text-slate-400">→</span>}
-              <div className={`rounded-lg border px-2.5 py-1 ${STEP_STYLES[step.kind].cls}`} title={step.file ?? undefined}>
-                <p className="text-[10px] uppercase tracking-wide text-slate-500">{STEP_STYLES[step.kind].label}</p>
-                <p className="max-w-[260px] truncate font-mono text-xs">{step.label}</p>
+            <div key={i} className="flex items-center gap-2">
+              {i > 0 && <Icon name="arrow" className="h-3.5 w-3.5 text-muted" />}
+              <div
+                className="rounded-lg border border-line bg-surface py-1.5 pl-3 pr-3 shadow-card"
+                style={{ boxShadow: `inset 3px 0 0 ${groupColor(STEP_META[step.kind].group)}` }}
+                title={step.file ?? undefined}
+              >
+                <p className="text-[10px] font-medium uppercase tracking-wider text-muted">{STEP_META[step.kind].label}</p>
+                <p className="max-w-[260px] truncate font-mono text-xs text-ink">{step.label}</p>
               </div>
             </div>
           ))}
         </div>
         {endpoint.trace.length <= 2 && (
-          <p className="mt-2 text-xs text-slate-500">
-            The handler doesn't call into other files the parser can follow (for example, it's inline).
-          </p>
+          <p className="mt-3 text-xs text-muted">The handler doesn't call into other files the parser can follow (for example, it's written inline).</p>
         )}
       </div>
       {endpoint.file && content && (
         <div>
-          <div className="mb-1 flex items-baseline justify-between">
-            <p className="font-mono text-xs text-slate-500">
-              {endpoint.file}:{endpoint.line}
+          <div className="mb-2 flex items-baseline justify-between">
+            <p className="font-mono text-xs text-ink-2">
+              {endpoint.file}
+              <span className="text-muted">:{endpoint.line}</span>
             </p>
             <Link
               to={`../files?path=${encodeURIComponent(endpoint.file)}&line=${endpoint.line ?? 1}`}
-              className="text-xs text-indigo-700 hover:underline dark:text-indigo-300"
+              className="inline-flex items-center gap-1 text-xs font-medium text-accent-text hover:underline"
             >
-              Open file →
+              Open file <Icon name="arrow" className="h-3 w-3" />
             </Link>
           </div>
           <CodeView path={endpoint.file} content={content} focusLine={endpoint.line} range={range} maxHeight="360px" />

@@ -2,20 +2,18 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, type AnalysisBrief, type SystemStatus } from "../lib/product";
 import { ApiError } from "../lib/api";
-import { ErrorBox, Pill, Spinner, frameworkLabel, timeAgo } from "./ui";
+import { ErrorBox, Icon, Spinner, frameworkLabel, timeAgo, type IconName } from "./ui";
 
 const EXAMPLES = [
   { url: "https://github.com/lujakob/nestjs-realworld-example-app", label: "NestJS RealWorld" },
   { url: "https://github.com/hagopj13/node-express-boilerplate", label: "Express boilerplate" },
   { url: "https://github.com/notiz-dev/nestjs-prisma-starter", label: "NestJS + Prisma" },
-  { url: "https://github.com/bradtraversy/node_passport_login", label: "Express + Passport" },
 ];
 
-const FEATURES = [
-  ["Knowledge graph", "Every file, class, endpoint and data model, and how they connect."],
-  ["Architecture", "Layered diagram of the codebase, generated without an LLM."],
-  ["API & request flow", "Each endpoint traced through middleware, services and models."],
-  ["Ask the repo", "Questions answered by a local model, grounded in the actual source."],
+const STEPS: { icon: IconName; title: string; body: string }[] = [
+  { icon: "code", title: "Parse", body: "tree-sitter reads every file: routes, classes, imports, data models." },
+  { icon: "graph", title: "Connect", body: "A knowledge graph links them, stored in Neo4j." },
+  { icon: "sparkles", title: "Explain", body: "A local model summarises it and answers questions, grounded in that graph." },
 ];
 
 export default function HomePage() {
@@ -46,47 +44,63 @@ export default function HomePage() {
   const seen = new Set<string>();
   const latest = (recent ?? []).filter((a) => {
     const key = a.url.toLowerCase();
-    if (seen.has(key)) return false;
+    if (seen.has(key) || a.status === "failed") return false;
     seen.add(key);
     return true;
   });
 
   return (
-    <div>
-      <section className="mx-auto max-w-3xl pb-10 pt-6 text-center">
-        <h2 className="text-4xl font-semibold tracking-tight sm:text-5xl">
-          Understand any backend <span className="text-indigo-600 dark:text-indigo-400">in minutes</span>
-        </h2>
-        <p className="mx-auto mt-4 max-w-2xl text-slate-600 dark:text-slate-400">
-          Paste a GitHub link to an Express.js or NestJS repository. We parse it statically, build a
-          knowledge graph, and explain it with a local LLM: no code leaves this machine.
+    <div className="animate-in">
+      <section className="relative mx-auto max-w-3xl pb-14 pt-10 text-center">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 -top-8 -z-10 mx-auto h-72 max-w-2xl opacity-60 blur-3xl"
+          style={{ background: "radial-gradient(closest-side, var(--accent-soft), transparent)" }}
+        />
+        <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1 text-xs font-medium text-ink-2 shadow-card">
+          <Icon name="sparkles" className="h-3.5 w-3.5 text-accent" />
+          Runs entirely on this machine
         </p>
+        <h1 className="text-[34px] font-semibold leading-[1.08] tracking-[-0.03em] text-ink sm:text-[56px]">
+          Understand any backend
+          <br />
+          <span className="text-muted">in minutes, not days.</span>
+        </h1>
+        <p className="mx-auto mt-5 max-w-xl text-[17px] leading-relaxed text-ink-2">
+          Paste a GitHub link to an Express.js or NestJS repository. Get its architecture,
+          API, data models and a plain-English explanation.
+        </p>
+
         <form
           onSubmit={(e) => {
             e.preventDefault();
             void analyze(url);
           }}
-          className="mx-auto mt-8 flex max-w-2xl gap-2"
+          className="mx-auto mt-9 flex max-w-2xl items-center gap-2 rounded-2xl border border-line bg-surface p-2 shadow-pop focus-within:border-line-strong"
         >
+          <span className="pl-3 text-muted">
+            <Icon name="search" className="h-5 w-5" />
+          </span>
           <input
             type="url"
             required
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://github.com/owner/repo"
+            placeholder="https://github.com/owner/repository"
             disabled={submitting}
-            className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-4 py-3 text-base shadow-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900"
+            className="h-11 min-w-0 flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-muted disabled:opacity-60"
           />
           <button
             type="submit"
             disabled={submitting}
-            className="flex items-center gap-2 whitespace-nowrap rounded-lg bg-indigo-600 px-5 py-3 font-medium text-white shadow-sm hover:bg-indigo-500 disabled:opacity-60"
+            className="flex h-11 items-center gap-2 rounded-xl bg-ink px-5 text-[15px] font-medium text-page transition hover:opacity-90 disabled:opacity-60"
           >
-            {submitting && <Spinner />} Analyze
+            {submitting ? <Spinner /> : null} Analyze
           </button>
         </form>
-        <div className="mt-4 flex flex-wrap justify-center gap-2 text-sm">
-          <span className="text-slate-500 dark:text-slate-400">Try:</span>
+
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-sm">
+          <span className="text-muted">Try</span>
           {EXAMPLES.map((ex) => (
             <button
               key={ex.url}
@@ -95,12 +109,13 @@ export default function HomePage() {
                 void analyze(ex.url);
               }}
               disabled={submitting}
-              className="rounded-full border border-slate-300 px-3 py-0.5 text-slate-700 hover:border-indigo-400 hover:text-indigo-700 dark:border-slate-700 dark:text-slate-300"
+              className="rounded-full border border-line bg-surface px-3 py-1 text-ink-2 transition hover:border-line-strong hover:text-ink"
             >
               {ex.label}
             </button>
           ))}
         </div>
+
         {error && (
           <div className="mx-auto mt-6 max-w-2xl text-left">
             <ErrorBox>{error}</ErrorBox>
@@ -109,53 +124,70 @@ export default function HomePage() {
         {system && <SystemLine system={system} />}
       </section>
 
-      <section className="mb-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {FEATURES.map(([title, body]) => (
-          <div key={title} className="rounded-xl border border-slate-200 p-4 dark:border-slate-800">
-            <p className="font-medium">{title}</p>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{body}</p>
+      <section className="mb-16 grid gap-4 md:grid-cols-3">
+        {STEPS.map((s, i) => (
+          <div key={s.title} className="rounded-2xl border border-line bg-surface p-5 shadow-card">
+            <div className="flex items-center gap-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-sunken text-ink">
+                <Icon name={s.icon} className="h-[18px] w-[18px]" />
+              </span>
+              <span className="text-xs font-medium text-muted">Step {i + 1}</span>
+            </div>
+            <p className="mt-4 font-semibold text-ink">{s.title}</p>
+            <p className="mt-1 text-sm leading-relaxed text-ink-2">{s.body}</p>
           </div>
         ))}
       </section>
 
       {latest.length > 0 && (
         <section>
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-            Analyzed repositories
-          </h3>
+          <div className="mb-4 flex items-baseline justify-between">
+            <h2 className="text-[15px] font-semibold tracking-tight">Analyzed repositories</h2>
+            <span className="text-xs text-muted">Open instantly, no re-analysis</span>
+          </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {latest.map((a) => (
               <Link
                 key={a.id}
                 to={`/repo/${a.id}/overview`}
-                className="group rounded-xl border border-slate-200 p-4 transition hover:border-indigo-400 hover:shadow-sm dark:border-slate-800 dark:hover:border-indigo-500"
+                className="group min-w-0 rounded-2xl border border-line bg-surface p-5 shadow-card transition hover:-translate-y-0.5 hover:border-line-strong hover:shadow-pop"
               >
-                <div className="flex items-start justify-between gap-2">
+                <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-xs text-slate-500 dark:text-slate-400">{a.owner}</p>
-                    <p className="truncate font-medium group-hover:text-indigo-700 dark:group-hover:text-indigo-300">
-                      {a.repo_name}
-                    </p>
+                    <p className="text-xs text-muted">{a.owner}</p>
+                    <p className="mt-0.5 truncate font-semibold tracking-tight text-ink">{a.repo_name}</p>
                   </div>
-                  {a.status === "failed" ? (
-                    <Pill tone="rose">Failed</Pill>
-                  ) : a.status !== "ready" ? (
-                    <Pill tone="amber">Running</Pill>
-                  ) : (
-                    a.framework && <Pill tone="indigo">{frameworkLabel(a.framework)}</Pill>
-                  )}
+                  <span className="rounded-md border border-line px-2 py-0.5 text-[11px] font-medium text-ink-2">
+                    {a.status === "ready" ? frameworkLabel(a.framework) : "Analyzing…"}
+                  </span>
                 </div>
                 {a.stats && (
-                  <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-                    {a.stats.files} files · {a.stats.endpoints} endpoints · {a.stats.entities} models
-                  </p>
+                  <div className="mt-5 grid grid-cols-3 gap-2 border-t border-line pt-4">
+                    <MiniStat value={a.stats.files} label="files" />
+                    <MiniStat value={a.stats.endpoints} label="endpoints" />
+                    <MiniStat value={a.stats.entities} label="models" />
+                  </div>
                 )}
-                <p className="mt-1 text-xs text-slate-400">{timeAgo(a.created_at)}</p>
+                <div className="mt-4 flex items-center justify-between text-xs text-muted">
+                  <span>{timeAgo(a.created_at)}</span>
+                  <span className="flex items-center gap-1 opacity-0 transition group-hover:opacity-100">
+                    Open <Icon name="arrow" className="h-3.5 w-3.5" />
+                  </span>
+                </div>
               </Link>
             ))}
           </div>
         </section>
       )}
+    </div>
+  );
+}
+
+function MiniStat({ value, label }: { value: number; label: string }) {
+  return (
+    <div>
+      <p className="text-lg font-semibold tracking-tight text-ink">{value}</p>
+      <p className="text-[11px] text-muted">{label}</p>
     </div>
   );
 }
@@ -166,12 +198,14 @@ function SystemLine({ system }: { system: SystemStatus }) {
     { ok: system.summary_model_installed, label: system.summary_model },
     { ok: system.neo4j.reachable, label: "Neo4j" },
   ];
+  const allOk = items.every((i) => i.ok);
   return (
-    <div className="mt-6 flex justify-center gap-4 text-xs text-slate-500 dark:text-slate-400">
+    <div className="mt-8 flex flex-wrap justify-center gap-x-5 gap-y-1 text-xs text-muted" title={allOk ? "Everything is running" : "Something isn't running"}>
       {items.map((i) => (
-        <span key={i.label} className="flex items-center gap-1.5" title={i.ok ? "Available" : "Not available"}>
-          <span className={`h-2 w-2 rounded-full ${i.ok ? "bg-emerald-500" : "bg-rose-500"}`} />
+        <span key={i.label} className="flex items-center gap-1.5">
+          <span className={`h-1.5 w-1.5 rounded-full ${i.ok ? "bg-success" : "bg-danger"}`} />
           {i.label}
+          {!i.ok && <span className="text-danger">offline</span>}
         </span>
       ))}
     </div>

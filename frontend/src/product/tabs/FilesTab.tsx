@@ -3,7 +3,8 @@ import { useSearchParams } from "react-router-dom";
 import { api, type FileEntry } from "../../lib/product";
 import { useRepo } from "../RepoLayout";
 import CodeView from "../CodeView";
-import { ErrorBox, LAYER_COLORS, LAYER_LABELS, Loading } from "../ui";
+import CodeSwitcher from "../CodeSwitcher";
+import { ErrorBox, Icon, LayerDot, Loading, PageHeader, SearchInput, groupLabel, layerGroup } from "../ui";
 
 interface Dir {
   name: string;
@@ -44,7 +45,7 @@ export default function FilesTab() {
 
   useEffect(() => {
     if (!files || selected) return;
-    const first = files.find((f) => /(^|\/)(main|app|index|server)\.[jt]s$/.test(f.path) && f.layer === "entry") ?? files[0];
+    const first = files.find((f) => f.layer === "entry") ?? files[0];
     if (first) setParams({ path: first.path }, { replace: true });
   }, [files, selected, setParams]);
 
@@ -65,37 +66,34 @@ export default function FilesTab() {
   const current = files.find((f) => f.path === selected);
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
-      <aside className="rounded-xl border border-slate-200 p-2 dark:border-slate-800">
-        <input
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          placeholder={`Filter ${files.length} files…`}
-          className="mb-2 w-full rounded-md border border-slate-300 px-2 py-1 text-xs dark:border-slate-700 dark:bg-slate-900"
-        />
-        <div className="max-h-[70vh] overflow-y-auto text-sm">
-          <TreeNode dir={tree} depth={0} selected={selected} onSelect={(p) => setParams({ path: p })} forceOpen={!!filter} />
-        </div>
-      </aside>
-      <section className="min-w-0">
-        {current && (
-          <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
-            <span className="font-mono text-sm text-slate-800 dark:text-slate-200">{current.path}</span>
-            <span className="flex items-center gap-1">
-              <span className="h-2 w-2 rounded-sm" style={{ background: LAYER_COLORS[current.layer] }} />
-              {LAYER_LABELS[current.layer] ?? current.layer}
-            </span>
-            <span>imports {current.imports}</span>
-            <span>imported by {current.imported_by}</span>
-            {current.classes.length > 0 && <span className="font-mono">{current.classes.join(", ")}</span>}
+    <div>
+      <PageHeader
+        title="Source code"
+        description="Browse the files the analysis read. The dot beside each file shows its layer."
+        actions={<CodeSwitcher />}
+      />
+      <div className="grid gap-4 lg:grid-cols-[290px_1fr]">
+        <aside className="rounded-2xl border border-line bg-surface p-2 shadow-card">
+          <SearchInput value={filter} onChange={setFilter} placeholder={`Search ${files.length} files`} className="mb-2 shadow-none" />
+          <div className="scroll-quiet max-h-[68vh] overflow-y-auto pb-1 text-sm">
+            <TreeNode dir={tree} depth={0} selected={selected} onSelect={(p) => setParams({ path: p })} forceOpen={!!filter} />
           </div>
-        )}
-        {selected && content !== null ? (
-          <CodeView path={selected} content={content} focusLine={line} />
-        ) : (
-          <Loading />
-        )}
-      </section>
+        </aside>
+        <section className="min-w-0">
+          {current && (
+            <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-xl border border-line bg-surface px-4 py-2.5 text-xs text-ink-2 shadow-card">
+              <span className="font-mono text-[13px] font-medium text-ink">{current.path}</span>
+              <span className="flex items-center gap-1.5">
+                <LayerDot raw={current.layer} className="h-2 w-2" /> {groupLabel(layerGroup(current.layer))}
+              </span>
+              <span className="text-muted">imports {current.imports}</span>
+              <span className="text-muted">used by {current.imported_by}</span>
+              {current.classes.length > 0 && <span className="truncate font-mono text-muted">{current.classes.join(", ")}</span>}
+            </div>
+          )}
+          {selected && content !== null ? <CodeView path={selected} content={content} focusLine={line} /> : <Loading />}
+        </section>
+      </div>
     </div>
   );
 }
@@ -117,43 +115,45 @@ function TreeNode({
   const [open, setOpen] = useState(depth < 1 || containsSelected);
   const isOpen = open || forceOpen;
   const dirs = [...dir.dirs.values()].sort((a, b) => a.name.localeCompare(b.name));
+  const childDepth = depth + (dir.name ? 1 : 0);
 
   return (
     <div>
       {dir.name && (
         <button
           onClick={() => setOpen(!open)}
-          className="flex w-full items-center gap-1 rounded px-1 py-0.5 text-left text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
-          style={{ paddingLeft: depth * 12 }}
+          className="flex w-full items-center gap-1.5 rounded-md py-1 pr-2 text-left text-[13px] text-ink-2 transition hover:bg-hover hover:text-ink"
+          style={{ paddingLeft: depth * 14 + 6 }}
         >
-          <span className="w-3 text-[10px] text-slate-400">{isOpen ? "▾" : "▸"}</span>
+          <Icon name="chevron" className={`h-3 w-3 text-muted transition ${isOpen ? "rotate-90" : ""}`} />
           {dir.name}
         </button>
       )}
       {isOpen && (
         <>
           {dirs.map((d) => (
-            <TreeNode key={d.path} dir={d} depth={depth + (dir.name ? 1 : 0)} selected={selected} onSelect={onSelect} forceOpen={forceOpen} />
+            <TreeNode key={d.path} dir={d} depth={childDepth} selected={selected} onSelect={onSelect} forceOpen={forceOpen} />
           ))}
           {dir.files
             .slice()
             .sort((a, b) => a.path.localeCompare(b.path))
-            .map((f) => (
-              <button
-                key={f.path}
-                onClick={() => onSelect(f.path)}
-                className={`flex w-full items-center gap-1.5 truncate rounded px-1 py-0.5 text-left font-mono text-xs ${
-                  f.path === selected
-                    ? "bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-200"
-                    : "hover:bg-slate-100 dark:hover:bg-slate-800"
-                }`}
-                style={{ paddingLeft: (depth + (dir.name ? 1 : 0)) * 12 + 4 }}
-                title={f.path}
-              >
-                <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: LAYER_COLORS[f.layer] }} />
-                <span className="truncate">{f.path.split("/").pop()}</span>
-              </button>
-            ))}
+            .map((f) => {
+              const active = f.path === selected;
+              return (
+                <button
+                  key={f.path}
+                  onClick={() => onSelect(f.path)}
+                  className={`flex w-full items-center gap-2 truncate rounded-md py-1 pr-2 text-left font-mono text-xs transition ${
+                    active ? "bg-accent-soft text-accent-text" : "text-ink hover:bg-hover"
+                  }`}
+                  style={{ paddingLeft: childDepth * 14 + 8 }}
+                  title={f.path}
+                >
+                  <LayerDot raw={f.layer} className="h-1.5 w-1.5" />
+                  <span className="truncate">{f.path.split("/").pop()}</span>
+                </button>
+              );
+            })}
         </>
       )}
     </div>

@@ -59,12 +59,12 @@ def knowledge_graph(parsed: ParsedRepository, insights: dict) -> dict:
         if f.class_id is None and not f.is_api_handler:
             continue
         function_ids.add(f.id)
-        node(f.id, "function", f.name, path=module_paths.get(f.module_id))
+        node(f.id, "function", f.name, path=module_paths.get(f.module_id), layer=layers.get(f.module_id, "other"))
         edge(f.class_id or f.module_id, f.id, "has_method" if f.class_id else "defines")
 
     for ep in parsed.api_endpoints:
         label = f"{_method(ep)} {ep.path}"
-        node(ep.id, "endpoint", label, method=_method(ep), route=ep.path)
+        node(ep.id, "endpoint", label, method=_method(ep), route=ep.path, layer="route")
         if ep.handler_function_id and ep.handler_function_id in function_ids:
             edge(ep.id, ep.handler_function_id, "handled_by")
         else:
@@ -76,7 +76,7 @@ def knowledge_graph(parsed: ParsedRepository, insights: dict) -> dict:
     for i, ent in enumerate(insights.get("entities", [])):
         eid = f"entity_{i}"
         entity_ids[ent["name"]] = eid
-        node(eid, "entity", ent["name"], orm=ent["orm"], path=ent["source_path"])
+        node(eid, "entity", ent["name"], orm=ent["orm"], path=ent["source_path"], layer="data")
         if ent.get("module_id"):
             edge(ent["module_id"], eid, "defines")
     for ent in insights.get("entities", []):

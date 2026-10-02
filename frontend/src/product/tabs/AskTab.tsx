@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { askRepo, type AskEvent } from "../../lib/product";
 import { ApiError } from "../../lib/api";
 import { useRepo } from "../RepoLayout";
-import { Spinner } from "../ui";
+import { Button, Icon, Spinner } from "../ui";
 
 interface Turn {
   role: "user" | "assistant";
@@ -63,63 +63,78 @@ export default function AskTab() {
   const suggestions = analysis.suggested_questions ?? [];
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto flex max-w-3xl flex-col">
       {turns.length === 0 && (
-        <div className="py-6 text-center">
-          <p className="text-lg font-medium">Ask anything about {analysis.repo_name}</p>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Answers come from a local model, grounded in this repository's knowledge graph and the most
-            relevant source files, which are listed under each answer.
+        <div className="py-10 text-center">
+          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-line bg-surface text-accent shadow-card">
+            <Icon name="sparkles" className="h-5 w-5" />
+          </span>
+          <h2 className="mt-5 text-2xl font-semibold tracking-tight text-ink">Ask about {analysis.repo_name}</h2>
+          <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-ink-2">
+            Answers come from a local model that reads this repository's structure and its most
+            relevant files. It lists the files it read, so you can check.
           </p>
-          <div className="mt-6 flex flex-wrap justify-center gap-2">
+          <div className="mx-auto mt-8 grid max-w-2xl gap-2 text-left sm:grid-cols-2">
             {suggestions.map((q) => (
               <button
                 key={q}
                 onClick={() => void send(q)}
-                className="rounded-full border border-slate-300 px-3 py-1.5 text-sm hover:border-indigo-400 hover:text-indigo-700 dark:border-slate-700 dark:hover:text-indigo-300"
+                className="group flex items-center justify-between gap-3 rounded-xl border border-line bg-surface px-4 py-3 text-sm text-ink shadow-card transition hover:border-line-strong hover:shadow-pop"
               >
-                {q}
+                <span>{q}</span>
+                <Icon name="arrow" className="h-4 w-4 shrink-0 text-muted transition group-hover:translate-x-0.5 group-hover:text-ink" />
               </button>
             ))}
           </div>
         </div>
       )}
 
-      <div className="space-y-5">
+      <div className="space-y-8">
         {turns.map((t, i) =>
           t.role === "user" ? (
             <div key={i} className="flex justify-end">
-              <p className="max-w-[85%] rounded-2xl rounded-br-sm bg-indigo-600 px-4 py-2 text-sm text-white">{t.content}</p>
+              <p className="max-w-[80%] rounded-2xl rounded-br-md bg-ink px-4 py-2.5 text-sm leading-relaxed text-page">{t.content}</p>
             </div>
           ) : (
-            <div key={i} className="rounded-2xl rounded-bl-sm border border-slate-200 px-4 py-3 dark:border-slate-800">
-              {t.sources && t.sources.length > 0 && (
-                <div className="mb-2 flex flex-wrap items-center gap-1.5 text-xs">
-                  <span className="text-slate-400">Read:</span>
-                  {t.sources.map((s) => (
-                    <Link
-                      key={s.path}
-                      to={`../files?path=${encodeURIComponent(s.path)}`}
-                      className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-slate-600 hover:text-indigo-700 dark:bg-slate-800 dark:text-slate-300"
-                    >
-                      {s.path}
-                    </Link>
-                  ))}
-                </div>
-              )}
-              {t.content ? (
-                <Markdown text={t.content} />
-              ) : t.pending ? (
-                <p className="flex items-center gap-2 text-sm text-slate-500">
-                  <Spinner /> Reading the code…
-                </p>
-              ) : null}
-              {t.error && <p className="mt-2 text-sm text-rose-600 dark:text-rose-400">{t.error}</p>}
-              {t.stats?.duration_ms && !t.pending && (
-                <p className="mt-2 text-right text-[11px] text-slate-400">
-                  {t.stats.output_tokens} tokens · {(t.stats.duration_ms / 1000).toFixed(1)}s · local model
-                </p>
-              )}
+            <div key={i} className="flex gap-3">
+              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-line bg-surface text-accent">
+                <Icon name="sparkles" className="h-3.5 w-3.5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                {t.sources && t.sources.length > 0 && (
+                  <div className="mb-3 flex flex-wrap items-center gap-1.5">
+                    <span className="mr-0.5 text-xs text-muted">Read</span>
+                    {t.sources.map((s) => (
+                      <Link
+                        key={s.path}
+                        to={`../files?path=${encodeURIComponent(s.path)}`}
+                        title={s.path}
+                        className="inline-flex items-center gap-1 rounded-md border border-line bg-surface px-1.5 py-0.5 font-mono text-[11px] text-ink-2 transition hover:border-line-strong hover:text-ink"
+                      >
+                        <Icon name="file" className="h-3 w-3" />
+                        {s.path.split("/").pop()}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+                {t.content ? (
+                  <Markdown text={t.content} />
+                ) : t.pending ? (
+                  <div className="space-y-2.5 pt-1">
+                    <p className="flex items-center gap-2 text-sm text-ink-2">
+                      <Spinner /> Reading the code…
+                    </p>
+                    <div className="skeleton h-3.5 w-full" />
+                    <div className="skeleton h-3.5 w-3/4" />
+                  </div>
+                ) : null}
+                {t.error && <p className="mt-2 text-sm text-danger">{t.error}</p>}
+                {t.stats?.duration_ms && !t.pending && (
+                  <p className="mt-3 text-[11px] text-muted">
+                    {(t.stats.duration_ms / 1000).toFixed(0)}s · {t.stats.output_tokens} tokens · local model
+                  </p>
+                )}
+              </div>
             </div>
           ),
         )}
@@ -131,27 +146,23 @@ export default function AskTab() {
           e.preventDefault();
           void send(input);
         }}
-        className="sticky bottom-4 mt-6 flex gap-2 rounded-xl border border-slate-200 bg-white p-2 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+        className="sticky bottom-6 mt-10 flex items-center gap-2 rounded-2xl border border-line bg-surface p-2 shadow-pop"
       >
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="How does this repository handle…"
-          className="min-w-0 flex-1 bg-transparent px-2 text-sm outline-none"
+          placeholder={turns.length ? "Ask a follow-up…" : "How does this repository handle…"}
+          className="h-10 min-w-0 flex-1 bg-transparent px-3 text-sm text-ink outline-none placeholder:text-muted"
           disabled={busy}
         />
         {busy ? (
-          <button
-            type="button"
-            onClick={() => abort.current?.abort()}
-            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm dark:border-slate-700"
-          >
-            Stop
-          </button>
+          <Button type="button" variant="secondary" onClick={() => abort.current?.abort()}>
+            <Icon name="stop" className="h-3.5 w-3.5" /> Stop
+          </Button>
         ) : (
-          <button type="submit" className="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-500">
-            Ask
-          </button>
+          <Button type="submit" variant="primary" disabled={!input.trim()}>
+            Ask <Icon name="send" className="h-3.5 w-3.5" />
+          </Button>
         )}
       </form>
     </div>
@@ -173,7 +184,7 @@ function Markdown({ text }: { text: string }) {
       while (i < lines.length && !lines[i].trim().startsWith("```")) body.push(lines[i++]);
       i++;
       blocks.push(
-        <pre key={blocks.length} className="my-2 overflow-x-auto rounded-lg bg-slate-100 p-3 text-xs dark:bg-slate-900">
+        <pre key={blocks.length} className="my-3 overflow-x-auto rounded-xl border border-line bg-code p-4 font-mono text-xs leading-relaxed text-ink">
           <code>{body.join("\n")}</code>
         </pre>,
       );
@@ -188,7 +199,7 @@ function Markdown({ text }: { text: string }) {
       }
       const ListTag = ordered ? "ol" : "ul";
       blocks.push(
-        <ListTag key={blocks.length} className={`my-2 space-y-1 pl-5 text-sm ${ordered ? "list-decimal" : "list-disc"}`}>
+        <ListTag key={blocks.length} className={`my-3 space-y-1.5 pl-5 text-[15px] leading-relaxed marker:text-muted ${ordered ? "list-decimal" : "list-disc"}`}>
           {items.map((it, j) => (
             <li key={j}>
               <Inline text={it} />
@@ -209,12 +220,12 @@ function Markdown({ text }: { text: string }) {
     const joined = para.join(" ");
     const heading = /^#{1,4}\s+/.test(joined);
     blocks.push(
-      <p key={blocks.length} className={`my-2 text-sm leading-relaxed ${heading ? "font-semibold" : ""}`}>
+      <p key={blocks.length} className={`my-3 text-[15px] leading-relaxed first:mt-0 ${heading ? "font-semibold" : ""}`}>
         <Inline text={joined.replace(/^#{1,4}\s+/, "")} />
       </p>,
     );
   }
-  return <div className="text-slate-800 dark:text-slate-200">{blocks}</div>;
+  return <div className="text-ink">{blocks}</div>;
 }
 
 function Inline({ text }: { text: string }) {
@@ -226,13 +237,13 @@ function Inline({ text }: { text: string }) {
           const code = p.slice(1, -1);
           if (/^[\w./-]+\.(js|ts|json|prisma|mjs|cjs)$/.test(code)) {
             return (
-              <Link key={i} to={`../files?path=${encodeURIComponent(code)}`} className="rounded bg-indigo-50 px-1 font-mono text-[0.85em] text-indigo-700 hover:underline dark:bg-indigo-950 dark:text-indigo-300">
+              <Link key={i} to={`../files?path=${encodeURIComponent(code)}`} className="rounded-md bg-accent-soft px-1.5 py-px font-mono text-[0.82em] text-accent-text hover:underline">
                 {code}
               </Link>
             );
           }
           return (
-            <code key={i} className="rounded bg-slate-100 px-1 font-mono text-[0.85em] dark:bg-slate-800">
+            <code key={i} className="rounded-md border border-line bg-sunken px-1.5 py-px font-mono text-[0.82em]">
               {code}
             </code>
           );

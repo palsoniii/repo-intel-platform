@@ -1,13 +1,159 @@
 @import "tailwindcss";
 
-@theme {
-  --color-canvas: #0b0d12;
+/* Dark mode follows <html data-theme>, which lib/theme.ts sets from the viewer's
+   choice (or the OS when they haven't chosen). */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* ---------------------------------------------------------------------------
+   Design tokens. Components use these roles (bg-surface, text-ink-2, border-line,
+   ...) rather than raw colours, so light and dark are defined once, here.
+   --------------------------------------------------------------------------- */
+:root {
+  color-scheme: light;
+  --page: #f7f7f5;
+  --surface: #ffffff;
+  --sunken: #f1f1ee;
+  --hover: #f3f3f0;
+  --line: #e5e4de;
+  --line-strong: #d3d2ca;
+  --ink: #111110;
+  --ink-2: #52514e;
+  --muted: #8a8983;
+  --accent: #5b4bc4;
+  --accent-ink: #ffffff;
+  --accent-soft: #eeecfb;
+  --accent-text: #4a3aa7;
+  --danger: #c8372f;
+  --danger-soft: #fdeceb;
+  --success: #0b7a0b;
+  --code-bg: #fbfbfa;
+  --focus: rgba(91, 75, 196, 0.35);
+
+  /* Architectural layers: the first five slots of the validated categorical
+     palette, in its fixed order (CVD-checked; see dataviz validator). Supporting
+     and test files are deliberately neutral. */
+  --layer-setup: #2a78d6;
+  --layer-route: #eb6834;
+  --layer-middleware: #1baf7a;
+  --layer-service: #eda100;
+  --layer-data: #e87ba4;
+  --layer-support: #9a998f;
+  --layer-test: #c9c8c0;
+
+  /* Ordinal ramp (one hue, light -> dark) for ordered series such as the three
+     context representations: less structure -> more. */
+  --ord-1: #b3aaf0;
+  --ord-2: #7a6ce0;
+  --ord-3: #3f2f9e;
+
+  --shadow-sm: 0 1px 2px rgba(17, 17, 16, 0.04), 0 1px 1px rgba(17, 17, 16, 0.03);
+  --shadow-md: 0 8px 24px -12px rgba(17, 17, 16, 0.18), 0 2px 6px rgba(17, 17, 16, 0.04);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0e0e0d;
+  --surface: #171716;
+  --sunken: #121211;
+  --hover: #1f1f1e;
+  --line: #2a2a28;
+  --line-strong: #3a3a37;
+  --ink: #f5f5f2;
+  --ink-2: #c3c2b7;
+  --muted: #8a8983;
+  --accent: #8f84ec;
+  --accent-ink: #0e0e0d;
+  --accent-soft: #23203b;
+  --accent-text: #aaa1f2;
+  --danger: #ef6b63;
+  --danger-soft: #2c1615;
+  --success: #3fbf3f;
+  --code-bg: #121211;
+  --focus: rgba(143, 132, 236, 0.4);
+
+  --layer-setup: #3987e5;
+  --layer-route: #d95926;
+  --layer-middleware: #199e70;
+  --layer-service: #c98500;
+  --layer-data: #d55181;
+  --layer-support: #6f6e67;
+  --layer-test: #45443f;
+
+  --ord-1: #4a3f9a;
+  --ord-2: #8073e6;
+  --ord-3: #cdc7f7;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 12px 32px -12px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+@theme inline {
+  --color-page: var(--page);
+  --color-surface: var(--surface);
+  --color-sunken: var(--sunken);
+  --color-hover: var(--hover);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-text: var(--accent-text);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-success: var(--success);
+  --color-code: var(--code-bg);
+  --shadow-card: var(--shadow-sm);
+  --shadow-pop: var(--shadow-md);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "SF Pro Text", "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 html {
-  color-scheme: light dark;
+  background: var(--page);
 }
 
 body {
-  @apply bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100;
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv11", "ss01";
+}
+
+::selection {
+  background: var(--accent-soft);
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Thin, quiet scrollbars inside panels. */
+.scroll-quiet {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+.animate-in {
+  animation: fade-in 0.25s ease-out both;
+}
+
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, var(--sunken) 0px, var(--hover) 80px, var(--sunken) 160px);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s linear infinite;
+  border-radius: 6px;
 }

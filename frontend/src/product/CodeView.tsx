@@ -4,8 +4,7 @@ import javascript from "highlight.js/lib/languages/javascript";
 import typescript from "highlight.js/lib/languages/typescript";
 import json from "highlight.js/lib/languages/json";
 import markdown from "highlight.js/lib/languages/markdown";
-import "highlight.js/styles/github.css";
-import "./code-dark.css";
+import "./code-theme.css";
 
 hljs.registerLanguage("javascript", javascript);
 hljs.registerLanguage("typescript", typescript);
@@ -48,16 +47,16 @@ export default function CodeView({
 
   const [start, end] = range ?? [1, lines.length];
   return (
-    <div className="hljs-wrap overflow-auto rounded-lg border border-slate-200 bg-white text-[12.5px] leading-5 dark:border-slate-800 dark:bg-slate-950" style={{ maxHeight }}>
+    <div className="hljs-wrap scroll-quiet overflow-auto rounded-xl border border-line bg-code py-2 text-[12.5px] leading-[1.6] shadow-card" style={{ maxHeight }}>
       <table className="w-full border-collapse font-mono">
         <tbody>
           {lines.slice(start - 1, end).map((html, i) => {
             const n = start + i;
             const focused = n === focusLine;
             return (
-              <tr key={n} ref={focused ? focusRef : undefined} className={focused ? "bg-amber-100/70 dark:bg-amber-500/15" : ""}>
-                <td className="select-none border-r border-slate-100 px-3 text-right align-top text-slate-400 dark:border-slate-800">{n}</td>
-                <td className="whitespace-pre px-3" dangerouslySetInnerHTML={{ __html: html || " " }} />
+              <tr key={n} ref={focused ? focusRef : undefined} className={focused ? "bg-accent-soft" : ""}>
+                <td className={`w-12 select-none px-3 text-right align-top tabular-nums ${focused ? "text-accent-text" : "text-muted/70"}`}>{n}</td>
+                <td className="whitespace-pre pl-2 pr-4 text-ink" dangerouslySetInnerHTML={{ __html: html || " " }} />
               </tr>
             );
           })}

@@ -1,14 +1,34 @@
 import { Link } from "react-router-dom";
 import { api } from "../../lib/product";
 import { useRepo } from "../RepoLayout";
-import { Card, LAYER_COLORS, Pill, SectionTitle, Spinner, Stat } from "../ui";
+import {
+  Button,
+  Card,
+  CardTitle,
+  Icon,
+  LAYER_GROUPS,
+  LayerDot,
+  Spinner,
+  Stat,
+  groupColor,
+  layerGroup,
+  type IconName,
+  type LayerGroup,
+} from "../ui";
 
 export default function OverviewTab() {
   const { analysis, refresh } = useRepo();
   const s = analysis.stats;
   const summary = analysis.summary?.summary ?? null;
-  const layers = (analysis.layers ?? []).filter((l) => l.layer !== "test");
-  const totalFiles = layers.reduce((n, l) => n + l.files, 0) || 1;
+
+  const groupCounts = new Map<LayerGroup, number>();
+  for (const l of analysis.layers ?? []) {
+    const g = layerGroup(l.layer);
+    if (g === "test") continue;
+    groupCounts.set(g, (groupCounts.get(g) ?? 0) + l.files);
+  }
+  const groups = LAYER_GROUPS.filter((g) => groupCounts.get(g.id));
+  const total = groups.reduce((n, g) => n + (groupCounts.get(g.id) ?? 0), 0) || 1;
   const structuralSeconds = ["clone", "parse", "index"].reduce((n, k) => n + (analysis.timings[k] ?? 0), 0);
 
   async function regenerate() {
@@ -17,98 +37,98 @@ export default function OverviewTab() {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
-      <div className="space-y-6 lg:col-span-2">
-        <Card>
-          <SectionTitle
-            hint={
-              analysis.summary && analysis.summary_status === "done"
-                ? `${analysis.summary.model} · ${(analysis.summary.latency_ms / 1000).toFixed(1)}s · ${analysis.summary.input_tokens} tokens in`
-                : undefined
-            }
-          >
-            AI summary
-          </SectionTitle>
+    <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
+      <div className="space-y-6">
+        <Card className="relative overflow-hidden">
+          <div className="mb-4 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-sm font-medium text-ink-2">
+              <Icon name="sparkles" className="h-4 w-4 text-accent" />
+              What this repository does
+            </div>
+            {analysis.summary_status === "done" && analysis.summary && (
+              <span className="text-xs text-muted">
+                {analysis.summary.model} · {(analysis.summary.latency_ms / 1000).toFixed(0)}s
+              </span>
+            )}
+          </div>
+
           {analysis.summary_status === "done" && summary ? (
             <>
-              <p className="leading-relaxed text-slate-700 dark:text-slate-300">{summary.overview}</p>
+              <p className="text-[17px] leading-[1.65] tracking-[-0.005em] text-ink">{summary.overview}</p>
               {summary.tech_stack && summary.tech_stack.length > 0 && (
-                <div className="mt-4 flex flex-wrap gap-1.5">
+                <div className="mt-5 flex flex-wrap gap-1.5">
                   {summary.tech_stack.map((t) => (
-                    <Pill key={t} tone="indigo">
+                    <span key={t} className="rounded-md border border-line bg-sunken px-2 py-0.5 text-xs font-medium text-ink-2">
                       {t}
-                    </Pill>
+                    </span>
                   ))}
                 </div>
               )}
-              {summary.services && summary.services.length > 0 && (
-                <div className="mt-4">
-                  <p className="mb-1 text-xs font-medium text-slate-500 dark:text-slate-400">Services</p>
-                  <ul className="list-inside list-disc text-sm text-slate-700 dark:text-slate-300">
-                    {summary.services.map((x) => (
-                      <li key={x}>{x}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              <p className="mt-4 text-xs text-slate-400">
-                Written from the repository's knowledge graph by a local model. Structural facts on
-                every other tab come straight from the parser, not the model.
+              <p className="mt-5 border-t border-line pt-4 text-xs leading-relaxed text-muted">
+                Written by a local model from the repository's knowledge graph. Everything else on
+                this dashboard comes straight from the code, with no model involved.
               </p>
             </>
           ) : analysis.summary_status === "failed" ? (
-            <div className="text-sm">
-              <p className="text-rose-700 dark:text-rose-300">{analysis.summary_error ?? "The summary couldn't be generated."}</p>
-              <button onClick={regenerate} className="mt-3 rounded-md bg-indigo-600 px-3 py-1.5 text-white hover:bg-indigo-500">
-                Try again
-              </button>
+            <div>
+              <p className="text-sm text-ink-2">{analysis.summary_error ?? "The summary couldn't be generated."}</p>
+              <Button variant="primary" className="mt-4" onClick={regenerate}>
+                <Icon name="refresh" className="h-3.5 w-3.5" /> Try again
+              </Button>
             </div>
           ) : (
-            <div className="flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
-              <Spinner />
-              <div>
-                <p>
-                  {analysis.summary_status === "running"
-                    ? `${analysis.summary_model ?? "The local model"} is reading the knowledge graph…`
-                    : "Queued for the local model…"}
-                </p>
-                <p className="text-xs">Usually 20–60 seconds. Every other tab is ready now.</p>
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-sm text-ink-2">
+                <Spinner />
+                {analysis.summary_status === "running" ? "The local model is reading the knowledge graph…" : "Waiting for the local model…"}
               </div>
+              <div className="skeleton h-4 w-full" />
+              <div className="skeleton h-4 w-11/12" />
+              <div className="skeleton h-4 w-4/5" />
+              <p className="pt-1 text-xs text-muted">Usually 20–60 seconds. Every other tab is ready now.</p>
             </div>
           )}
         </Card>
 
         {s && (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Stat label="Source files" value={s.files} />
-            <Stat label="Lines of code" value={s.lines_of_code.toLocaleString()} />
-            <Stat label="API endpoints" value={s.endpoints} />
-            <Stat label="Data models" value={s.entities} />
-            <Stat label="Classes" value={s.classes} />
-            <Stat label="Functions & methods" value={s.functions} />
-            <Stat label="Internal imports" value={s.internal_imports} />
-            <Stat label="npm packages" value={s.external_dependencies} />
+          <div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <Stat label="Source files" value={s.files} />
+              <Stat label="Lines of code" value={s.lines_of_code.toLocaleString()} />
+              <Stat label="API endpoints" value={s.endpoints} />
+              <Stat label="Data models" value={s.entities} />
+            </div>
+            <p className="mt-2.5 px-1 text-xs text-muted">
+              {s.classes} classes · {s.functions} functions and methods · {s.internal_imports} internal imports ·{" "}
+              {s.external_dependencies} npm packages
+            </p>
           </div>
         )}
 
-        {layers.length > 0 && (
+        {groups.length > 0 && (
           <Card>
-            <SectionTitle hint={`${totalFiles} files, tests excluded`}>How the code is organised</SectionTitle>
-            <div className="flex h-3 overflow-hidden rounded-full">
-              {layers.map((l) => (
+            <CardTitle aside={`${total} files, tests excluded`}>How the code is organised</CardTitle>
+            <div className="flex h-2.5 gap-[2px] overflow-hidden rounded-full">
+              {groups.map((g) => (
                 <div
-                  key={l.layer}
-                  style={{ width: `${(l.files / totalFiles) * 100}%`, background: LAYER_COLORS[l.layer] }}
-                  title={`${l.label}: ${l.files}`}
+                  key={g.id}
+                  className="first:rounded-l-full last:rounded-r-full"
+                  style={{ width: `${((groupCounts.get(g.id) ?? 0) / total) * 100}%`, background: groupColor(g.id) }}
+                  title={`${g.label}: ${groupCounts.get(g.id)}`}
                 />
               ))}
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm sm:grid-cols-3">
-              {layers.map((l) => (
-                <div key={l.layer} className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-sm" style={{ background: LAYER_COLORS[l.layer] }} />
-                  <span className="text-slate-600 dark:text-slate-400">{l.label}</span>
-                  <span className="ml-auto tabular-nums text-slate-400">{l.files}</span>
+            <div className="mt-5 grid gap-x-8 gap-y-3 sm:grid-cols-2">
+              {groups.map((g) => (
+                <div key={g.id} className="flex items-start gap-3">
+                  <LayerDot group={g.id} className="mt-1.5 h-2.5 w-2.5" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-sm font-medium text-ink">{g.label}</span>
+                      <span className="text-sm tabular-nums text-ink-2">{groupCounts.get(g.id)}</span>
+                    </div>
+                    <p className="text-xs text-muted">{g.hint}</p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -116,73 +136,85 @@ export default function OverviewTab() {
         )}
       </div>
 
-      <div className="space-y-6">
+      <aside className="space-y-6">
+        <Card>
+          <CardTitle>Explore</CardTitle>
+          <div className="-mx-2 space-y-0.5">
+            <QuickLink to="../ask" icon="ask" title="Ask a question" body="Get answers grounded in the source" />
+            <QuickLink to="../architecture" icon="layers" title="See the architecture" body="Every file, by role" />
+            <QuickLink to="../api" icon="api" title="Trace a request" body={`${s?.endpoints ?? 0} endpoints, end to end`} />
+            {(s?.entities ?? 0) > 0 && <QuickLink to="../models" icon="database" title="Data models" body={`${s?.entities} models and their relations`} />}
+          </div>
+        </Card>
+
         {analysis.hotspots && analysis.hotspots.length > 0 && (
           <Card>
-            <SectionTitle hint="most imported">Start reading here</SectionTitle>
-            <ol className="space-y-2">
-              {analysis.hotspots.map((h) => (
-                <li key={h.id} className="flex items-baseline justify-between gap-3 text-sm">
+            <CardTitle aside="most imported">Start reading here</CardTitle>
+            <ol className="space-y-2.5">
+              {analysis.hotspots.slice(0, 6).map((h) => (
+                <li key={h.id}>
                   <Link
                     to={`../files?path=${encodeURIComponent(h.path)}`}
-                    className="truncate font-mono text-xs text-indigo-700 hover:underline dark:text-indigo-300"
+                    className="group flex items-center justify-between gap-3"
                     title={h.path}
                   >
-                    {h.path}
+                    <span className="min-w-0">
+                      <span className="block truncate font-mono text-[13px] text-ink group-hover:underline">
+                        {h.path.split("/").pop()}
+                      </span>
+                      <span className="block truncate text-[11px] text-muted">{h.path.split("/").slice(0, -1).join("/") || "/"}</span>
+                    </span>
+                    <span className="shrink-0 text-xs tabular-nums text-muted">used by {h.imported_by}</span>
                   </Link>
-                  <span className="shrink-0 text-xs tabular-nums text-slate-400">{h.imported_by}×</span>
                 </li>
               ))}
             </ol>
           </Card>
         )}
 
-        {summary?.components && summary.components.length > 0 && (
-          <Card>
-            <SectionTitle>Key components</SectionTitle>
-            <div className="flex flex-wrap gap-1.5">
-              {summary.components.slice(0, 18).map((c) => (
-                <span key={c} className="rounded bg-slate-100 px-2 py-0.5 font-mono text-xs dark:bg-slate-800">
-                  {c}
-                </span>
-              ))}
-            </div>
-          </Card>
-        )}
-
-        <Card>
-          <SectionTitle>Analysis</SectionTitle>
-          <dl className="space-y-1.5 text-sm">
-            <Row label="Structural analysis" value={`${structuralSeconds.toFixed(1)} s`} />
-            {analysis.timings.graph !== undefined && <Row label="Knowledge graph write" value={`${analysis.timings.graph.toFixed(1)} s`} />}
-            {analysis.timings.summary !== undefined && <Row label="AI summary" value={`${analysis.timings.summary.toFixed(1)} s`} />}
-            <Row
-              label="Neo4j"
-              value={analysis.graph_status === "stored" ? "Stored" : analysis.graph_status === "unavailable" ? "Not running" : "Writing…"}
-            />
+        <details className="group rounded-2xl border border-line bg-surface px-5 py-4 shadow-card">
+          <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-medium text-ink-2">
+            Analysis details
+            <Icon name="chevron" className="h-4 w-4 transition group-open:rotate-90" />
+          </summary>
+          <dl className="mt-4 space-y-2 text-sm">
+            <Row label="Structure mapped in" value={`${structuralSeconds.toFixed(1)} s`} />
+            {analysis.timings.graph !== undefined && <Row label="Knowledge graph saved in" value={`${analysis.timings.graph.toFixed(1)} s`} />}
+            {analysis.timings.summary !== undefined && <Row label="Summary written in" value={`${analysis.timings.summary.toFixed(0)} s`} />}
             {analysis.metadata?.framework_version && <Row label="Framework version" value={analysis.metadata.framework_version} />}
+            {analysis.summary && <Row label="Model input" value={`${analysis.summary.input_tokens.toLocaleString()} tokens`} />}
           </dl>
-          {analysis.metadata && analysis.metadata.parse_warnings.length > 0 && (
-            <details className="mt-3 text-xs text-slate-500">
-              <summary className="cursor-pointer">{analysis.metadata.parse_warnings.length} parser notes</summary>
-              <ul className="mt-2 list-inside list-disc space-y-1">
-                {analysis.metadata.parse_warnings.slice(0, 20).map((w, i) => (
-                  <li key={i}>{w}</li>
-                ))}
-              </ul>
-            </details>
+          {analysis.summary_status === "done" && (
+            <Button variant="ghost" size="sm" className="-ml-3 mt-3" onClick={regenerate}>
+              <Icon name="refresh" className="h-3.5 w-3.5" /> Regenerate summary
+            </Button>
           )}
-        </Card>
-      </div>
+        </details>
+      </aside>
     </div>
+  );
+}
+
+function QuickLink({ to, icon, title, body }: { to: string; icon: IconName; title: string; body: string }) {
+  return (
+    <Link to={to} className="group flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-hover">
+      <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-sunken text-ink">
+        <Icon name={icon} className="h-4 w-4" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium text-ink">{title}</span>
+        <span className="block truncate text-xs text-muted">{body}</span>
+      </span>
+      <Icon name="arrow" className="h-4 w-4 text-muted transition group-hover:translate-x-0.5 group-hover:text-ink" />
+    </Link>
   );
 }
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between gap-4">
-      <dt className="text-slate-500 dark:text-slate-400">{label}</dt>
-      <dd className="tabular-nums">{value}</dd>
+      <dt className="text-muted">{label}</dt>
+      <dd className="tabular-nums text-ink">{value}</dd>
     </div>
   );
 }

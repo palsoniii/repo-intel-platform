@@ -1,0 +1,20 @@
+/* Token colours for highlight.js, in both themes (replaces the light-only github.css). */
+.hljs-wrap .hljs-keyword, .hljs-wrap .hljs-meta .hljs-keyword, .hljs-wrap .hljs-built_in, .hljs-wrap .hljs-literal { color: #7c3aed; }
+.hljs-wrap .hljs-string, .hljs-wrap .hljs-regexp, .hljs-wrap .hljs-template-string { color: #0b7a4b; }
+.hljs-wrap .hljs-title, .hljs-wrap .hljs-title.function_, .hljs-wrap .hljs-title.class_ { color: #1d5fbf; }
+.hljs-wrap .hljs-comment { color: #8a8983; font-style: italic; }
+.hljs-wrap .hljs-number, .hljs-wrap .hljs-attr, .hljs-wrap .hljs-property { color: #b45309; }
+.hljs-wrap .hljs-meta { color: #be185d; }
+.hljs-wrap .hljs-type, .hljs-wrap .hljs-params { color: inherit; }
+.hljs-wrap .hljs-variable.language_ { color: #be185d; }
+
+[data-theme="dark"] .hljs-wrap .hljs-keyword, [data-theme="dark"] .hljs-wrap .hljs-meta .hljs-keyword,
+[data-theme="dark"] .hljs-wrap .hljs-built_in, [data-theme="dark"] .hljs-wrap .hljs-literal { color: #c4b5fd; }
+[data-theme="dark"] .hljs-wrap .hljs-string, [data-theme="dark"] .hljs-wrap .hljs-regexp,
+[data-theme="dark"] .hljs-wrap .hljs-template-string { color: #86efac; }
+[data-theme="dark"] .hljs-wrap .hljs-title, [data-theme="dark"] .hljs-wrap .hljs-title.function_,
+[data-theme="dark"] .hljs-wrap .hljs-title.class_ { color: #93c5fd; }
+[data-theme="dark"] .hljs-wrap .hljs-comment { color: #6f6e67; }
+[data-theme="dark"] .hljs-wrap .hljs-number, [data-theme="dark"] .hljs-wrap .hljs-attr,
+[data-theme="dark"] .hljs-wrap .hljs-property { color: #fcd34d; }
+[data-theme="dark"] .hljs-wrap .hljs-meta, [data-theme="dark"] .hljs-wrap .hljs-variable.language_ { color: #f9a8d4; }

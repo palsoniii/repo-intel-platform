@@ -3,17 +3,19 @@ import { Link } from "react-router-dom";
 import cytoscape, { type Core, type ElementDefinition } from "cytoscape";
 import fcose from "cytoscape-fcose";
 import { api, type GraphElements, type NodeKind } from "../../lib/product";
+import { token, useResolvedTheme } from "../../lib/theme";
 import { useRepo } from "../RepoLayout";
-import { ErrorBox, LAYER_COLORS, LAYER_LABELS, Loading } from "../ui";
+import { Button, ErrorBox, Icon, LAYER_GROUPS, LayerDot, Loading, PageHeader, SearchInput, groupLabel, layerGroup } from "../ui";
 
 cytoscape.use(fcose);
 
-const KINDS: { kind: NodeKind; label: string; color: string; shape: string }[] = [
-  { kind: "file", label: "Files", color: "#64748b", shape: "round-rectangle" },
-  { kind: "class", label: "Classes", color: "#8b5cf6", shape: "ellipse" },
-  { kind: "function", label: "Methods & handlers", color: "#14b8a6", shape: "ellipse" },
-  { kind: "endpoint", label: "Endpoints", color: "#f59e0b", shape: "round-tag" },
-  { kind: "entity", label: "Data models", color: "#ef4444", shape: "diamond" },
+// Colour = architectural layer (same as every other view). Shape = what the node is.
+const KINDS: { kind: NodeKind; label: string; shape: cytoscape.Css.NodeShape; size: [number, number] }[] = [
+  { kind: "file", label: "Files", shape: "round-rectangle", size: [20, 13] },
+  { kind: "class", label: "Classes", shape: "ellipse", size: [15, 15] },
+  { kind: "function", label: "Methods", shape: "ellipse", size: [8, 8] },
+  { kind: "endpoint", label: "Endpoints", shape: "round-tag", size: [16, 12] },
+  { kind: "entity", label: "Data models", shape: "diamond", size: [20, 20] },
 ];
 
 const EDGE_LABELS: Record<string, string> = {
@@ -27,12 +29,22 @@ const EDGE_LABELS: Record<string, string> = {
   relates_to: "relates to",
 };
 
-function isDark() {
-  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
+function ShapeGlyph({ kind }: { kind: NodeKind }) {
+  const common = { fill: "currentColor" };
+  return (
+    <svg viewBox="0 0 16 16" className="h-3 w-3" aria-hidden="true">
+      {kind === "file" && <rect x="1" y="4" width="14" height="8" rx="2" {...common} />}
+      {kind === "class" && <circle cx="8" cy="8" r="6" {...common} />}
+      {kind === "function" && <circle cx="8" cy="8" r="3.5" {...common} />}
+      {kind === "endpoint" && <path d="M2 4h9l3 4-3 4H2z" {...common} />}
+      {kind === "entity" && <path d="M8 1l7 7-7 7-7-7z" {...common} />}
+    </svg>
+  );
 }
 
 export default function GraphTab() {
   const { analysis } = useRepo();
+  const theme = useResolvedTheme();
   const [data, setData] = useState<GraphElements | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [visible, setVisible] = useState<Set<NodeKind> | null>(null);
@@ -58,14 +70,15 @@ export default function GraphTab() {
     if (!data || !visible) return [];
     const keep = new Set(data.nodes.filter((n) => visible.has(n.data.kind)).map((n) => n.data.id));
     return [
-      ...data.nodes.filter((n) => keep.has(n.data.id)),
+      ...data.nodes.filter((n) => keep.has(n.data.id)).map((n) => ({ data: { ...n.data, group: layerGroup(n.data.layer) } })),
       ...data.edges.filter((e) => keep.has(e.data.source) && keep.has(e.data.target)),
     ];
   }, [data, visible]);
 
   useEffect(() => {
     if (!container.current || elements.length === 0) return;
-    const dark = isDark();
+    const line = token("line-strong");
+    const accent = token("accent");
     const cy = cytoscape({
       container: container.current,
       elements,
@@ -78,54 +91,51 @@ export default function GraphTab() {
           style: {
             label: "data(label)",
             "font-size": 9,
-            color: dark ? "#cbd5e1" : "#334155",
+            "font-family": "ui-sans-serif, system-ui, sans-serif",
+            color: token("ink-2"),
             "text-valign": "bottom",
-            "text-margin-y": 3,
+            "text-margin-y": 4,
             "text-max-width": "110px",
             "text-wrap": "ellipsis",
-            width: 14,
-            height: 14,
-            "border-width": 0,
+            "border-width": 2,
+            "border-color": token("surface"),
+            "min-zoomed-font-size": 7,
           },
         },
         ...KINDS.map((k) => ({
           selector: `node[kind = "${k.kind}"]`,
-          style: { "background-color": k.color, shape: k.shape as cytoscape.Css.NodeShape },
+          style: { shape: k.shape, width: k.size[0], height: k.size[1] },
         })),
-        ...Object.entries(LAYER_COLORS).map(([layer, color]) => ({
-          selector: `node[kind = "file"][layer = "${layer}"]`,
-          style: { "background-color": color },
+        ...LAYER_GROUPS.map((g) => ({
+          selector: `node[group = "${g.id}"]`,
+          style: { "background-color": token(`layer-${g.id}`) },
         })),
-        { selector: 'node[kind = "file"]', style: { width: 18, height: 12 } },
-        { selector: 'node[kind = "endpoint"]', style: { width: 16, height: 12, "font-size": 8 } },
-        { selector: 'node[kind = "entity"]', style: { width: 20, height: 20, "font-weight": "bold" } },
+        { selector: 'node[kind = "entity"], node[kind = "class"]', style: { "font-weight": 600, color: token("ink") } },
         {
           selector: "edge",
           style: {
             width: 1,
-            "line-color": dark ? "#334155" : "#cbd5e1",
-            "target-arrow-color": dark ? "#334155" : "#cbd5e1",
+            "line-color": line,
+            "target-arrow-color": line,
             "target-arrow-shape": "triangle",
-            "arrow-scale": 0.6,
+            "arrow-scale": 0.55,
             "curve-style": "bezier",
-            opacity: 0.8,
+            opacity: 0.6,
           },
         },
-        { selector: 'edge[kind = "injects"]', style: { "line-color": "#8b5cf6", "target-arrow-color": "#8b5cf6", "line-style": "dashed" } },
-        { selector: 'edge[kind = "relates_to"]', style: { "line-color": "#ef4444", "target-arrow-color": "#ef4444" } },
-        { selector: 'edge[kind = "handled_by"], edge[kind = "declared_in"]', style: { "line-color": "#f59e0b", "target-arrow-color": "#f59e0b" } },
-        { selector: ".faded", style: { opacity: 0.12 } },
-        { selector: "node.highlight", style: { "border-width": 3, "border-color": "#6366f1", "font-size": 11, "z-index": 10 } },
-        { selector: "edge.highlight", style: { width: 2, "line-color": "#6366f1", "target-arrow-color": "#6366f1", opacity: 1, "z-index": 10 } },
+        { selector: 'edge[kind = "injects"]', style: { "line-style": "dashed", width: 1.5, opacity: 0.9 } },
+        { selector: ".faded", style: { opacity: 0.1 } },
+        { selector: "node.hl", style: { "border-color": accent, "border-width": 3, "font-size": 11, color: token("ink"), "z-index": 10 } },
+        { selector: "edge.hl", style: { width: 2, "line-color": accent, "target-arrow-color": accent, opacity: 1, "z-index": 10 } },
       ],
       layout: {
         name: "fcose",
         animate: false,
         quality: "default",
         randomize: true,
-        nodeSeparation: 60,
-        idealEdgeLength: 60,
-        nodeRepulsion: 6000,
+        nodeSeparation: 70,
+        idealEdgeLength: 64,
+        nodeRepulsion: 6500,
         packComponents: true,
       } as cytoscape.LayoutOptions,
     });
@@ -138,34 +148,33 @@ export default function GraphTab() {
       cy.destroy();
       cyRef.current = null;
     };
-  }, [elements]);
+  }, [elements, theme]);
 
-  // Highlight the selected node's neighbourhood.
   useEffect(() => {
     const cy = cyRef.current;
     if (!cy) return;
-    cy.elements().removeClass("faded highlight");
+    cy.elements().removeClass("faded hl");
     if (!selected) return;
     const node = cy.getElementById(selected);
     if (node.empty()) return;
     const hood = node.closedNeighborhood();
     cy.elements().not(hood).addClass("faded");
-    hood.addClass("highlight");
-  }, [selected, elements]);
+    hood.addClass("hl");
+  }, [selected, elements, theme]);
 
-  function search(e: React.FormEvent) {
-    e.preventDefault();
+  function search(q: string) {
+    setQuery(q);
     const cy = cyRef.current;
-    if (!cy || !query.trim()) return;
-    const q = query.trim().toLowerCase();
+    const needle = q.trim().toLowerCase();
+    if (!cy || needle.length < 2) return;
     const match = cy.nodes().filter((n) => {
       const label = String(n.data("label")).toLowerCase();
       const path = String(n.data("path") ?? "").toLowerCase();
-      return label.includes(q) || path.includes(q);
+      return label.includes(needle) || path.includes(needle);
     });
     if (match.nonempty()) {
       setSelected(match[0].id());
-      cy.animate({ center: { eles: match[0] }, zoom: 1.6 }, { duration: 300 });
+      cy.animate({ center: { eles: match[0] }, zoom: 1.6 }, { duration: 250 });
     }
   }
 
@@ -175,82 +184,83 @@ export default function GraphTab() {
   const counts = new Map<NodeKind, number>();
   for (const n of data.nodes) counts.set(n.data.kind, (counts.get(n.data.kind) ?? 0) + 1);
   const selectedNode = data.nodes.find((n) => n.data.id === selected);
+  const presentGroups = new Set(data.nodes.map((n) => layerGroup(n.data.layer)));
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_300px]">
-      <div>
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          {KINDS.map((k) => (
-            <button
-              key={k.kind}
-              onClick={() => {
-                const next = new Set(visible);
-                if (next.has(k.kind)) next.delete(k.kind);
-                else next.add(k.kind);
-                setVisible(next);
-              }}
-              disabled={!counts.get(k.kind)}
-              className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition disabled:opacity-40 ${
-                visible.has(k.kind)
-                  ? "border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-800"
-                  : "border-dashed border-slate-300 text-slate-400 dark:border-slate-700"
-              }`}
-            >
-              <span className="h-2.5 w-2.5 rounded-full" style={{ background: k.color, opacity: visible.has(k.kind) ? 1 : 0.3 }} />
-              {k.label} <span className="tabular-nums text-slate-400">{counts.get(k.kind) ?? 0}</span>
-            </button>
-          ))}
-          <form onSubmit={search} className="ml-auto flex gap-1">
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Find a node…"
-              className="w-44 rounded-md border border-slate-300 px-2 py-1 text-xs dark:border-slate-700 dark:bg-slate-900"
-            />
-          </form>
-          <button
-            onClick={() => cyRef.current?.fit(undefined, 30)}
-            className="rounded-md border border-slate-300 px-2 py-1 text-xs dark:border-slate-700"
-          >
-            Fit
-          </button>
+    <div>
+      <PageHeader
+        title="Knowledge graph"
+        description="Every file, class, endpoint and data model, and how they connect. This is the graph the AI summary is written from. Click anything to see its connections."
+      />
+      <div className="grid gap-4 lg:grid-cols-[1fr_300px]">
+        <div className="min-w-0">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            {KINDS.map((k) => {
+              const on = visible.has(k.kind);
+              return (
+                <button
+                  key={k.kind}
+                  onClick={() => {
+                    const next = new Set(visible);
+                    if (next.has(k.kind)) next.delete(k.kind);
+                    else next.add(k.kind);
+                    setVisible(next);
+                  }}
+                  disabled={!counts.get(k.kind)}
+                  aria-pressed={on}
+                  className={`flex h-8 items-center gap-2 rounded-lg border px-3 text-xs font-medium transition disabled:opacity-40 ${
+                    on ? "border-line-strong bg-surface text-ink shadow-card" : "border-dashed border-line text-muted"
+                  }`}
+                >
+                  <span className={on ? "text-ink-2" : "text-muted"}>
+                    <ShapeGlyph kind={k.kind} />
+                  </span>
+                  {k.label}
+                  <span className="tabular-nums text-muted">{counts.get(k.kind) ?? 0}</span>
+                </button>
+              );
+            })}
+            <div className="ml-auto flex items-center gap-2">
+              <SearchInput value={query} onChange={search} placeholder="Find a node" className="w-48" />
+              <Button variant="secondary" onClick={() => cyRef.current?.fit(undefined, 30)} title="Fit to screen">
+                <Icon name="fit" className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          <div ref={container} className="h-[640px] rounded-2xl border border-line bg-sunken" />
         </div>
-        <div
-          ref={container}
-          className="h-[620px] rounded-xl border border-slate-200 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-900/40"
-        />
-        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-          {elements.filter((e) => !("source" in e.data)).length} nodes shown. Scroll to zoom, drag to pan,
-          click a node to see its connections. Dashed purple edges are dependency injection.
-        </p>
-      </div>
 
-      <aside className="space-y-4">
-        {selectedNode ? (
-          <NodeDetails
-            node={selectedNode.data}
-            data={data}
-            onSelect={setSelected}
-          />
-        ) : (
-          <div className="rounded-xl border border-slate-200 p-4 text-sm dark:border-slate-800">
-            <p className="font-medium">File colours = architectural layer</p>
-            <div className="mt-3 space-y-1.5">
-              {Object.entries(LAYER_LABELS)
-                .filter(([l]) => data.nodes.some((n) => n.data.kind === "file" && n.data.layer === l))
-                .map(([l, label]) => (
-                  <div key={l} className="flex items-center gap-2 text-xs">
-                    <span className="h-2.5 w-3.5 rounded-sm" style={{ background: LAYER_COLORS[l] }} />
-                    {label}
+        <aside>
+          {selectedNode ? (
+            <NodeDetails node={selectedNode.data} data={data} onSelect={setSelected} />
+          ) : (
+            <div className="rounded-2xl border border-line bg-surface p-5 shadow-card">
+              <p className="text-sm font-semibold text-ink">Reading the graph</p>
+              <p className="mt-1 text-xs leading-relaxed text-ink-2">
+                Colour shows which layer something belongs to; shape shows what it is. Dashed lines are
+                dependency injection.
+              </p>
+              <div className="mt-4 space-y-2">
+                {LAYER_GROUPS.filter((g) => presentGroups.has(g.id)).map((g) => (
+                  <div key={g.id} className="flex items-center gap-2 text-xs text-ink-2">
+                    <LayerDot group={g.id} /> {g.label}
                   </div>
                 ))}
+              </div>
+              <div className="mt-4 space-y-2 border-t border-line pt-4">
+                {KINDS.map((k) => (
+                  <div key={k.kind} className="flex items-center gap-2 text-xs text-ink-2">
+                    <span className="text-muted">
+                      <ShapeGlyph kind={k.kind} />
+                    </span>
+                    {k.label}
+                  </div>
+                ))}
+              </div>
             </div>
-            <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">
-              The same graph is stored in Neo4j, keyed by repository, and is what the AI summary is written from.
-            </p>
-          </div>
-        )}
-      </aside>
+          )}
+        </aside>
+      </div>
     </div>
   );
 }
@@ -268,20 +278,25 @@ function NodeDetails({
   const outgoing = data.edges.filter((e) => e.data.source === node.id);
   const incoming = data.edges.filter((e) => e.data.target === node.id);
   const kind = KINDS.find((k) => k.kind === node.kind);
+  const group = layerGroup(node.layer);
 
   const list = (edges: typeof outgoing, side: "source" | "target", heading: string) =>
     edges.length > 0 && (
       <div>
-        <p className="mb-1 text-xs font-medium text-slate-500 dark:text-slate-400">{heading}</p>
-        <ul className="max-h-52 space-y-1 overflow-y-auto">
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted">{heading}</p>
+        <ul className="scroll-quiet max-h-56 space-y-0.5 overflow-y-auto">
           {edges.map((e) => {
             const other = byId.get(e.data[side]);
             if (!other) return null;
             return (
               <li key={e.data.id}>
-                <button onClick={() => onSelect(other.id)} className="flex w-full items-baseline gap-2 text-left text-xs hover:text-indigo-600">
-                  <span className="shrink-0 text-slate-400">{EDGE_LABELS[e.data.kind] ?? e.data.kind}</span>
-                  <span className="truncate font-mono">{other.label}</span>
+                <button
+                  onClick={() => onSelect(other.id)}
+                  className="flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-xs transition hover:bg-hover"
+                >
+                  <LayerDot raw={other.layer} className="h-1.5 w-1.5" />
+                  <span className="truncate font-mono text-ink">{other.label}</span>
+                  <span className="ml-auto shrink-0 text-muted">{EDGE_LABELS[e.data.kind] ?? e.data.kind}</span>
                 </button>
               </li>
             );
@@ -291,24 +306,24 @@ function NodeDetails({
     );
 
   return (
-    <div className="space-y-4 rounded-xl border border-slate-200 p-4 dark:border-slate-800">
+    <div className="animate-in space-y-5 rounded-2xl border border-line bg-surface p-5 shadow-card">
       <div>
-        <p className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-slate-500">
-          <span className="h-2 w-2 rounded-full" style={{ background: kind?.color }} /> {node.kind}
-          {node.layer && node.kind === "file" && ` · ${LAYER_LABELS[node.layer] ?? node.layer}`}
+        <p className="flex items-center gap-2 text-xs text-muted">
+          <LayerDot group={group} className="h-2 w-2" />
+          {kind?.label.replace(/s$/, "")} · {groupLabel(group)}
         </p>
-        <p className="mt-1 break-all font-mono text-sm font-medium">{node.label}</p>
+        <p className="mt-1.5 break-all font-mono text-[15px] font-semibold text-ink">{node.label}</p>
         {node.path && (
           <Link
             to={`../files?path=${encodeURIComponent(node.path)}`}
-            className="mt-1 block break-all text-xs text-indigo-700 hover:underline dark:text-indigo-300"
+            className="mt-2 inline-flex items-center gap-1 break-all text-xs text-accent-text hover:underline"
           >
-            {node.path} →
+            {node.path} <Icon name="arrow" className="h-3 w-3" />
           </Link>
         )}
       </div>
-      {list(outgoing, "target", `Outgoing (${outgoing.length})`)}
-      {list(incoming, "source", `Incoming (${incoming.length})`)}
+      {list(outgoing, "target", `Uses (${outgoing.length})`)}
+      {list(incoming, "source", `Used by (${incoming.length})`)}
     </div>
   );
 }
