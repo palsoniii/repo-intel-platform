@@ -35,10 +35,11 @@ STOPWORDS = set(
 SYSTEM_PROMPT = """You are a senior engineer explaining a codebase to a colleague. \
 Answer the question using ONLY the repository context provided. Reference files by \
 their path in backticks (for example `src/users/users.service.ts`) so the reader can \
-open them. If the context does not contain the answer, say so plainly and say which \
-part of the codebase would be the place to look -- never invent files, functions, \
-endpoints or behaviour. Be concise: a short paragraph or a few bullet points, with a \
-small code excerpt only when it genuinely helps."""
+open them. Only mention files that appear in the context. Only quote code that \
+appears verbatim under "Relevant source files" -- never reconstruct or guess what a \
+file contains from its name. If the context does not contain the answer, say so \
+plainly and point to the file(s) most likely to hold it. Be concise: under 200 words, \
+a short paragraph or a few bullet points."""
 
 
 def _terms(text: str) -> list[str]:
@@ -56,9 +57,51 @@ def _terms(text: str) -> list[str]:
     return out
 
 
+# A question names a concept ("authentication"); the code names its parts (auth.js,
+# passport, jwt). Each concept expands to the identifiers it is usually built from.
+CONCEPTS: dict[str, set[str]] = {
+    "auth": {"auth", "authentication", "authenticate", "authorization", "authorize", "login",
+             "logout", "jwt", "passport", "token", "session", "guard", "strategy", "password", "bcrypt"},
+    "data": {"database", "db", "model", "entity", "schema", "repository", "mongoose", "sequelize",
+             "typeorm", "prisma", "migration", "orm", "query", "persist", "store", "storage"},
+    "error": {"error", "errors", "exception", "filter", "apierror", "catch", "handler", "fail"},
+    "validation": {"validate", "validation", "validator", "dto", "joi", "pipe", "sanitize", "schema"},
+    "config": {"config", "configuration", "env", "environment", "setting", "settings", "dotenv"},
+    "mail": {"email", "mail", "mailer", "smtp", "nodemailer", "notification"},
+    "test": {"test", "tests", "testing", "spec", "jest", "mocha", "e2e"},
+    "route": {"route", "routes", "routing", "endpoint", "endpoints", "router", "controller", "api", "url"},
+    "start": {"start", "entry", "bootstrap", "main", "server", "listen", "begin", "reading", "startup"},
+    "upload": {"upload", "file", "multer", "storage", "s3"},
+    "log": {"log", "logging", "logger", "winston", "morgan", "pino"},
+}
+
+
+def _expand(terms: set[str]) -> set[str]:
+    out = set(terms)
+    for group in CONCEPTS.values():
+        if terms & group:
+            out |= group
+    return out
+
+
+def _overlap(query: set[str], candidates: set[str]) -> int:
+    """Exact matches, plus prefix matches of 4+ letters (auth ~ authentication)."""
+    n = 0
+    for c in candidates:
+        if c in query or (len(c) >= 4 and any(q.startswith(c) or c.startswith(q) for q in query if len(q) >= 4)):
+            n += 1
+    return n
+
+
+def _looks_like_identifier(tok: str) -> bool:
+    return bool(re.search(r"[a-z][A-Z]|[/_.:]", tok)) and len(tok) > 3
+
+
 def retrieve(parsed: ParsedRepository, insights: dict, files: dict[str, str], question: str) -> list[dict]:
-    terms = set(_terms(question))
-    raw_tokens = {t for t in re.findall(r"[\w./:-]+", question) if len(t) > 2}
+    asked = set(_terms(question))
+    terms = _expand(asked)
+    raw_tokens = {t.strip(".,?!") for t in re.findall(r"[\w./:-]+", question)}
+    raw_tokens = {t for t in raw_tokens if _looks_like_identifier(t)}
     if not terms and not raw_tokens:
         return []
 
@@ -76,24 +119,34 @@ def retrieve(parsed: ParsedRepository, insights: dict, files: dict[str, str], qu
         if ent.get("module_id"):
             names_by_module[ent["module_id"]].append(ent["name"])
 
+    orientation = bool(asked & {"start", "begin", "beginning", "reading", "overview", "architecture", "structure", "structured", "organised", "organized", "onboard", "onboarding"})
+    imported_by = Counter(e.to_module_id for e in parsed.dependencies.internal)
+
     scored: list[tuple[float, str, str]] = []
     for m in parsed.modules:
         text = files.get(m.path)
         if not text:
             continue
         score = 0.0
+        # Words the user actually typed count double over concept expansions.
         path_terms = set(_terms(m.path))
-        score += 4 * len(terms & path_terms)
+        score += 4 * _overlap(terms, path_terms) + 4 * _overlap(asked, path_terms)
         name_terms = set(_terms(" ".join(names_by_module.get(m.id, []))))
-        score += 3 * len(terms & name_terms)
+        score += 3 * _overlap(terms, name_terms) + 3 * _overlap(asked, name_terms)
         route_terms = set(_terms(" ".join(routes_by_module.get(m.id, []))))
-        score += 3 * len(terms & route_terms)
+        score += 3 * _overlap(terms, route_terms)
         # An identifier typed verbatim ("UsersService", "/auth/login") is a strong signal.
         exact = sum(1 for tok in raw_tokens if tok in text)
         score += 5 * exact
         body = Counter(_terms(text))
-        score += sum(math.log1p(body[t]) for t in terms)
-        if insights.get("layers", {}).get(m.id) == "test":
+        score += sum(math.log1p(body[t]) for t in terms) + sum(math.log1p(body[t]) for t in asked)
+        layer = insights.get("layers", {}).get(m.id)
+        if orientation:
+            # "Where do I start?" is answered by structure, not by matching words:
+            # the entry point, the module wiring, and the files everything imports.
+            score = score * 0.3 + (12 if layer == "entry" else 6 if layer == "module" and m.path.endswith("app.module.ts") else 0)
+            score += 2.5 * math.log1p(imported_by.get(m.id, 0))
+        if layer == "test":
             score *= 0.4
         if score > 0:
             scored.append((score, m.id, m.path))
@@ -105,7 +158,7 @@ def retrieve(parsed: ParsedRepository, insights: dict, files: dict[str, str], qu
     return [
         {"module_id": mid, "path": path, "score": round(s, 2)}
         for s, mid, path in scored[:MAX_SOURCE_FILES]
-        if s >= best * 0.25
+        if s >= best * 0.2
     ]
 
 
@@ -175,7 +228,7 @@ def build_prompt(parsed: ParsedRepository, insights: dict, files: dict[str, str]
     sources = retrieve(parsed, insights, files, question)
     overview = _overview(parsed, insights, files)
     budget = max(2000, CONTEXT_BUDGET_CHARS - len(overview))
-    terms = set(_terms(question))
+    terms = _expand(set(_terms(question)))
     blocks = []
     per_file = budget // max(1, len(sources)) if sources else 0
     for s in sources:
@@ -210,7 +263,7 @@ def stream_answer(
     messages.append({"role": "user", "content": user_prompt})
 
     client = ollama.Client(host=os.environ.get("OLLAMA_HOST", "http://localhost:11434"), timeout=600)
-    options = {"temperature": 0.2, "num_ctx": int(os.environ.get("OLLAMA_NUM_CTX", "8192").split("#")[0])}
+    options = {"temperature": 0.2, "num_predict": 700, "num_ctx": int(os.environ.get("OLLAMA_NUM_CTX", "8192").split("#")[0])}
     try:
         stats = {}
         for chunk in client.chat(model=model, messages=messages, options=options, stream=True):

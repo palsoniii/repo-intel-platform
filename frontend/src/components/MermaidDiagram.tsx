@@ -16,6 +16,11 @@ export default function MermaidDiagram({ chart }: { chart: string }) {
       startOnLoad: false,
       theme: dark ? "dark" : "default",
       securityLevel: "strict",
+      // Grouped architecture diagrams of large repos exceed Mermaid's default limits.
+      maxEdges: 2000,
+      maxTextSize: 200000,
+      flowchart: { useMaxWidth: false, htmlLabels: true },
+      er: { useMaxWidth: false },
     });
     mermaid
       .render(idRef.current, chart)

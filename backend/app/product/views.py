@@ -116,7 +116,8 @@ def architecture_diagram(parsed: ParsedRepository, insights: dict, include_tests
     layers = insights.get("layers", {})
     modules = [m for m in parsed.modules if include_tests or layers.get(m.id) != "test"]
     if not modules:
-        return {"mermaid": 'graph LR\n  empty["No source files found"]', "grouped": False, "nodes": 0}
+        return {"mermaid": 'graph LR\n  empty["No source files found"]', "grouped": False, "node_count": 0,
+                "edge_count": 0, "graph": {"nodes": [], "links": []}}
 
     grouped = len(modules) > _MAX_FILE_NODES
 
@@ -141,7 +142,7 @@ def architecture_diagram(parsed: ParsedRepository, insights: dict, include_tests
         keys = by_layer.get(layer)
         if not keys:
             continue
-        lines.append(f'  subgraph {layer}["{LAYER_LABELS[layer]}"]')
+        lines.append(f'  subgraph L_{layer}["{LAYER_LABELS[layer]}"]')
         for key in sorted(keys):
             ms = members[key]
             if grouped:
@@ -162,9 +163,27 @@ def architecture_diagram(parsed: ParsedRepository, insights: dict, include_tests
         lines.append(f"  {_mermaid_id(a)} {arrow} {_mermaid_id(b)}")
 
     for layer in (l for l in LAYER_ORDER if l in by_layer):
-        lines.append(f"  style {layer} fill:transparent,stroke-dasharray:4 3")
+        lines.append(f"  style L_{layer} fill:transparent,stroke-dasharray:4 3")
 
-    return {"mermaid": "\n".join(lines), "grouped": grouped, "nodes": len(members), "edges": len(counts)}
+    layer_index = {l: i for i, l in enumerate(LAYER_ORDER)}
+    nodes = []
+    for key, ms in members.items():
+        layer = layers.get(ms[0].id, "other")
+        label = (key.split(":", 1)[1] + "/") if grouped else ms[0].path.rsplit("/", 1)[-1]
+        nodes.append({
+            "id": key, "label": label, "layer": layer, "files": len(ms),
+            "path": None if grouped else ms[0].path,
+            "title": key.split(":", 1)[1] if grouped else ms[0].path,
+        })
+    nodes.sort(key=lambda n: (layer_index.get(n["layer"], 99), n["title"]))
+    links = [{"source": a, "target": b, "count": n} for (a, b), n in sorted(counts.items())]
+    return {
+        "mermaid": "\n".join(lines),
+        "grouped": grouped,
+        "node_count": len(members),
+        "edge_count": len(counts),
+        "graph": {"nodes": nodes, "links": links},
+    }
 
 
 def nest_module_map(parsed: ParsedRepository, insights: dict) -> dict | None:

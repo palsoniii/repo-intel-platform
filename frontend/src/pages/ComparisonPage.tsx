@@ -46,7 +46,7 @@ export default function ComparisonPage() {
     setIsSubmitting(true);
     try {
       const result = await compareModels(url);
-      navigate(`/repo/${encodeURIComponent(result.repoName)}/comparison`, {
+      navigate(`/research/live/${encodeURIComponent(result.repoName)}`, {
         state: { real: result },
       });
     } catch (err) {
