@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import sqlite3
 import uuid
 from contextlib import contextmanager
@@ -100,6 +101,13 @@ def _pid_alive(pid: int | None) -> bool:
 
 
 def init_db() -> None:
+    # A fresh deployment starts from the analyses shipped in the image
+    # (PRODUCT_SEED_DB, made by `python -m app.product.seed --export-seed`), so the
+    # examples open instantly without a model call. Only when no store exists yet.
+    seed = os.environ.get("PRODUCT_SEED_DB")
+    if seed and Path(seed).is_file() and not db_path().exists():
+        db_path().parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(seed, db_path())
     with connect() as conn:
         conn.executescript(SCHEMA)
         cols = {r["name"] for r in conn.execute("PRAGMA table_info(analyses)")}

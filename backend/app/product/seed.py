@@ -7,6 +7,8 @@ model:
     python -m app.product.seed --force        # re-analyse even if already stored
     python -m app.product.seed --answers-only # just pre-answer the suggested questions
                                               # for every stored analysis
+    python -m app.product.seed --export-seed  # write seed/product.db for the deployment
+                                              # image from the analyses stored here
 
 Runs in-process against the same SQLite store the API serves from, one repository at
 a time (summaries included), and prints a line per repository.
@@ -22,6 +24,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 DEMO_LIST = Path(__file__).resolve().parents[3] / "demo_repos.txt"
+SEED_EXPORT = Path(__file__).resolve().parents[2] / "seed" / "product.db"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -35,7 +38,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--no-summary", action="store_true", help="skip the LLM summary")
     parser.add_argument("--no-answers", action="store_true", help="skip pre-answering the suggested questions")
     parser.add_argument("--answers-only", action="store_true", help="only pre-answer questions for stored analyses")
+    parser.add_argument("--export-seed", action="store_true", help=f"write {SEED_EXPORT} from the stored analyses")
     args = parser.parse_args(argv)
+
+    if args.export_seed:
+        return export_seed(SEED_EXPORT)
 
     if args.answers_only:
         store.init_db()
@@ -87,6 +94,38 @@ def main(argv: list[str] | None = None) -> int:
         if not args.no_answers:
             _pre_answer(analysis["id"])
     return 1 if failures else 0
+
+
+def export_seed(target: Path) -> int:
+    """Copies the store to `target`, keeping only the latest finished analysis of each
+    repository (summary included) and its cached answers. The deployment has no Neo4j,
+    so graph_status is cleared rather than claiming the graph is stored there."""
+    import sqlite3
+
+    from app.product import store
+
+    store.init_db()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.unlink(missing_ok=True)
+    with store.connect() as src, sqlite3.connect(target) as dst:
+        src.backup(dst)
+    with sqlite3.connect(target) as conn:
+        conn.execute("""
+            DELETE FROM analyses WHERE status != 'ready' OR summary_status != 'done'
+               OR id NOT IN (SELECT id FROM analyses a WHERE created_at =
+                   (SELECT MAX(created_at) FROM analyses b
+                     WHERE lower(b.url) = lower(a.url) AND b.status = 'ready' AND b.summary_status = 'done'))
+        """)
+        conn.execute("DELETE FROM files WHERE analysis_id NOT IN (SELECT id FROM analyses)")
+        conn.execute("DELETE FROM answers WHERE analysis_id NOT IN (SELECT id FROM analyses)")
+        conn.execute("UPDATE analyses SET graph_status = 'disabled', owner_pid = NULL")
+        rows = conn.execute("SELECT owner || '/' || repo_name FROM analyses ORDER BY created_at").fetchall()
+    with sqlite3.connect(target) as conn:
+        conn.execute("VACUUM")
+    for (name,) in rows:
+        print(f"seeded {name}")
+    print(f"wrote {target} ({target.stat().st_size // 1024} KB, {len(rows)} repositories)")
+    return 0
 
 
 def _pre_answer(analysis_id: str) -> None:

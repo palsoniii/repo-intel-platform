@@ -23,9 +23,14 @@ COPY backend/requirements-app.txt .
 RUN pip install --no-cache-dir -r requirements-app.txt
 COPY backend/app ./app
 COPY --from=dashboard /frontend/dist ./frontend-dist
+# Analyses made on the demo Mac (local model summaries), copied into the store on
+# first start so the examples open instantly. Regenerate with
+# `python -m app.product.seed --export-seed`.
+COPY backend/seed/product.db ./seed/product.db
 
 ENV FRONTEND_DIST=/app/frontend-dist \
     PRODUCT_DB_PATH=/data/product.db \
+    PRODUCT_SEED_DB=/app/seed/product.db \
     LLM_PROVIDER=groq \
     LLM_FALLBACK=none \
     NEO4J_ENABLED=false \

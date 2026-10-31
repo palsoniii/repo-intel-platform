@@ -55,3 +55,21 @@ def test_cached_answer_replays_in_the_live_event_shape():
     assert events[0] == {"type": "sources", "sources": [{"path": "a.js"}], "model": "m", "provider": "ollama", "cached": True}
     assert "".join(e["text"] for e in events if e["type"] == "token") == "x" * 60
     assert events[-1]["type"] == "done" and events[-1]["cached"] is True
+
+
+def test_a_new_store_starts_from_the_seed(tmp_path, monkeypatch):
+    seed = tmp_path / "seed.db"
+    monkeypatch.setenv("PRODUCT_DB_PATH", str(seed))
+    store.init_db()
+    a = store.create_analysis("https://github.com/o/seeded", "o", "seeded")
+
+    fresh = tmp_path / "deploy" / "product.db"
+    monkeypatch.setenv("PRODUCT_DB_PATH", str(fresh))
+    monkeypatch.setenv("PRODUCT_SEED_DB", str(seed))
+    store.init_db()
+    assert store.get_analysis(a["id"]) is not None
+
+    # An existing store is never overwritten by the seed.
+    store.delete_analysis(a["id"])
+    store.init_db()
+    assert store.get_analysis(a["id"]) is None
