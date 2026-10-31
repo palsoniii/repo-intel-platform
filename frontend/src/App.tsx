@@ -13,6 +13,7 @@ import AskTab from "./product/tabs/AskTab";
 import ComparisonPage from "./pages/ComparisonPage";
 import { Icon, type IconName } from "./product/ui";
 import { useTheme, type ThemeChoice } from "./lib/theme";
+import { useSystem } from "./lib/product";
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
@@ -20,6 +21,7 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   }`;
 
 export default function App() {
+  const system = useSystem();
   return (
     <div className="flex min-h-svh flex-col">
       <header className="sticky top-0 z-30 border-b border-line bg-page/80 backdrop-blur-xl">
@@ -66,7 +68,10 @@ export default function App() {
 
       <footer className="border-t border-line">
         <div className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-2 px-4 py-5 text-xs text-muted sm:px-6">
-          <span>Static analysis with tree-sitter · knowledge graph in Neo4j · local models via Ollama</span>
+          <span>
+            Static analysis with tree-sitter · knowledge graph{system?.neo4j.enabled === false ? "" : " in Neo4j"} ·{" "}
+            {system?.provider === "groq" ? "language models via Groq" : "local models via Ollama"}
+          </span>
           <span>Supports Express.js and NestJS</span>
         </div>
       </footer>

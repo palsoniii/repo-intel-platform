@@ -75,7 +75,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.no_summary:
             store.update_analysis(analysis["id"], summary_status="skipped", stage="done")
         else:
-            jobs._run_summary(analysis["id"], jobs.summary_model())
+            jobs._run_summary(analysis["id"])
         result = store.get_analysis(analysis["id"], include_documents=False)
         s = result.get("stats") or {}
         print(

@@ -5,11 +5,12 @@ An analysis runs in stages, and the dashboard becomes usable after the third:
 
   cloning -> parsing -> indexing   (seconds; status becomes "ready" here)
   -> graph                          (write to Neo4j; optional, failure is recorded)
-  -> summarizing                    (local model; slow, runs on its own queue)
+  -> summarizing                    (Groq or the local model, on its own queue; see llm.py)
 
 Structural work and model calls use separate executors. The model executor has a
 single worker on purpose: two 7B generations at once on a 16GB machine is slower than
-running them back to back (CLAUDE.md, "Run one generator at a time").
+running them back to back (CLAUDE.md, "Run one generator at a time"). Groq could take
+more, but one worker also keeps a public deployment inside its free-tier rate limit.
 """
 
 from __future__ import annotations
@@ -41,14 +42,17 @@ _model_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="model")
 MAX_STORED_FILE_BYTES = 400_000
 # ~6k tokens, leaving room in an 8k window for the prompt scaffold and the answer.
 MAX_SUMMARY_CONTEXT_CHARS = 18_000
+# A safety cap, far above a summary's real length (~500 tokens), so it never cuts one
+# short; reasoning models spend part of it thinking.
+SUMMARY_MAX_TOKENS = 4096
 EXTRA_FILES = ("package.json", "README.md", "readme.md", "README", "tsconfig.json", ".env.example")
 SKIP_DIRS = {"node_modules", ".git", "dist", "build", "coverage"}
 
 
 def summary_model() -> str:
-    return os.environ.get("PRODUCT_SUMMARY_MODEL") or os.environ.get(
-        "OLLAMA_MODEL_PRIMARY", "qwen2.5-coder:7b"
-    ).split("#")[0].strip()
+    from app.product import llm
+
+    return llm.model()
 
 
 KEEP_ALIVE = os.environ.get("PRODUCT_MODEL_KEEP_ALIVE", "45m")
@@ -62,6 +66,10 @@ def keep_warm(model: str | None = None) -> None:
     """Loads the model into memory (an empty prompt only loads it) and asks Ollama to
     keep it resident. Loading a 7B model takes several seconds; without this the first
     question of a demo pays for it, and Ollama unloads idle models after 5 minutes."""
+    from app.product import llm
+
+    if llm.provider() != "ollama":
+        return
     try:
         import ollama
 
@@ -85,9 +93,9 @@ def submit_analysis(analysis_id: str, url: str) -> None:
     _structure_pool.submit(_run_analysis, analysis_id, url)
 
 
-def submit_summary(analysis_id: str, model: str | None = None) -> None:
+def submit_summary(analysis_id: str) -> None:
     store.update_analysis(analysis_id, summary_status="pending", summary_error=None, owner_pid=os.getpid())
-    _model_pool.submit(_run_summary, analysis_id, model or summary_model())
+    _model_pool.submit(_run_summary, analysis_id)
 
 
 def _stage(analysis_id: str, stage: str, **fields) -> None:
@@ -174,10 +182,18 @@ def _collect_files(repo_path: Path, parsed: ParsedRepository) -> dict[str, str]:
     return files
 
 
+def neo4j_enabled() -> bool:
+    """NEO4J_ENABLED=false skips Neo4j entirely, for a deployment without it."""
+    return os.environ.get("NEO4J_ENABLED", "true").strip().lower() not in ("0", "false", "no")
+
+
 def _write_graph(analysis_id: str, parsed: ParsedRepository) -> None:
     """Stores the parse in Neo4j, the project's knowledge-graph store. Every view is
     served from SQLite, so a missing Neo4j only costs the Neo4j Browser demo, not the
     dashboard -- recorded as graph_status=unavailable rather than failing the analysis."""
+    if not neo4j_enabled():
+        store.update_analysis(analysis_id, graph_status="disabled")
+        return
     t = time.monotonic()
     try:
         from app.db.neo4j_client import get_driver
@@ -253,46 +269,45 @@ def knowledge_graph_context(parsed: ParsedRepository, insights: dict) -> str:
     return text[:MAX_SUMMARY_CONTEXT_CHARS]
 
 
-def _run_summary(analysis_id: str, model: str) -> None:
+def _run_summary(analysis_id: str, model: str | None = None) -> None:
+    """`model` is accepted for older callers and ignored: the model is whatever
+    llm.py is configured to use."""
     from app.pipeline import _try_parse_summary_json
-    from app.providers.ollama_provider import OllamaProvider
+    from app.product import llm
     from app.providers.prompts import SUMMARY_PROMPT_TEMPLATE
-    from app.schemas.llm_result import ContextVariant, RunStatus
 
     analysis = store.get_analysis(analysis_id)
     if analysis is None or analysis.get("parsed_json") is None:
         return
-    store.update_analysis(analysis_id, summary_status="running", summary_model=model, owner_pid=os.getpid())
+    store.update_analysis(analysis_id, summary_status="running", summary_model=llm.model(), owner_pid=os.getpid())
     t = time.monotonic()
     try:
         parsed = ParsedRepository.model_validate(analysis["parsed_json"])
         context = knowledge_graph_context(parsed, analysis.get("insights_json") or {})
-        # Explicit, so a .env without OLLAMA_NUM_CTX doesn't fall back to the model's
-        # 4096 default (which truncates large repos and forces a reload between a
-        # summary and an Ask request).
-        provider = OllamaProvider(num_ctx=num_ctx())
-        result = provider.generate_summary(
-            context=context,
-            repo_name=parsed.metadata.name,
-            context_variant=ContextVariant.KNOWLEDGE_GRAPH,
-            prompt_template=SUMMARY_PROMPT_TEMPLATE,
-            model=model,
+        # Same prompts as OllamaProvider.generate_summary(), the study's summary call.
+        result = llm.complete(
+            [
+                {"role": "system", "content": "You are a repository analysis assistant. Respond only with valid JSON."},
+                {"role": "user", "content": SUMMARY_PROMPT_TEMPLATE.format(context=context)},
+            ],
+            max_tokens=SUMMARY_MAX_TOKENS,
+            json_mode=True,
         )
-        if result.status != RunStatus.SUCCESS:
-            raise RuntimeError(_friendly_model_error(result.error or "", model))
-        summary, valid = _try_parse_summary_json(result.output.raw_text)
+        summary, valid = _try_parse_summary_json(result.text)
         store.update_analysis(
             analysis_id,
             summary_status="done" if summary else "failed",
             summary_error=None if summary else "The model's answer wasn't valid JSON. Try regenerating.",
+            summary_model=result.model,
             summary_json={
                 "summary": summary,
                 "valid": valid,
-                "raw_text": result.output.raw_text,
-                "model": model,
-                "latency_ms": result.metrics.latency_ms,
-                "input_tokens": result.metrics.input_tokens,
-                "output_tokens": result.metrics.output_tokens,
+                "raw_text": result.text,
+                "model": result.model,
+                "provider": result.provider,
+                "latency_ms": result.latency_ms,
+                "input_tokens": result.input_tokens,
+                "output_tokens": result.output_tokens,
             },
         )
     except Exception as e:  # noqa: BLE001
@@ -303,14 +318,5 @@ def _run_summary(analysis_id: str, model: str) -> None:
         current = store.get_analysis(analysis_id, include_documents=False)
         if current and current["status"] == "ready":
             store.update_analysis(analysis_id, stage="done")
-        # The provider's request resets Ollama's idle timer to its 5-minute default.
-        keep_warm(model)
-
-
-def _friendly_model_error(error: str, model: str) -> str:
-    low = error.lower()
-    if "not found" in low and "model" in low:
-        return f"The model '{model}' isn't installed. Run: ollama pull {model}"
-    if "connect" in low or "connection" in low:
-        return "Couldn't reach Ollama. Is it running? (ollama serve)"
-    return error
+        # The request resets Ollama's idle timer to its 5-minute default.
+        keep_warm()

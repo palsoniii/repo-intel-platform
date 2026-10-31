@@ -1,0 +1,14 @@
+**/node_modules
+**/dist
+**/venv
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.env
+**/.env.local
+.git
+.claude
+backend/data
+backend/evaluation_results
+backend/*.db
+docs

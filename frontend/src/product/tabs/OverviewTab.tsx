@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { api } from "../../lib/product";
+import { api, modelLabel, useSystem } from "../../lib/product";
 import { useRepo } from "../RepoLayout";
 import {
   Button,
@@ -18,6 +18,8 @@ import {
 
 export default function OverviewTab() {
   const { analysis, refresh } = useRepo();
+  const system = useSystem();
+  const hosted = system?.provider === "groq";
   const s = analysis.stats;
   const summary = analysis.summary?.summary ?? null;
 
@@ -47,7 +49,7 @@ export default function OverviewTab() {
             </div>
             {analysis.summary_status === "done" && analysis.summary && (
               <span className="text-xs text-muted">
-                {analysis.summary.model} · {(analysis.summary.latency_ms / 1000).toFixed(0)}s
+                {modelLabel(analysis.summary.provider, analysis.summary.model)} · {(analysis.summary.latency_ms / 1000).toFixed(0)}s
               </span>
             )}
           </div>
@@ -65,7 +67,7 @@ export default function OverviewTab() {
                 </div>
               )}
               <p className="mt-5 border-t border-line pt-4 text-xs leading-relaxed text-muted">
-                Written by a local model from the repository's knowledge graph. Everything else on
+                Written by {analysis.summary?.provider === "groq" ? "a language model on Groq" : "a local model"} from the repository's knowledge graph. Everything else on
                 this dashboard comes straight from the code, with no model involved.
               </p>
             </>
@@ -80,12 +82,12 @@ export default function OverviewTab() {
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-sm text-ink-2">
                 <Spinner />
-                {analysis.summary_status === "running" ? "The local model is reading the knowledge graph…" : "Waiting for the local model…"}
+                {analysis.summary_status === "running" ? "The model is reading the knowledge graph…" : "Waiting for the model…"}
               </div>
               <div className="skeleton h-4 w-full" />
               <div className="skeleton h-4 w-11/12" />
               <div className="skeleton h-4 w-4/5" />
-              <p className="pt-1 text-xs text-muted">Usually 20–60 seconds. Every other tab is ready now.</p>
+              <p className="pt-1 text-xs text-muted">{hosted ? "Usually a few seconds." : "Usually 20–60 seconds."} Every other tab is ready now.</p>
             </div>
           )}
         </Card>

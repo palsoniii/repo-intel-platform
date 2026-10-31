@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { api, askRepo, type AskEvent } from "../../lib/product";
+import { api, askRepo, modelLabel, useSystem, type AskEvent, type Provider } from "../../lib/product";
 import { ApiError } from "../../lib/api";
 import { useRepo } from "../RepoLayout";
 import { Button, Icon, Spinner } from "../ui";
@@ -11,7 +11,7 @@ interface Turn {
   sources?: { path: string }[];
   pending?: boolean;
   error?: string;
-  stats?: { output_tokens?: number; duration_ms?: number };
+  stats?: { output_tokens?: number; duration_ms?: number; model?: string; provider?: Provider };
   cached?: boolean;
   question?: string;
   startedAt?: number;
@@ -25,6 +25,7 @@ const conversations = new Map<string, Turn[]>();
 
 export default function AskTab() {
   const { analysis } = useRepo();
+  const system = useSystem();
   const [turns, setTurns] = useState<Turn[]>(() => conversations.get(analysis.id) ?? []);
   const [input, setInput] = useState("");
   const busy = turns.some((t) => t.pending);
@@ -90,7 +91,7 @@ export default function AskTab() {
           </span>
           <h2 className="mt-5 text-2xl font-semibold tracking-tight text-ink">Ask about {analysis.repo_name}</h2>
           <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-ink-2">
-            Answers come from a local model that reads this repository's structure and its most
+            Answers come from {system?.provider === "groq" ? "a language model on Groq" : "a local model"} that reads this repository's structure and its most
             relevant files. It lists the files it read, so you can check.
           </p>
           <div className="mx-auto mt-8 grid max-w-2xl gap-2 text-left sm:grid-cols-2">
@@ -156,7 +157,7 @@ export default function AskTab() {
                         <Icon name="check" className="h-3 w-3" /> Answered earlier, shown instantly
                       </span>
                     ) : (
-                      t.stats?.duration_ms && <span>{(t.stats.duration_ms / 1000).toFixed(0)}s · {t.stats.output_tokens} tokens · local model</span>
+                      t.stats?.duration_ms && <span>{(t.stats.duration_ms / 1000).toFixed(0)}s · {t.stats.output_tokens} tokens · {t.stats.model ? modelLabel(t.stats.provider, t.stats.model) : "local model"}</span>
                     )}
                     {t.cached && i === turns.length - 1 && t.question && (
                       <button onClick={() => void send(t.question!, true, true)} className="font-medium text-ink-2 hover:text-ink hover:underline">

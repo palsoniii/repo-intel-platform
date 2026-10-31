@@ -14,7 +14,7 @@ it. The repository is analysed once; every view reads from that stored analysis.
 | Data models | ER diagram and fields for Mongoose, TypeORM, Sequelize and Prisma models | No |
 | Dependencies | npm packages grouped by purpose | No |
 | Files | Source tree and highlighted viewer | No |
-| Ask | Questions answered by the local model, listing the files it read | Yes |
+| Ask | Questions answered by the model, listing the files it read | Yes |
 
 The dashboard opens as soon as parsing finishes (about two seconds after the clone).
 The Neo4j write and the summary keep running in the background.
@@ -39,6 +39,14 @@ cd ../frontend && npm install
 dashboard (`:5180`), and stops everything on Ctrl-C. Ollama runs natively, not in
 Docker: on a Mac, Docker can't use the GPU. Without Docker the dashboard still works;
 only the Neo4j write is skipped.
+
+**Model:** the local Ollama model by default. With `GROQ_API_KEY` in `backend/.env`
+the summary and Ask use Groq instead (faster, larger models; repository code is sent
+to Groq), falling back to the local model if Groq fails. The research pipeline always
+uses Ollama.
+
+**Deploying:** the root `Dockerfile` builds a single container (dashboard + API, Groq
+for the model, no GPU or Neo4j needed). Settings and host steps: `docs/DEPLOY.md`.
 
 **Where it lives:** `backend/app/product/` (job runner, SQLite store at
 `backend/data/product.db`, views, data-model extractor, Ask) behind `/api/*`;

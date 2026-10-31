@@ -47,6 +47,13 @@ it (`./demo.sh`, `python -m app.product.seed`).
   (user's choice over 3 for speed). First questions are cached per
   analysis (`answers` table) and replay instantly; the seeder pre-answers each
   repository's suggested questions.
+- **Deliverable (decided 2026-10-31):** the paper is done; the final presentation is a
+  deployable product, so the product layer may use Groq. `llm.py` is the only route
+  the summary and Ask take to a model: Groq when `GROQ_API_KEY` is set, otherwise the
+  local Ollama model, with per-call fallback to Ollama. The research pipeline still
+  uses Ollama only, so the locked scope above holds for everything the paper measured.
+  The root `Dockerfile` is the deployment (one container, `PUBLIC_MODE` rate limits);
+  `docs/DEPLOY.md` has the settings.
 - Not built yet, deliberately: function-level call graphs (`CALLS` edges are still
   never populated), new frameworks, paid APIs.
 

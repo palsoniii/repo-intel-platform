@@ -5,18 +5,17 @@ Dashboard API, mounted under /api. The research endpoints in main.py (/summarize
 
 from __future__ import annotations
 
-import os
 import threading
 from functools import lru_cache
-from typing import Any, Optional
+from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.acquisition.clone import InvalidRepoUrlError, validate_github_url
-from app.product import jobs, store, views
-from app.product.ask import prime, stream_answer, suggested_questions
+from app.product import jobs, llm, ratelimit, store, views
+from app.product.ask import prime, question_key, stream_answer, suggested_questions
 from app.schemas.parser_schema import ParsedRepository
 
 router = APIRouter(prefix="/api", tags=["dashboard"])
@@ -27,14 +26,9 @@ class CreateAnalysisRequest(BaseModel):
     force: bool = Field(False, description="Re-analyse even if this URL was analysed before")
 
 
-class SummaryRequest(BaseModel):
-    model: Optional[str] = None
-
-
 class AskRequest(BaseModel):
     question: str = Field(..., min_length=2, max_length=2000)
     history: list[dict[str, Any]] = Field(default_factory=list)
-    model: Optional[str] = None
     fresh: bool = Field(False, description="Ignore a stored answer and ask the model again")
 
 
@@ -68,16 +62,18 @@ def _public(analysis: dict) -> dict:
 
 
 @router.post("/analyses")
-def create_analysis(req: CreateAnalysisRequest) -> dict:
+def create_analysis(req: CreateAnalysisRequest, request: Request) -> dict:
     try:
         owner, repo = validate_github_url(req.url)
     except InvalidRepoUrlError as e:
         raise HTTPException(400, str(e))
     url = f"https://github.com/{owner}/{repo.removesuffix('.git')}"
-    if not req.force:
+    # A public deployment never re-analyses on request: a stored result is reused.
+    if not req.force or ratelimit.public_mode():
         existing = store.find_latest_for_url(url)
         if existing:
             return _public(existing) | {"reused": True}
+    ratelimit.check(request, "analyses")
     analysis = store.create_analysis(url, owner, repo.removesuffix(".git"))
     jobs.submit_analysis(analysis["id"], url)
     return _public(analysis) | {"reused": False}
@@ -107,6 +103,8 @@ def get_analysis(analysis_id: str) -> dict:
 
 @router.delete("/analyses/{analysis_id}")
 def delete_analysis(analysis_id: str) -> dict:
+    if ratelimit.public_mode():
+        raise HTTPException(403, "Deleting analyses is disabled on the public deployment.")
     store.delete_analysis(analysis_id)
     return {"deleted": analysis_id}
 
@@ -159,19 +157,22 @@ def get_file(analysis_id: str, path: str = Query(...)) -> dict:
 
 
 @router.post("/analyses/{analysis_id}/summary")
-def regenerate_summary(analysis_id: str, req: SummaryRequest) -> dict:
+def regenerate_summary(analysis_id: str, request: Request) -> dict:
     _load(analysis_id)
-    jobs.submit_summary(analysis_id, req.model)
+    ratelimit.check(request, "asks")
+    jobs.submit_summary(analysis_id)
     return {"queued": True}
 
 
 @router.post("/analyses/{analysis_id}/ask")
-def ask(analysis_id: str, req: AskRequest) -> StreamingResponse:
+def ask(analysis_id: str, req: AskRequest, request: Request) -> StreamingResponse:
     _, parsed, insights = _load(analysis_id)
     files = store.get_all_files(analysis_id)
+    if req.history or req.fresh or not store.get_cached_answer(analysis_id, question_key(req.question)):
+        ratelimit.check(request, "asks")  # replaying a stored answer costs nothing
     return StreamingResponse(
         stream_answer(
-            parsed, insights, files, req.question, req.history, req.model,
+            parsed, insights, files, req.question, req.history,
             analysis_id=analysis_id, use_cache=not req.fresh,
         ),
         media_type="application/x-ndjson",
@@ -190,31 +191,21 @@ def ask_prime(analysis_id: str) -> dict:
 
 @router.get("/system")
 def system_status() -> dict:
-    """What the demo depends on, so the UI can say what's missing instead of failing."""
-    out: dict[str, Any] = {"summary_model": jobs.summary_model()}
-    try:
-        import ollama
-
-        client = ollama.Client(host=os.environ.get("OLLAMA_HOST", "http://localhost:11434"), timeout=3)
-        models = [m.model for m in client.list().models]
-        out["ollama"] = {"reachable": True, "models": models}
-        out["summary_model_installed"] = any(
-            m == out["summary_model"] or m.split(":")[0] == out["summary_model"] for m in models
-        )
-    except Exception as e:  # noqa: BLE001
-        out["ollama"] = {"reachable": False, "error": str(e)}
-        out["summary_model_installed"] = False
+    """What the dashboard depends on, so the UI can say what's missing instead of
+    failing."""
+    out: dict[str, Any] = llm.status() | {"public": ratelimit.public_mode()}
+    out["neo4j"] = {"enabled": jobs.neo4j_enabled()}
+    if not jobs.neo4j_enabled():
+        return out
     try:
         from app.db.neo4j_client import get_driver
 
         driver = get_driver()
         try:
             driver.verify_connectivity()
-            out["neo4j"] = {"reachable": True}
+            out["neo4j"]["reachable"] = True
         finally:
             driver.close()
     except Exception as e:  # noqa: BLE001
-        out["neo4j"] = {"reachable": False, "error": str(e).splitlines()[0][:200]}
+        out["neo4j"] |= {"reachable": False, "error": str(e).splitlines()[0][:200]}
     return out
-
-

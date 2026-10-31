@@ -52,6 +52,6 @@ def test_cached_answer_replays_in_the_live_event_shape():
     store.save_cached_answer(a["id"], key, {"answer": "x" * 60, "sources": [{"path": "a.js"}], "model": "m", "stats": {}})
 
     events = [json.loads(line) for line in ask.stream_answer(None, {}, {}, "How does auth work?", analysis_id=a["id"])]
-    assert events[0] == {"type": "sources", "sources": [{"path": "a.js"}], "model": "m", "cached": True}
+    assert events[0] == {"type": "sources", "sources": [{"path": "a.js"}], "model": "m", "provider": "ollama", "cached": True}
     assert "".join(e["text"] for e in events if e["type"] == "token") == "x" * 60
     assert events[-1]["type"] == "done" and events[-1]["cached"] is True

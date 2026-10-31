@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
-import { api, type Analysis, type Stage } from "../lib/product";
+import { api, useSystem, type Analysis, type Stage } from "../lib/product";
 import { ApiError } from "../lib/api";
 import { Button, Chip, ErrorBox, Icon, Loading, Spinner, frameworkLabel, languageLabel, type IconName } from "./ui";
 
@@ -40,6 +40,8 @@ export default function RepoLayout() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  // The public deployment always serves the stored analysis, so re-analysing is off.
+  const system = useSystem();
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -112,7 +114,7 @@ export default function RepoLayout() {
               <Icon name="external" className="h-3.5 w-3.5" /> GitHub
             </Button>
           </a>
-          {(analysis.status === "ready" || analysis.status === "failed") && (
+          {system && !system.public && (analysis.status === "ready" || analysis.status === "failed") && (
             <Button variant="secondary" onClick={reanalyze} title="Clone and analyse the latest commit again">
               <Icon name="refresh" className="h-3.5 w-3.5" /> Re-analyze
             </Button>

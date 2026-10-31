@@ -5,12 +5,15 @@ GitHub URL -> parser -> Neo4j -> context -> Ollama -> summary pipeline, no mocks
 """
 
 import logging
+import os
 import re
+from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from app.pipeline import (
@@ -41,6 +44,14 @@ logger = logging.getLogger(__name__)
 # CORSMiddleware and unhandled_exception_handler below -- see that handler's
 # docstring for why both need it.
 DEV_CORS_ORIGIN_REGEX = re.compile(r"^http://(localhost|127\.0\.0\.1):\d+$")
+# A deployment serves the dashboard from this same server (see FRONTEND_DIST below),
+# so it needs no CORS at all. CORS_ORIGINS (comma-separated) is for a dashboard
+# hosted somewhere else.
+EXTRA_CORS_ORIGINS = {o.strip().rstrip("/") for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()}
+
+
+def _origin_allowed(origin: str) -> bool:
+    return bool(DEV_CORS_ORIGIN_REGEX.match(origin)) or origin in EXTRA_CORS_ORIGINS
 
 app = FastAPI(
     title="Repository Intelligence Platform",
@@ -51,6 +62,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origin_regex=DEV_CORS_ORIGIN_REGEX.pattern,
+    allow_origins=sorted(EXTRA_CORS_ORIGINS),
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -62,6 +74,20 @@ from app.product.router import router as product_router  # noqa: E402
 
 product_store.init_db()
 app.include_router(product_router)
+
+# The research endpoints run several model calls per request on the local Ollama.
+# A public deployment has no Ollama and shouldn't let visitors start that, so they're
+# switched off there; the dashboard only uses /api.
+RESEARCH_PATHS = {"/analyze", "/summarize", "/diagram", "/compare"}
+
+
+@app.middleware("http")
+async def _research_endpoints_off_in_public_mode(request: Request, call_next):
+    from app.product.ratelimit import public_mode
+
+    if request.url.path in RESEARCH_PATHS and public_mode():
+        return JSONResponse(status_code=403, content={"detail": "The research endpoints are disabled on the public deployment."})
+    return await call_next(request)
 
 
 @app.on_event("startup")
@@ -89,7 +115,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
     logger.exception("Unhandled exception in %s %s", request.method, request.url.path)
     response = JSONResponse(status_code=500, content={"detail": f"Internal error: {exc}"})
     origin = request.headers.get("origin")
-    if origin and DEV_CORS_ORIGIN_REGEX.match(origin):
+    if origin and _origin_allowed(origin):
         response.headers["Access-Control-Allow-Origin"] = origin
     return response
 
@@ -320,9 +346,35 @@ def _comparison_run(scored) -> "ComparisonRun":
     )
 
 
+# The built dashboard (frontend/dist), served from here in the production image so
+# the app is one service on one origin. In development Vite serves it instead and
+# this directory doesn't exist.
+FRONTEND_DIST = Path(os.environ.get("FRONTEND_DIST", Path(__file__).resolve().parents[2] / "frontend" / "dist"))
+SERVE_FRONTEND = (FRONTEND_DIST / "index.html").is_file()
+
+if SERVE_FRONTEND:
+    app.mount("/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="assets")
+
+
 @app.get("/")
-def root() -> dict[str, str]:
+def root():
+    if SERVE_FRONTEND:
+        return FileResponse(FRONTEND_DIST / "index.html")
     return {
         "message": "Repository Intelligence Platform API",
         "docs": "/docs",
     }
+
+
+if SERVE_FRONTEND:
+
+    @app.get("/{path:path}", include_in_schema=False)
+    def frontend(path: str):
+        """Files in dist (favicon, ...) as themselves; any other path is a dashboard
+        route (/repo/abc/graph), which the single-page app resolves itself."""
+        if path.startswith("api/"):
+            raise HTTPException(404, "Not found")
+        target = (FRONTEND_DIST / path).resolve()
+        if target.is_file() and FRONTEND_DIST.resolve() in target.parents:
+            return FileResponse(target)
+        return FileResponse(FRONTEND_DIST / "index.html")

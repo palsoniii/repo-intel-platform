@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { api, type AnalysisBrief, type SystemStatus } from "../lib/product";
+import { api, useSystem, type AnalysisBrief, type SystemStatus } from "../lib/product";
 import { ApiError } from "../lib/api";
 import { ErrorBox, Icon, Spinner, frameworkLabel, timeAgo, type IconName } from "./ui";
 
@@ -12,8 +12,8 @@ const EXAMPLES = [
 
 const STEPS: { icon: IconName; title: string; body: string }[] = [
   { icon: "code", title: "Parse", body: "tree-sitter reads every file: routes, classes, imports, data models." },
-  { icon: "graph", title: "Connect", body: "A knowledge graph links them, stored in Neo4j." },
-  { icon: "sparkles", title: "Explain", body: "A local model summarises it and answers questions, grounded in that graph." },
+  { icon: "graph", title: "Connect", body: "A knowledge graph links them: imports, routes, services and models." },
+  { icon: "sparkles", title: "Explain", body: "A language model summarises it and answers questions, grounded in that graph." },
 ];
 
 export default function HomePage() {
@@ -22,11 +22,10 @@ export default function HomePage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recent, setRecent] = useState<AnalysisBrief[] | null>(null);
-  const [system, setSystem] = useState<SystemStatus | null>(null);
+  const system = useSystem();
 
   useEffect(() => {
     api.listAnalyses().then(setRecent).catch(() => setRecent([]));
-    api.system().then(setSystem).catch(() => setSystem(null));
   }, []);
 
   async function analyze(target: string) {
@@ -59,7 +58,7 @@ export default function HomePage() {
         />
         <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1 text-xs font-medium text-ink-2 shadow-card">
           <Icon name="sparkles" className="h-3.5 w-3.5 text-accent" />
-          Runs entirely on this machine
+          {system?.provider === "groq" ? "Static analysis, a knowledge graph, and AI" : "Runs entirely on this machine"}
         </p>
         <h1 className="text-[34px] font-semibold leading-[1.08] tracking-[-0.03em] text-ink sm:text-[56px]">
           Understand any backend
@@ -194,9 +193,9 @@ function MiniStat({ value, label }: { value: number; label: string }) {
 
 function SystemLine({ system }: { system: SystemStatus }) {
   const items = [
-    { ok: system.ollama.reachable, label: "Ollama" },
-    { ok: system.summary_model_installed, label: system.summary_model },
-    { ok: system.neo4j.reachable, label: "Neo4j" },
+    { ok: system.llm.reachable, label: system.provider === "groq" ? "Groq" : "Ollama" },
+    { ok: !!system.llm.model_available, label: system.model },
+    ...(system.neo4j.enabled ? [{ ok: !!system.neo4j.reachable, label: "Neo4j" }] : []),
   ];
   const allOk = items.every((i) => i.ok);
   return (

@@ -2,6 +2,7 @@
 // Field names are kept in the backend's snake_case: these types are only used inside
 // the dashboard, and mapping every view's payload would be churn with no reader.
 
+import { useEffect, useState } from "react";
 import { API_BASE_URL, ApiError } from "./api";
 
 export type AnalysisStatus = "queued" | "running" | "ready" | "failed";
@@ -42,7 +43,7 @@ export interface AnalysisBrief {
   summary_status: SummaryStatus;
   summary_error: string | null;
   summary_model: string | null;
-  graph_status: "pending" | "stored" | "unavailable";
+  graph_status: "pending" | "stored" | "unavailable" | "disabled";
   created_at: string;
   updated_at: string;
   timings: Record<string, number>;
@@ -56,6 +57,7 @@ export interface Analysis extends AnalysisBrief {
     valid: boolean;
     raw_text: string;
     model: string;
+    provider?: Provider; // absent on summaries written before Groq support (local)
     latency_ms: number;
     input_tokens: number;
     output_tokens: number;
@@ -141,11 +143,34 @@ export interface FileEntry {
   classes: string[];
 }
 
+export type Provider = "groq" | "ollama";
+
 export interface SystemStatus {
-  summary_model: string;
-  summary_model_installed: boolean;
-  ollama: { reachable: boolean; models?: string[]; error?: string };
-  neo4j: { reachable: boolean; error?: string };
+  provider: Provider;
+  model: string;
+  label: string;
+  llm: { reachable: boolean; model_available?: boolean; models?: string[]; error?: string };
+  public: boolean;
+  neo4j: { enabled: boolean; reachable?: boolean; error?: string };
+}
+
+export function modelLabel(provider: Provider | undefined, model: string): string {
+  return `${provider === "groq" ? "Groq" : "Local"} · ${model}`;
+}
+
+// Fetched once per page load and shared: several components word themselves by
+// which model is configured.
+let systemRequest: Promise<SystemStatus> | null = null;
+
+export function useSystem(): SystemStatus | null {
+  const [system, setSystem] = useState<SystemStatus | null>(null);
+  useEffect(() => {
+    systemRequest ??= api.system();
+    systemRequest.then(setSystem).catch(() => {
+      systemRequest = null;
+    });
+  }, []);
+  return system;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -191,19 +216,27 @@ export const api = {
   files: (id: string) => get<FileEntry[]>(`/api/analyses/${id}/files`),
   file: (id: string, path: string) =>
     get<{ path: string; content: string }>(`/api/analyses/${id}/file?path=${encodeURIComponent(path)}`),
-  regenerateSummary: (id: string, model?: string) => post<unknown>(`/api/analyses/${id}/summary`, { model }),
+  regenerateSummary: (id: string) => post<unknown>(`/api/analyses/${id}/summary`, {}),
   system: () => get<SystemStatus>("/api/system"),
   primeAsk: (id: string) => post<unknown>(`/api/analyses/${id}/ask/prime`, {}),
 };
 
 export type AskEvent =
-  | { type: "sources"; sources: { path: string; score: number }[]; model: string; cached?: boolean }
+  | { type: "sources"; sources: { path: string; score: number }[]; model: string; provider?: Provider; cached?: boolean }
   | { type: "token"; text: string }
-  | { type: "done"; input_tokens?: number; output_tokens?: number; duration_ms?: number; cached?: boolean }
+  | {
+      type: "done";
+      input_tokens?: number;
+      output_tokens?: number;
+      duration_ms?: number;
+      cached?: boolean;
+      model?: string;
+      provider?: Provider;
+    }
   | { type: "error"; message: string };
 
-// Streams an answer as NDJSON events. The model writes ~15-25 tokens/s on this
-// hardware, so streaming is what makes a 20-second answer feel responsive.
+// Streams an answer as NDJSON events. The local model writes ~15-25 tokens/s on the
+// demo Mac, so streaming is what makes a 20-second answer feel responsive.
 export async function askRepo(
   id: string,
   question: string,

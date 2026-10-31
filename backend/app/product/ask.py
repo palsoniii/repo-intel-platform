@@ -1,6 +1,6 @@
 """
-Ask-the-repo: answers a question about an analysed repository with the local model,
-grounded in that repository's structure and source.
+Ask-the-repo: answers a question about an analysed repository with the dashboard's
+model (Groq or local, see llm.py), grounded in that repository's structure and source.
 
 Retrieval is lexical and structural, not embedding-based: the question's terms are
 matched against file paths, class/function names, endpoint paths and source text,
@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import json
 import math
-import os
 import re
 from collections import Counter, defaultdict
 from typing import Iterator
@@ -249,35 +248,26 @@ def build_prompt(parsed: ParsedRepository, insights: dict, files: dict[str, str]
     return f"{context}\n\nQuestion: {question}", sources
 
 
-def _client():
-    import ollama
+def prime(parsed: ParsedRepository, insights: dict, files: dict[str, str]) -> None:
+    """Has the local model read this repository's overview now, while the user is
+    still choosing a question, so the first answer starts sooner. Groq reads a prompt
+    fast enough not to need it."""
+    from app.product import llm
 
-    return ollama.Client(host=os.environ.get("OLLAMA_HOST", "http://localhost:11434"), timeout=600)
+    if llm.provider() == "ollama":
+        llm.ollama_prime([
+            {"role": "system", "content": system_message(parsed, insights, files)},
+            {"role": "user", "content": "Ready."},
+        ])
 
 
-def _options(**extra) -> dict:
-    from app.product.jobs import num_ctx
+def max_tokens() -> int:
+    """A cap on the answer, not its length: the prompt asks for under 200 words
+    (~300 tokens). Reasoning models on Groq think inside the same budget, so they get
+    more room to keep that thinking from cutting the answer off."""
+    from app.product import llm
 
-    return {"temperature": 0.2, "num_ctx": num_ctx(), **extra}
-
-
-def prime(parsed: ParsedRepository, insights: dict, files: dict[str, str], model: str | None = None) -> None:
-    """Has the model read this repository's overview now, while the user is still
-    choosing a question, so the first answer starts sooner."""
-    from app.product.jobs import KEEP_ALIVE, summary_model
-
-    try:
-        _client().chat(
-            model=model or summary_model(),
-            messages=[
-                {"role": "system", "content": system_message(parsed, insights, files)},
-                {"role": "user", "content": "Ready."},
-            ],
-            options=_options(num_predict=1),
-            keep_alive=KEEP_ALIVE,
-        )
-    except Exception:  # noqa: BLE001 -- an optimisation; the real request reports errors
-        pass
+    return MAX_ANSWER_TOKENS if llm.provider() == "ollama" else 2000
 
 
 def question_key(question: str) -> str:
@@ -286,7 +276,10 @@ def question_key(question: str) -> str:
 
 def _replay(cached: dict) -> Iterator[str]:
     """Streams a stored answer back in the same event shape as a live one."""
-    yield json.dumps({"type": "sources", "sources": cached["sources"], "model": cached["model"], "cached": True}) + "\n"
+    yield json.dumps({
+        "type": "sources", "sources": cached["sources"], "model": cached["model"],
+        "provider": cached.get("provider", "ollama"), "cached": True,
+    }) + "\n"
     text = cached["answer"]
     for i in range(0, len(text), 24):
         yield json.dumps({"type": "token", "text": text[i : i + 24]}) + "\n"
@@ -299,7 +292,6 @@ def stream_answer(
     files: dict[str, str],
     question: str,
     history: list[dict] | None = None,
-    model: str | None = None,
     analysis_id: str | None = None,
     use_cache: bool = True,
 ) -> Iterator[str]:
@@ -309,10 +301,8 @@ def stream_answer(
     A first question (no history) that was asked before about the same analysis is
     replayed from the store instantly; follow-ups always go to the model, because
     their answer depends on the conversation."""
-    from app.product import store
-    from app.product.jobs import KEEP_ALIVE, summary_model
+    from app.product import llm, store
 
-    model = model or summary_model()
     cacheable = analysis_id is not None and not history
     if cacheable and use_cache:
         cached = store.get_cached_answer(analysis_id, question_key(question))
@@ -321,7 +311,7 @@ def stream_answer(
             return
 
     user_prompt, sources = build_prompt(parsed, insights, files, question)
-    yield json.dumps({"type": "sources", "sources": sources, "model": model}) + "\n"
+    yield json.dumps({"type": "sources", "sources": sources, "model": llm.model(), "provider": llm.provider()}) + "\n"
 
     messages = [{"role": "system", "content": system_message(parsed, insights, files)}]
     for turn in (history or [])[-4:]:
@@ -330,31 +320,23 @@ def stream_answer(
     messages.append({"role": "user", "content": user_prompt})
 
     answer: list[str] = []
+    result = llm.StreamResult()
     try:
-        stats: dict = {}
-        for chunk in _client().chat(
-            model=model, messages=messages, options=_options(num_predict=MAX_ANSWER_TOKENS), stream=True, keep_alive=KEEP_ALIVE
-        ):
-            text = chunk.message.content or ""
-            if text:
-                answer.append(text)
-                yield json.dumps({"type": "token", "text": text}) + "\n"
-            if chunk.done:
-                stats = {
-                    "input_tokens": chunk.prompt_eval_count,
-                    "output_tokens": chunk.eval_count,
-                    "duration_ms": int((chunk.total_duration or 0) / 1e6),
-                }
+        for text in llm.stream(messages, max_tokens(), result):
+            answer.append(text)
+            yield json.dumps({"type": "token", "text": text}) + "\n"
+        # Who actually answered: a Groq failure before the first word falls back to
+        # the local model.
+        done = {**result.stats, "model": result.model, "provider": result.provider}
         if cacheable and answer:
             store.save_cached_answer(
                 analysis_id, question_key(question),
-                {"answer": "".join(answer), "sources": sources, "model": model, "stats": stats},
+                {"answer": "".join(answer), "sources": sources, "model": result.model,
+                 "provider": result.provider, "stats": result.stats},
             )
-        yield json.dumps({"type": "done", **stats}) + "\n"
+        yield json.dumps({"type": "done", **done}) + "\n"
     except Exception as e:  # noqa: BLE001
-        from app.product.jobs import _friendly_model_error
-
-        yield json.dumps({"type": "error", "message": _friendly_model_error(str(e), model)}) + "\n"
+        yield json.dumps({"type": "error", "message": str(e)}) + "\n"
 
 
 def suggested_questions(parsed: ParsedRepository, insights: dict) -> list[str]:

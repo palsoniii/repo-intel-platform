@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardTitle, Icon } from "./ui";
+import { useSystem } from "../lib/product";
 
 // Figures from the submitted paper (docs/paper.tex): Figure "fig:main" and Table
 // "tab:tokens". 18 repositories, judge gemma2:9b, generators run on a GPU cluster.
@@ -30,6 +31,9 @@ const TOKENS: typeof COVERAGE = {
 };
 
 export default function ResearchPage() {
+  // The live comparison runs every study model on the local Ollama, which a public
+  // deployment doesn't have (and the backend refuses there).
+  const system = useSystem();
   return (
     <div className="mx-auto max-w-5xl space-y-8">
       <header>
@@ -117,7 +121,7 @@ export default function ResearchPage() {
         </Card>
       </div>
 
-      <Link
+      {system && !system.public && <Link
         to="/research/live"
         className="group flex items-center justify-between gap-4 rounded-2xl border border-line bg-surface px-6 py-5 shadow-card transition hover:border-line-strong hover:shadow-pop"
       >
@@ -126,7 +130,7 @@ export default function ResearchPage() {
           <span className="block text-sm text-ink-2">Every model on every representation, for one repository. Takes several minutes.</span>
         </span>
         <Icon name="arrow" className="h-5 w-5 text-muted transition group-hover:translate-x-0.5 group-hover:text-ink" />
-      </Link>
+      </Link>}
     </div>
   );
 }
