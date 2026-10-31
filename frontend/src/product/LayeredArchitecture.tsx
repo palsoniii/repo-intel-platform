@@ -24,7 +24,6 @@ export default function LayeredArchitecture({ graph }: { graph: Architecture["la
     const ink2 = token("ink-2");
     const surface = token("surface");
     const line = token("line-strong");
-    const accent = token("accent");
 
     const width = Math.max(600, container.current.clientWidth - 64);
     const perRow = Math.max(1, Math.floor(width / COL_WIDTH));
@@ -50,8 +49,13 @@ export default function LayeredArchitecture({ graph }: { graph: Architecture["la
       });
       y += Math.ceil(members.length / perRow) * ROW_HEIGHT + 72;
     }
+    // An import link takes the colour of the layer it comes from, so a lane's
+    // outgoing dependencies read at a glance.
+    const groupOf = new Map(graph.nodes.map((n) => [n.id, layerGroup(n.layer)]));
     for (const l of graph.links) {
-      elements.push({ data: { id: `${l.source}->${l.target}`, source: l.source, target: l.target, count: l.count } });
+      elements.push({
+        data: { id: `${l.source}->${l.target}`, source: l.source, target: l.target, count: l.count, from: groupOf.get(l.source) },
+      });
     }
     container.current.style.height = `${Math.min(920, Math.max(320, y + 24))}px`;
 
@@ -112,17 +116,21 @@ export default function LayeredArchitecture({ graph }: { graph: Architecture["la
         {
           selector: "edge",
           style: {
-            width: "mapData(count, 1, 10, 1, 3.5)",
+            width: "mapData(count, 1, 10, 1.4, 4)",
             "curve-style": "bezier",
             "line-color": line,
             "target-arrow-color": line,
             "target-arrow-shape": "triangle",
-            "arrow-scale": 0.7,
-            opacity: 0.45,
+            "arrow-scale": 1.2,
+            opacity: 0.6,
           },
         },
+        ...LAYER_GROUPS.map((g) => ({
+          selector: `edge[from = "${g.id}"]`,
+          style: { "line-color": color(g.id), "target-arrow-color": color(g.id) },
+        })),
         { selector: ".faded", style: { opacity: 0.1 } },
-        { selector: "edge.hl", style: { opacity: 1, "line-color": accent, "target-arrow-color": accent, width: 2, "z-index": 9 } },
+        { selector: "edge.hl", style: { opacity: 1, width: 3, "arrow-scale": 1.4, "z-index": 9 } },
         { selector: "node.hl[group]", style: { "border-width": 2 } },
       ],
     });

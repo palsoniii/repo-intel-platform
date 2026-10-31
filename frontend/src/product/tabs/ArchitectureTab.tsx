@@ -28,7 +28,7 @@ export default function ArchitectureTab() {
         description={
           <>
             Every file, grouped by the role it plays, top to bottom in the order a request travels.
-            Arrows are imports. Hover a file to see what it depends on; click to open it.
+            Arrows are imports, coloured by the layer they come from. Hover a file to see what it depends on; click to open it.
             {data.layered.grouped && " This repository is large, so files are grouped by folder."}
           </>
         }
